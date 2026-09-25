@@ -1,17 +1,2 @@
-import { redirect } from "next/navigation";
-import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-
-export default async function PropertiesPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-  const { data, error } = await supabase.from("property_360").select("id,name,address_line_1,city,province,postal_code,status,customer_name,active_contracts,open_work_orders,open_issues").order("name").limit(100);
-  return <ListPage title="Properties" eyebrow="PROPERTY CONTROL" href="/dashboard" rows={data ?? []} error={error?.message} columns={[
-    ["name","Property"],["customer_name","Customer"],["city","City"],["status","Status"],["active_contracts","Contracts"],["open_work_orders","Work"],["open_issues","Issues"]
-  ]} />;
-}
-
-function ListPage({title,eyebrow,href,rows,error,columns}:{title:string;eyebrow:string;href:string;rows:Record<string,unknown>[];error?:string;columns:[string,string][]}) {
-  return <main className="list-shell"><header className="list-header"><div><Link className="back" href={href}>← Command</Link><span className="eyebrow">{eyebrow}</span><h1>{title}</h1></div><span className="count">{rows.length} shown</span></header><section className="table-panel">{error ? <p className="error">{error}</p> : rows.length===0 ? <p className="muted">No records are available to this workspace yet.</p> : <div className="table-wrap"><table><thead><tr>{columns.map(([,label])=><th key={label}>{label}</th>)}</tr></thead><tbody>{rows.map((row,i)=><tr key={String(row.id ?? i)}>{columns.map(([key])=><td key={key}>{String(row[key] ?? "—")}</td>)}</tr>)}</tbody></table></div>}</section></main>;
-}
+import {redirect} from "next/navigation";import Link from "next/link";import {createClient} from "@/lib/supabase/server";
+export default async function Page(){const s=await createClient();const {data:{user}}=await s.auth.getUser();if(!user)redirect("/login");const {data,error}=await s.from("property_360").select("id,name,city,province,status,customer_name,active_contracts,open_work_orders,open_issues").order("name").limit(200);return <main className="list-shell"><header className="list-header"><Link className="back" href="/dashboard">← Command</Link><span className="eyebrow">PROPERTY CONTROL</span><h1>Properties</h1></header><section className="table-panel"><div className="table-wrap"><table><thead><tr><th>Property</th><th>Customer</th><th>Location</th><th>Status</th><th>Contracts</th><th>Work</th><th>Issues</th></tr></thead><tbody>{data?.map(r=><tr key={r.id}><td><Link href={`/properties/${r.id}`}>{r.name}</Link></td><td>{r.customer_name??"—"}</td><td>{r.city}, {r.province??""}</td><td>{r.status}</td><td>{r.active_contracts}</td><td>{r.open_work_orders}</td><td>{r.open_issues}</td></tr>)}</tbody></table></div>{error&&<p className="error">{error.message}</p>}</section></main>}

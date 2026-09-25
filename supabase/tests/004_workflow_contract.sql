@@ -1,0 +1,5 @@
+-- Read-only database-backed workflow contract checks.
+select count(*) as workflow_tables from information_schema.tables where table_schema='public' and table_name in ('work_orders','work_order_assignments','work_visits','issues','contracts','opportunities','properties');
+select typname,count(*) as enum_values from pg_type t join pg_enum e on e.enumtypid=t.oid where t.typname in ('work_order_status','assignment_type','issue_status','contract_status','opportunity_stage') group by typname order by typname;
+select c.relname as tablename,c.relrowsecurity as rowsecurity,c.relforcerowsecurity as forcerowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname in ('work_orders','work_order_assignments','work_visits','issues','contracts','opportunities','properties') order by c.relname;
+select indexname from pg_indexes where schemaname='public' and indexname='idx_work_orders_schedule';

@@ -36,8 +36,6 @@ export default async function DashboardPage() {
           <Link href="/issues">Issues</Link>
           <Link href="/sales">Sales</Link>
           <Link href="/contracts">Contracts</Link>
-          <Link href="/finance">Finance</Link>
-          <Link href="/people">People & crews</Link>
         </nav>
       </aside>
       <section className="workspace">
@@ -64,5 +62,5 @@ export default async function DashboardPage() {
 }
 
 function Metric({label,value,href}:{label:string;value:number;href:string}) {
-  return <Link className="metric" href={href}><span>{label}</span><strong>{value}</strong><small>Open →</small></Link>;
+  return <Link className="metric" href={href as any}><span>{label}</span><strong>{value}</strong><small>Open →</small></Link>;
 }
