@@ -39,9 +39,9 @@ begin
     and policyname in ('profile_self_select','profile_self_insert','profile_self_update')
     and (
       coalesce(qual,'') like '%auth.uid()%'
-      and coalesce(qual,'') not like '%select auth.uid()%'
+      and lower(coalesce(qual,'')) not like '%select auth.uid()%'
       or coalesce(with_check,'') like '%auth.uid()%'
-      and coalesce(with_check,'') not like '%select auth.uid()%'
+      and lower(coalesce(with_check,'')) not like '%select auth.uid()%'
     );
 
   if bad_count <> 0 then
