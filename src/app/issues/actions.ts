@@ -1,10 +1,6 @@
 "use server";
-import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
-export async function updateIssue(formData: FormData) {
- const s=await createClient(); const {data:{user}}=await s.auth.getUser(); if(!user) throw new Error("Unauthorized");
- const id=String(formData.get("id")); const status=String(formData.get("status"));
- if(!["open","in_progress","blocked","resolved","closed"].includes(status)) throw new Error("Invalid status");
- const patch:any={status}; if(status==="resolved"){patch.resolved_at=new Date().toISOString(); patch.resolution_notes=String(formData.get("resolution_notes")||"");}
- const {error}=await s.from("issues").update(patch).eq("id",id); if(error) throw new Error(error.message); revalidatePath("/issues"); revalidatePath("/dashboard");
-}
+import { revalidatePath } from "next/cache"; import { createClient } from "@/lib/supabase/server";
+const v=(f:FormData,k:string)=>String(f.get(k)??"").trim(); async function auth(){const s=await createClient();const {data:{user}}=await s.auth.getUser();if(!user)throw new Error("Unauthorized");return{s,user};}
+export async function createIssue(f:FormData){const {s,user}=await auth();const property_id=v(f,"property_id");const {data:p}=await s.from("properties").select("workspace_id").eq("id",property_id).single();if(!p)throw new Error("Property not found");const {error}=await s.from("issues").insert({workspace_id:p.workspace_id,property_id,issue_type:v(f,"issue_type")||"other",severity:v(f,"severity")||"medium",status:"open",title:v(f,"title"),description:v(f,"description"),reported_by:user.id,reported_at:new Date().toISOString(),due_at:v(f,"due_at")||null,customer_visible:f.get("customer_visible")==="on"});if(error)throw new Error(error.message);revalidatePath("/issues");}
+export async function updateIssue(f:FormData){const {s}=await auth();const status=v(f,"status"),severity=v(f,"severity");if(!["open","in_progress","blocked","resolved","closed"].includes(status)||!["low","medium","high","critical"].includes(severity))throw new Error("Invalid issue state");const patch:any={status,severity,assigned_to:v(f,"assigned_to")||null,due_at:v(f,"due_at")||null};if(status==="resolved"){patch.resolved_at=new Date().toISOString();patch.resolution_notes=v(f,"resolution_notes");}else patch.resolved_at=null;const {error}=await s.from("issues").update(patch).eq("id",v(f,"id"));if(error)throw new Error(error.message);revalidatePath("/issues");}
+export async function escalateIssue(f:FormData){const {s}=await auth();const id=v(f,"id");const {data:i}=await s.from("issues").select("severity").eq("id",id).single();if(!i)throw new Error("Issue not found");const severity={low:"medium",medium:"high",high:"critical",critical:"critical"}[i.severity]||"critical";const {error}=await s.from("issues").update({severity,status:"in_progress"}).eq("id",id);if(error)throw new Error(error.message);revalidatePath("/issues");}
