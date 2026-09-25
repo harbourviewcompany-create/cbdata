@@ -1,11 +1,5 @@
 "use server";
-import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
-export async function transitionOpportunity(formData: FormData) {
- const s=await createClient(); const {data:{user}}=await s.auth.getUser(); if(!user) throw new Error("Unauthorized");
- const id=String(formData.get("id")); const stage=String(formData.get("stage"));
- if(!["new","qualified","site_visit","estimating","proposal","negotiation","won","lost"].includes(stage)) throw new Error("Invalid stage");
- const status=stage==="won"?"won":stage==="lost"?"lost":"open";
- const {error}=await s.from("opportunities").update({stage:stage as any,status:status as any,closed_at:stage==="won"||stage==="lost"?new Date().toISOString():null}).eq("id",id);
- if(error) throw new Error(error.message); revalidatePath("/sales"); revalidatePath("/dashboard");
-}
+import { revalidatePath } from "next/cache";import { createClient } from "@/lib/supabase/server";
+const v=(f:FormData,k:string)=>String(f.get(k)??"").trim();async function auth(){const s=await createClient();const {data:{user}}=await s.auth.getUser();if(!user)throw new Error("Unauthorized");return{s,user};}
+export async function createOpportunity(f:FormData){const {s,user}=await auth();const organization_id=v(f,"organization_id");const {data:o}=await s.from("organizations").select("workspace_id").eq("id",organization_id).single();if(!o)throw new Error("Customer not found");const property_id=v(f,"property_id");if(property_id){const {data:p}=await s.from("properties").select("id").eq("id",property_id).eq("workspace_id",o.workspace_id).single();if(!p)throw new Error("Property not in customer workspace");}const {error}=await s.from("opportunities").insert({workspace_id:o.workspace_id,organization_id,property_id:property_id||null,name:v(f,"name"),stage:"new",status:"open",owner_user_id:user.id,estimated_value:Number(v(f,"estimated_value")),estimated_start_date:v(f,"estimated_start_date")||null,estimated_close_date:v(f,"estimated_close_date")||null,probability:Number(v(f,"probability"))||null,notes:v(f,"notes")||null});if(error)throw new Error(error.message);revalidatePath("/sales");}
+export async function transitionOpportunity(f:FormData){const {s}=await auth();const id=v(f,"id"),stage=v(f,"stage");const {data:o}=await s.from("opportunities").select("stage").eq("id",id).single();if(!o)throw new Error("Opportunity not found");const order=["new","qualified","site_visit","estimating","proposal","negotiation","won"];if(stage!=="lost"&&stage!=="won"&&order.indexOf(stage)!==order.indexOf(o.stage)+1)throw new Error("Invalid opportunity transition");if(![...order,"lost"].includes(stage))throw new Error("Invalid stage");const status=stage==="won"?"won":stage==="lost"?"lost":"open";const {error}=await s.from("opportunities").update({stage,status,closed_at:stage==="won"||stage==="lost"?new Date().toISOString():null} as any).eq("id",id);if(error)throw new Error(error.message);revalidatePath("/sales");}
