@@ -1432,6 +1432,8 @@ export type Database = {
           subtotal: number
           tax: number
           total: number
+          work_order_id: string | null
+          work_order_id?: string | null
           workspace_id: string
         }
         Insert: {
@@ -1464,9 +1466,17 @@ export type Database = {
           subtotal?: number
           tax?: number
           total?: number
+          work_order_id?: string | null
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoices_contract_id_fkey"
             columns: ["contract_id"]
