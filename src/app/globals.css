@@ -205,3 +205,93 @@ tr:hover td{background:rgba(255,255,255,.015)}
   .metrics{grid-template-columns:1fr}
   .auth-card{padding:26px}
 }
+/* —— Shared shell + properties form —— */
+.nav-group{
+  margin:14px 0 4px;padding:0 12px;
+  color:var(--muted);font-size:9px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
+}
+.nav-group:first-child{margin-top:0}
+.sidebar{display:flex;flex-direction:column}
+.sidebar nav{flex:1}
+.sidebar-foot{margin-top:auto;padding:16px 8px 4px;border-top:1px solid var(--line)}
+.sidebar-user{max-width:100%;margin-bottom:8px;font-size:11px}
+.role-chip{
+  display:inline-block;padding:3px 8px;border-radius:999px;
+  border:1px solid var(--line);color:var(--muted);font-size:10px;font-weight:700;
+  text-transform:capitalize;
+}
+.signout-form{margin-top:10px}
+.signout-btn{width:100%;min-height:34px;font-size:11px}
+.topbar-actions{display:flex;align-items:center;gap:8px}
+.hero-friendly .hero-cta{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.metric-alert{border-color:rgba(239,107,115,.35);background:linear-gradient(180deg,rgba(239,107,115,.08),var(--panel))}
+.metric-alert strong{color:#ffb4b8}
+.setup-panel{margin-top:4px}
+.setup-steps{list-style:none;margin:18px 0 0;padding:0;display:grid;gap:12px;counter-reset:step}
+.setup-steps li{
+  display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:12px;
+  padding:14px 16px;border:1px solid var(--line);border-radius:10px;
+  background:rgba(255,255,255,.02);
+}
+.setup-steps li::before{
+  content:counter(step);counter-increment:step;
+  flex:0 0 28px;height:28px;display:grid;place-items:center;
+  border-radius:8px;border:1px solid rgba(242,201,76,.35);
+  color:var(--accent);font-size:12px;font-weight:800;
+}
+.setup-steps li strong{display:block;margin-bottom:4px;font-size:14px}
+.setup-steps li p{margin:0;font-size:12px}
+.queue-list{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:8px}
+.queue-list a{
+  display:grid;gap:2px;padding:12px 12px;border:1px solid var(--line);border-radius:10px;
+  background:rgba(255,255,255,.02);transition:border-color .15s,background .15s;
+}
+.queue-list a:hover{border-color:var(--line-strong);background:var(--panel-2)}
+.queue-list strong{font-size:13px}
+.queue-list .muted{font-size:11px}
+.empty-queue{margin:16px 0 0;font-size:13px;line-height:1.45}
+.section-label{
+  margin:22px 0 10px;color:var(--muted);
+  font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+}
+.quick-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.quick-card{
+  display:grid;gap:4px;padding:16px;border:1px solid var(--line);border-radius:12px;
+  background:var(--panel);transition:transform .15s,border-color .15s,background .15s;
+}
+.quick-card:hover{transform:translateY(-1px);border-color:var(--line-strong);background:var(--panel-2)}
+.quick-card strong{font-size:14px}
+.quick-card span{color:var(--muted);font-size:12px}
+.empty-card{
+  max-width:480px;padding:28px;border:1px solid var(--line);border-radius:16px;
+  background:var(--panel);text-align:left;
+}
+.page-intro{margin-bottom:18px}
+.page-title{margin:6px 0 8px;font-size:28px;letter-spacing:-.03em}
+.property-form{margin-top:14px}
+.field{display:grid;gap:6px}
+.field>span{color:var(--muted);font-size:11px;font-weight:700}
+.field input,.field select{
+  width:100%;min-height:40px;padding:0 12px;
+  border:1px solid var(--line);border-radius:9px;
+  background:var(--panel-2);color:var(--text);
+}
+.field-span-2{grid-column:span 2}
+.form-actions{display:flex;align-items:end}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.06);font-size:12px;font-weight:600}
+.stack-actions{display:flex;flex-direction:column;gap:8px;min-width:180px}
+.mini-form{display:flex;flex-direction:column;gap:6px}
+.mini-form select,.mini-form input{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);color:var(--text)}
+
+@media(max-width:1000px){
+  .quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .setup-steps li{grid-template-columns:28px 1fr;gap:10px}
+  .setup-steps li .button{grid-column:2}
+  .field-span-2{grid-column:span 1}
+}
+@media(max-width:720px){
+  .quick-grid{grid-template-columns:1fr}
+  .topbar-actions{display:none}
+  .hero-cta{margin-top:16px}
+  .sidebar-foot .user-pill{display:none}
+}
