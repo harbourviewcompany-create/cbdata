@@ -9,7 +9,7 @@ const v = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 function splitName(full: string) {
   const parts = full.split(/\s+/).filter(Boolean);
   if (parts.length === 0) return { first_name: "Unknown", last_name: "Contact" };
-  if (parts.length === 1) return { first_name: parts[0], last_name: "—" };
+  if (parts.length === 1) return { first_name: parts[0], last_name: "\u2014" };
   return { first_name: parts[0], last_name: parts.slice(1).join(" ") };
 }
 
@@ -41,6 +41,17 @@ export async function saveTargetAccount(f: FormData) {
   const snapshotPhone = v(f, "phone") || companyPhone;
   const snapshotEmail = v(f, "email") || companyEmail;
   const contactName = v(f, "contact_name") || null;
+  const hq1 = v(f, "hq_address_line_1") || null;
+  const hq2 = v(f, "hq_address_line_2") || null;
+  const hqCity = v(f, "hq_city") || null;
+  const hqProvince = v(f, "hq_province") || null;
+  const hqPostal = v(f, "hq_postal_code") || null;
+  const linkedin = v(f, "linkedin_url") || null;
+  const fax = v(f, "main_fax") || null;
+  const companyAddress =
+    [hq1, hq2, hqCity, hqProvince, hqPostal].filter(Boolean).join(", ") ||
+    v(f, "property_address") ||
+    null;
 
   let organizationId = t.organization_id as string | null;
 
@@ -52,6 +63,13 @@ export async function saveTargetAccount(f: FormData) {
     email: companyEmail,
     notes,
     primary_region: region,
+    hq_city: hqCity,
+    hq_province: hqProvince,
+    hq_address_line_1: hq1,
+    hq_address_line_2: hq2,
+    hq_postal_code: hqPostal,
+    linkedin_url: linkedin,
+    main_fax: fax,
     doors_managed: doors ? Number(doors) : null,
     buildings_managed: buildings ? Number(buildings) : null,
     updated_at: new Date().toISOString(),
@@ -87,6 +105,11 @@ export async function saveTargetAccount(f: FormData) {
       contact_name: contactName,
       phone: snapshotPhone,
       email: snapshotEmail,
+      company_phone: companyPhone,
+      company_email: companyEmail,
+      company_website: website,
+      company_address: companyAddress,
+      property_address: companyAddress,
       region,
       notes,
       updated_at: new Date().toISOString(),
@@ -116,6 +139,8 @@ export async function addTargetContact(f: FormData) {
   const phone = v(f, "phone") || null;
   const mobile = v(f, "mobile") || null;
   const title = v(f, "job_title") || null;
+  const linkedin = v(f, "linkedin_url") || null;
+  const extension = v(f, "phone_extension") || null;
   const relationship = v(f, "relationship_type") || "key_contact";
   const isPrimary = v(f, "is_primary") === "on" || v(f, "is_primary") === "true";
 
@@ -129,6 +154,8 @@ export async function addTargetContact(f: FormData) {
       email,
       phone,
       mobile,
+      linkedin_url: linkedin,
+      phone_extension: extension,
       status: "active",
     })
     .select("id")
