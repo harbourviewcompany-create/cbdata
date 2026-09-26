@@ -38,3 +38,16 @@ Database security:
 ## Rule
 
 Schema changes must be made through a new migration and verified with database-level tests before frontend work depends on them.
+
+## Regenerating TypeScript types
+
+After applying a migration, regenerate `src/lib/database.types.ts` so Vercel typecheck matches the live schema.
+
+```bash
+supabase login
+supabase link --project-ref nzjwhmqrsxztnpdppbub
+npm run types:supabase
+npx tsc --noEmit
+```
+
+Full steps: `docs/supabase-types.md`
