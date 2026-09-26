@@ -207,7 +207,7 @@ begin
     raise exception 'outreach_target % not found', p_target_id;
   end if;
 
-  if not public.is_workspace_member(v_workspace_id) then
+  if not private.is_workspace_member(v_workspace_id) then
     raise exception 'not a member of workspace';
   end if;
 
@@ -304,7 +304,7 @@ begin
     raise exception 'outreach_list % not found', p_list_id;
   end if;
 
-  if not public.is_workspace_member(v_workspace_id) then
+  if not private.is_workspace_member(v_workspace_id) then
     raise exception 'not a member of workspace';
   end if;
 
@@ -348,7 +348,7 @@ begin
     raise exception 'outreach_target % not found', p_target_id;
   end if;
 
-  if not public.is_workspace_member(v_target.workspace_id) then
+  if not private.is_workspace_member(v_target.workspace_id) then
     raise exception 'not a member of workspace';
   end if;
 
@@ -432,7 +432,7 @@ begin
     raise exception 'outreach_target % not found', p_target_id;
   end if;
 
-  if not public.is_workspace_member(v_target.workspace_id) then
+  if not private.is_workspace_member(v_target.workspace_id) then
     raise exception 'not a member of workspace';
   end if;
 
