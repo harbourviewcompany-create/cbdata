@@ -47,7 +47,7 @@ CREATE OR REPLACE FUNCTION public.has_workspace_role(p_workspace_id uuid, p_role
  LANGUAGE sql
  STABLE SECURITY DEFINER
  SET search_path TO 'public'
-AS $function$ select exists(select 1 from public.workspace_memberships m where m.workspace_id=p_workspace_id and m.user_id=auth.uid() and m.status='active' and m.role=any(p_roles)) $function$
+AS $function$ select exists(select 1 from public.workspace_memberships m where m.workspace_id=p_workspace_id and m.user_id=auth.uid() and m.status='active' and m.role=any(p_roles)) $function$;
 
 
 CREATE OR REPLACE FUNCTION public.is_workspace_member(p_workspace_id uuid)
@@ -55,14 +55,14 @@ CREATE OR REPLACE FUNCTION public.is_workspace_member(p_workspace_id uuid)
  LANGUAGE sql
  STABLE SECURITY DEFINER
  SET search_path TO 'public'
-AS $function$ select exists(select 1 from public.workspace_memberships m where m.workspace_id=p_workspace_id and m.user_id=auth.uid() and m.status='active') $function$
+AS $function$ select exists(select 1 from public.workspace_memberships m where m.workspace_id=p_workspace_id and m.user_id=auth.uid() and m.status='active') $function$;
 
 
 CREATE OR REPLACE FUNCTION public.touch_updated_at()
  RETURNS trigger
  LANGUAGE plpgsql
  SET search_path TO 'public'
-AS $function$ begin new.updated_at=now(); return new; end $function$
+AS $function$ begin new.updated_at=now(); return new; end $function$;
 
 
 create table public.activities (
