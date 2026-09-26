@@ -828,29 +828,29 @@ alter table public.workspace_memberships add constraint workspace_memberships_wo
 alter table public.workspaces add constraint workspaces_pkey PRIMARY KEY (id);
 alter table public.workspaces add constraint workspaces_slug_key UNIQUE (slug);
 
-CREATE INDEX idx_assignments_work_order ON public.work_order_assignments USING btree (workspace_id, work_order_id, status)
-CREATE INDEX idx_audit_entity ON public.audit_events USING btree (workspace_id, entity_type, entity_id, occurred_at DESC)
-CREATE INDEX idx_buildings_property ON public.buildings USING btree (workspace_id, property_id)
-CREATE INDEX idx_contacts_ws_name ON public.contacts USING btree (workspace_id, last_name, first_name)
-CREATE INDEX idx_contract_services_contract ON public.contract_services USING btree (workspace_id, contract_id, active)
-CREATE INDEX idx_contracts_property ON public.contracts USING btree (workspace_id, property_id, status)
-CREATE INDEX idx_contracts_renewal ON public.contracts USING btree (workspace_id, end_date) WHERE (status = ANY (ARRAY['active'::contract_status, 'renewal_pending'::contract_status]))
-CREATE INDEX idx_estimates_status ON public.estimates USING btree (workspace_id, status)
-CREATE INDEX idx_inspections_property ON public.inspections USING btree (workspace_id, property_id, status)
-CREATE INDEX idx_invoice_items_work_order ON public.invoice_items USING btree (workspace_id, work_order_id)
-CREATE INDEX idx_invoices_ar ON public.invoices USING btree (workspace_id, status, due_date)
-CREATE INDEX idx_issues_queue ON public.issues USING btree (workspace_id, status, severity, due_at)
-CREATE INDEX idx_opps_stage ON public.opportunities USING btree (workspace_id, stage, status)
-CREATE INDEX idx_org_ws_name ON public.organizations USING btree (workspace_id, operating_name, legal_name)
-CREATE INDEX idx_properties_ws_city ON public.properties USING btree (workspace_id, city)
-CREATE INDEX idx_properties_ws_postal ON public.properties USING btree (workspace_id, postal_code)
-CREATE INDEX idx_properties_ws_status ON public.properties USING btree (workspace_id, status)
-CREATE INDEX idx_schedules_service ON public.service_schedules USING btree (workspace_id, contract_service_id, active)
-CREATE INDEX idx_system_queue ON public.system_events USING btree (status, occurred_at)
-CREATE INDEX idx_tasks_due ON public.tasks USING btree (workspace_id, status, due_at)
-CREATE INDEX idx_time_work_order ON public.time_entries USING btree (workspace_id, work_order_id)
-CREATE INDEX idx_work_orders_property ON public.work_orders USING btree (workspace_id, property_id, status)
-CREATE INDEX idx_work_orders_schedule ON public.work_orders USING btree (workspace_id, scheduled_start, status)
+CREATE INDEX idx_assignments_work_order ON public.work_order_assignments USING btree (workspace_id, work_order_id, status);
+CREATE INDEX idx_audit_entity ON public.audit_events USING btree (workspace_id, entity_type, entity_id, occurred_at DESC);
+CREATE INDEX idx_buildings_property ON public.buildings USING btree (workspace_id, property_id);
+CREATE INDEX idx_contacts_ws_name ON public.contacts USING btree (workspace_id, last_name, first_name);
+CREATE INDEX idx_contract_services_contract ON public.contract_services USING btree (workspace_id, contract_id, active);
+CREATE INDEX idx_contracts_property ON public.contracts USING btree (workspace_id, property_id, status);
+CREATE INDEX idx_contracts_renewal ON public.contracts USING btree (workspace_id, end_date) WHERE (status = ANY (ARRAY['active'::contract_status, 'renewal_pending'::contract_status]));
+CREATE INDEX idx_estimates_status ON public.estimates USING btree (workspace_id, status);
+CREATE INDEX idx_inspections_property ON public.inspections USING btree (workspace_id, property_id, status);
+CREATE INDEX idx_invoice_items_work_order ON public.invoice_items USING btree (workspace_id, work_order_id);
+CREATE INDEX idx_invoices_ar ON public.invoices USING btree (workspace_id, status, due_date);
+CREATE INDEX idx_issues_queue ON public.issues USING btree (workspace_id, status, severity, due_at);
+CREATE INDEX idx_opps_stage ON public.opportunities USING btree (workspace_id, stage, status);
+CREATE INDEX idx_org_ws_name ON public.organizations USING btree (workspace_id, operating_name, legal_name);
+CREATE INDEX idx_properties_ws_city ON public.properties USING btree (workspace_id, city);
+CREATE INDEX idx_properties_ws_postal ON public.properties USING btree (workspace_id, postal_code);
+CREATE INDEX idx_properties_ws_status ON public.properties USING btree (workspace_id, status);
+CREATE INDEX idx_schedules_service ON public.service_schedules USING btree (workspace_id, contract_service_id, active);
+CREATE INDEX idx_system_queue ON public.system_events USING btree (status, occurred_at);
+CREATE INDEX idx_tasks_due ON public.tasks USING btree (workspace_id, status, due_at);
+CREATE INDEX idx_time_work_order ON public.time_entries USING btree (workspace_id, work_order_id);
+CREATE INDEX idx_work_orders_property ON public.work_orders USING btree (workspace_id, property_id, status);
+CREATE INDEX idx_work_orders_schedule ON public.work_orders USING btree (workspace_id, scheduled_start, status);
 
 create policy workspace_member_insert on public.activities for insert with check (is_workspace_member(workspace_id));
 create policy workspace_member_select on public.activities for select using (is_workspace_member(workspace_id));
@@ -1455,29 +1455,29 @@ alter table public.workspace_memberships add constraint workspace_memberships_wo
 alter table public.workspaces add constraint workspaces_pkey PRIMARY KEY (id);
 alter table public.workspaces add constraint workspaces_slug_key UNIQUE (slug);
 
-CREATE INDEX idx_assignments_work_order ON public.work_order_assignments USING btree (workspace_id, work_order_id, status)
-CREATE INDEX idx_audit_entity ON public.audit_events USING btree (workspace_id, entity_type, entity_id, occurred_at DESC)
-CREATE INDEX idx_buildings_property ON public.buildings USING btree (workspace_id, property_id)
-CREATE INDEX idx_contacts_ws_name ON public.contacts USING btree (workspace_id, last_name, first_name)
-CREATE INDEX idx_contract_services_contract ON public.contract_services USING btree (workspace_id, contract_id, active)
-CREATE INDEX idx_contracts_property ON public.contracts USING btree (workspace_id, property_id, status)
-CREATE INDEX idx_contracts_renewal ON public.contracts USING btree (workspace_id, end_date) WHERE (status = ANY (ARRAY['active'::contract_status, 'renewal_pending'::contract_status]))
-CREATE INDEX idx_estimates_status ON public.estimates USING btree (workspace_id, status)
-CREATE INDEX idx_inspections_property ON public.inspections USING btree (workspace_id, property_id, status)
-CREATE INDEX idx_invoice_items_work_order ON public.invoice_items USING btree (workspace_id, work_order_id)
-CREATE INDEX idx_invoices_ar ON public.invoices USING btree (workspace_id, status, due_date)
-CREATE INDEX idx_issues_queue ON public.issues USING btree (workspace_id, status, severity, due_at)
-CREATE INDEX idx_opps_stage ON public.opportunities USING btree (workspace_id, stage, status)
-CREATE INDEX idx_org_ws_name ON public.organizations USING btree (workspace_id, operating_name, legal_name)
-CREATE INDEX idx_properties_ws_city ON public.properties USING btree (workspace_id, city)
-CREATE INDEX idx_properties_ws_postal ON public.properties USING btree (workspace_id, postal_code)
-CREATE INDEX idx_properties_ws_status ON public.properties USING btree (workspace_id, status)
-CREATE INDEX idx_schedules_service ON public.service_schedules USING btree (workspace_id, contract_service_id, active)
-CREATE INDEX idx_system_queue ON public.system_events USING btree (status, occurred_at)
-CREATE INDEX idx_tasks_due ON public.tasks USING btree (workspace_id, status, due_at)
-CREATE INDEX idx_time_work_order ON public.time_entries USING btree (workspace_id, work_order_id)
-CREATE INDEX idx_work_orders_property ON public.work_orders USING btree (workspace_id, property_id, status)
-CREATE INDEX idx_work_orders_schedule ON public.work_orders USING btree (workspace_id, scheduled_start, status)
+CREATE INDEX idx_assignments_work_order ON public.work_order_assignments USING btree (workspace_id, work_order_id, status);
+CREATE INDEX idx_audit_entity ON public.audit_events USING btree (workspace_id, entity_type, entity_id, occurred_at DESC);
+CREATE INDEX idx_buildings_property ON public.buildings USING btree (workspace_id, property_id);
+CREATE INDEX idx_contacts_ws_name ON public.contacts USING btree (workspace_id, last_name, first_name);
+CREATE INDEX idx_contract_services_contract ON public.contract_services USING btree (workspace_id, contract_id, active);
+CREATE INDEX idx_contracts_property ON public.contracts USING btree (workspace_id, property_id, status);
+CREATE INDEX idx_contracts_renewal ON public.contracts USING btree (workspace_id, end_date) WHERE (status = ANY (ARRAY['active'::contract_status, 'renewal_pending'::contract_status]));
+CREATE INDEX idx_estimates_status ON public.estimates USING btree (workspace_id, status);
+CREATE INDEX idx_inspections_property ON public.inspections USING btree (workspace_id, property_id, status);
+CREATE INDEX idx_invoice_items_work_order ON public.invoice_items USING btree (workspace_id, work_order_id);
+CREATE INDEX idx_invoices_ar ON public.invoices USING btree (workspace_id, status, due_date);
+CREATE INDEX idx_issues_queue ON public.issues USING btree (workspace_id, status, severity, due_at);
+CREATE INDEX idx_opps_stage ON public.opportunities USING btree (workspace_id, stage, status);
+CREATE INDEX idx_org_ws_name ON public.organizations USING btree (workspace_id, operating_name, legal_name);
+CREATE INDEX idx_properties_ws_city ON public.properties USING btree (workspace_id, city);
+CREATE INDEX idx_properties_ws_postal ON public.properties USING btree (workspace_id, postal_code);
+CREATE INDEX idx_properties_ws_status ON public.properties USING btree (workspace_id, status);
+CREATE INDEX idx_schedules_service ON public.service_schedules USING btree (workspace_id, contract_service_id, active);
+CREATE INDEX idx_system_queue ON public.system_events USING btree (status, occurred_at);
+CREATE INDEX idx_tasks_due ON public.tasks USING btree (workspace_id, status, due_at);
+CREATE INDEX idx_time_work_order ON public.time_entries USING btree (workspace_id, work_order_id);
+CREATE INDEX idx_work_orders_property ON public.work_orders USING btree (workspace_id, property_id, status);
+CREATE INDEX idx_work_orders_schedule ON public.work_orders USING btree (workspace_id, scheduled_start, status);
 
 create policy workspace_member_insert on public.activities for insert with check (is_workspace_member(workspace_id));
 create policy workspace_member_select on public.activities for select using (is_workspace_member(workspace_id));
