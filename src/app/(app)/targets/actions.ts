@@ -81,7 +81,7 @@ export async function convertTarget(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath("/targets");
   revalidatePath("/sales");
-  return data as string;
+  void data;
 }
 
 export async function refreshScores(formData: FormData) {
