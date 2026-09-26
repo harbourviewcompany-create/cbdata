@@ -980,22 +980,22 @@ create policy workspace_member_select on public.work_visits for select using (is
 create policy workspace_member_update on public.work_visits for update using (is_workspace_member(workspace_id)) with check (is_workspace_member(workspace_id));
 create policy membership_select on public.workspace_memberships for select using (is_workspace_member(workspace_id));
 
-CREATE TRIGGER trg_buildings_updated BEFORE UPDATE ON public.buildings FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_contacts_updated BEFORE UPDATE ON public.contacts FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_contract_services_updated BEFORE UPDATE ON public.contract_services FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_contracts_updated BEFORE UPDATE ON public.contracts FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_employees_updated BEFORE UPDATE ON public.employees FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_estimates_updated BEFORE UPDATE ON public.estimates FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_issues_updated BEFORE UPDATE ON public.issues FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_opportunities_updated BEFORE UPDATE ON public.opportunities FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_org_updated BEFORE UPDATE ON public.organizations FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_properties_updated BEFORE UPDATE ON public.properties FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_services_updated BEFORE UPDATE ON public.service_definitions FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_schedules_updated BEFORE UPDATE ON public.service_schedules FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_profiles_updated BEFORE UPDATE ON public.user_profiles FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_work_orders_updated BEFORE UPDATE ON public.work_orders FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_memberships_updated BEFORE UPDATE ON public.workspace_memberships FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_workspaces_updated BEFORE UPDATE ON public.workspaces FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
+CREATE TRIGGER trg_buildings_updated BEFORE UPDATE ON public.buildings FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_contacts_updated BEFORE UPDATE ON public.contacts FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_contract_services_updated BEFORE UPDATE ON public.contract_services FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_contracts_updated BEFORE UPDATE ON public.contracts FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_employees_updated BEFORE UPDATE ON public.employees FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_estimates_updated BEFORE UPDATE ON public.estimates FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_issues_updated BEFORE UPDATE ON public.issues FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_opportunities_updated BEFORE UPDATE ON public.opportunities FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_org_updated BEFORE UPDATE ON public.organizations FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_properties_updated BEFORE UPDATE ON public.properties FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_services_updated BEFORE UPDATE ON public.service_definitions FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_schedules_updated BEFORE UPDATE ON public.service_schedules FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_profiles_updated BEFORE UPDATE ON public.user_profiles FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_work_orders_updated BEFORE UPDATE ON public.work_orders FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_memberships_updated BEFORE UPDATE ON public.workspace_memberships FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_workspaces_updated BEFORE UPDATE ON public.workspaces FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 
 create or replace view public.contract_renewal_queue as  SELECT id,
     workspace_id,
@@ -1607,22 +1607,22 @@ create policy workspace_member_select on public.work_visits for select using (is
 create policy workspace_member_update on public.work_visits for update using (is_workspace_member(workspace_id)) with check (is_workspace_member(workspace_id));
 create policy membership_select on public.workspace_memberships for select using (is_workspace_member(workspace_id));
 
-CREATE TRIGGER trg_buildings_updated BEFORE UPDATE ON public.buildings FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_contacts_updated BEFORE UPDATE ON public.contacts FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_contract_services_updated BEFORE UPDATE ON public.contract_services FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_contracts_updated BEFORE UPDATE ON public.contracts FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_employees_updated BEFORE UPDATE ON public.employees FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_estimates_updated BEFORE UPDATE ON public.estimates FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_issues_updated BEFORE UPDATE ON public.issues FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_opportunities_updated BEFORE UPDATE ON public.opportunities FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_org_updated BEFORE UPDATE ON public.organizations FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_properties_updated BEFORE UPDATE ON public.properties FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_services_updated BEFORE UPDATE ON public.service_definitions FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_schedules_updated BEFORE UPDATE ON public.service_schedules FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_profiles_updated BEFORE UPDATE ON public.user_profiles FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_work_orders_updated BEFORE UPDATE ON public.work_orders FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_memberships_updated BEFORE UPDATE ON public.workspace_memberships FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
-CREATE TRIGGER trg_workspaces_updated BEFORE UPDATE ON public.workspaces FOR EACH ROW EXECUTE FUNCTION touch_updated_at()
+CREATE TRIGGER trg_buildings_updated BEFORE UPDATE ON public.buildings FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_contacts_updated BEFORE UPDATE ON public.contacts FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_contract_services_updated BEFORE UPDATE ON public.contract_services FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_contracts_updated BEFORE UPDATE ON public.contracts FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_employees_updated BEFORE UPDATE ON public.employees FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_estimates_updated BEFORE UPDATE ON public.estimates FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_issues_updated BEFORE UPDATE ON public.issues FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_opportunities_updated BEFORE UPDATE ON public.opportunities FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_org_updated BEFORE UPDATE ON public.organizations FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_properties_updated BEFORE UPDATE ON public.properties FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_services_updated BEFORE UPDATE ON public.service_definitions FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_schedules_updated BEFORE UPDATE ON public.service_schedules FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_profiles_updated BEFORE UPDATE ON public.user_profiles FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_work_orders_updated BEFORE UPDATE ON public.work_orders FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_memberships_updated BEFORE UPDATE ON public.workspace_memberships FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+CREATE TRIGGER trg_workspaces_updated BEFORE UPDATE ON public.workspaces FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
 
 create or replace view public.contract_renewal_queue as  SELECT id,
     workspace_id,
