@@ -1433,7 +1433,6 @@ export type Database = {
           tax: number
           total: number
           work_order_id: string | null
-          work_order_id?: string | null
           workspace_id: string
         }
         Insert: {
@@ -1450,6 +1449,7 @@ export type Database = {
           subtotal?: number
           tax?: number
           total?: number
+          work_order_id?: string | null
           workspace_id: string
         }
         Update: {
