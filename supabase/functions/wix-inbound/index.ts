@@ -23,11 +23,24 @@ function clean(value: unknown, max = 2000): string | null {
   return trimmed ? trimmed.slice(0, max) : null;
 }
 
+function fieldFromSubmissions(submissions: unknown, patterns: RegExp[]): string | null {
+  if (!Array.isArray(submissions)) return null;
+  for (const item of submissions) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const label = clean(row.label, 300)?.toLowerCase() ?? "";
+    if (patterns.some((pattern) => pattern.test(label))) return clean(row.value, 5000);
+  }
+  return null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { error: "method_not_allowed" });
 
-  const integrationKey = req.headers.get("x-cbdata-integration-key");
+  const integrationKey =
+    req.headers.get("x-cbdata-integration-key") ??
+    new URL(req.url).searchParams.get("integration_key");
   if (!integrationKey) return json(401, { error: "missing_integration_key" });
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -50,11 +63,39 @@ Deno.serve(async (req) => {
   if (!credentials.length) return json(401, { error: "invalid_integration_key" });
 
   const workspaceId = credentials[0].workspace_id;
-  const payload = await req.json().catch(() => null);
-  if (!payload || typeof payload !== "object") return json(400, { error: "invalid_json" });
+  const rawPayload = await req.json().catch(() => null);
+  if (!rawPayload || typeof rawPayload !== "object") return json(400, { error: "invalid_json" });
 
-  const wixSubmissionId = clean((payload as Record<string, unknown>).wixSubmissionId, 120);
-  if (!wixSubmissionId) return json(400, { error: "wixSubmissionId_required" });
+  const raw = rawPayload as Record<string, unknown>;
+  const payload = raw.data && typeof raw.data === "object" ? raw.data as Record<string, unknown> : raw;
+  const submissions = payload.submissions;
+
+  const wixSubmissionId =
+    clean(payload.wixSubmissionId, 120) ??
+    clean(payload.id, 120) ??
+    clean(payload.submissionId, 120) ??
+    clean(payload.entityId, 120) ??
+    await sha256(JSON.stringify(rawPayload)).then((value) => `wix-auto-${value.slice(0, 48)}`);
+
+  const submittedName =
+    clean(payload.name) ??
+    clean(payload.fullName) ??
+    fieldFromSubmissions(submissions, [/^name$/, /full.?name/, /contact.?name/]);
+
+  const submittedEmail =
+    clean(payload.email, 320)?.toLowerCase() ??
+    fieldFromSubmissions(submissions, [/e.?mail/])?.toLowerCase() ??
+    null;
+
+  const submittedPhone =
+    clean(payload.phone, 60) ??
+    fieldFromSubmissions(submissions, [/phone/, /mobile/, /tel/]);
+
+  const message =
+    clean(payload.message, 5000) ??
+    clean(payload.inquiry, 5000) ??
+    clean(payload.description, 5000) ??
+    fieldFromSubmissions(submissions, [/message/, /inquiry/, /question/, /details/, /description/]);
 
   const sourceResponse = await fetch(
     `${supabaseUrl}/rest/v1/lead_sources?workspace_id=eq.${workspaceId}&adapter=eq.wix&status=eq.active&select=id&limit=1`,
@@ -67,15 +108,15 @@ Deno.serve(async (req) => {
     workspace_id: workspaceId,
     lead_source_id: sources[0]?.id ?? null,
     channel_detail: "wix:cbcontracting.ca",
-    submitted_name: clean((payload as any).name),
-    submitted_email: clean((payload as any).email, 320)?.toLowerCase() ?? null,
-    submitted_phone: clean((payload as any).phone, 60),
-    message: clean((payload as any).message, 5000),
-    utm_source: clean((payload as any).utm_source, 200),
-    utm_campaign: clean((payload as any).utm_campaign, 200),
+    submitted_name: submittedName,
+    submitted_email: submittedEmail,
+    submitted_phone: submittedPhone,
+    message,
+    utm_source: clean(payload.utm_source, 200),
+    utm_campaign: clean(payload.utm_campaign, 200),
     status: "new",
     wix_submission_id: wixSubmissionId,
-    raw_payload: payload,
+    raw_payload: rawPayload,
   };
 
   const insertResponse = await fetch(
