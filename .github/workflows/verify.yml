@@ -1,4 +1,5 @@
 name: Verify
+# Command-center migration verification is intentionally part of this workflow.
 
 on:
   pull_request:
