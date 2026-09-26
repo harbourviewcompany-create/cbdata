@@ -1084,27 +1084,7 @@ create or replace view public.property_360 as  SELECT p.id,
      LEFT JOIN contracts c ON ((c.property_id = p.id)))
      LEFT JOIN work_orders w ON ((w.property_id = p.id)))
      LEFT JOIN issues i ON ((i.property_id = p.id)))
-  GROUP BY p.id, o.operating_name;;create table public.organizations (
-  id pg_catalog.uuid not null default uuid_generate_v4(),
-  workspace_id pg_catalog.uuid not null,
-  legal_name pg_catalog.text not null,
-  operating_name pg_catalog.text,
-  organization_type organization_type not null,
-  status record_status not null default 'active'::record_status,
-  website pg_catalog.text,
-  phone pg_catalog.text,
-  email pg_catalog.text,
-  notes pg_catalog.text,
-  created_at pg_catalog.timestamptz not null default now(),
-  updated_at pg_catalog.timestamptz not null default now(),
-  archived_at pg_catalog.timestamptz
-);
-
-
-
-
-
-create or replace view public.contract_renewal_queue as  SELECT id,
+  GROUP BY p.id, o.operating_name;;create or replace view public.contract_renewal_queue as  SELECT id,
     workspace_id,
     contract_number,
     organization_id,
