@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceContext } from "@/lib/workspace";
+import { PhotoStrip } from "@/components/PhotoStrip";
+import { uploadWorkOrderPhoto } from "../../today/actions";
 
 export default async function WorkOrderDetail({
   params,
@@ -47,6 +49,12 @@ export default async function WorkOrderDetail({
             {row.site_instructions}
           </p>
         ) : null}
+        <form action={uploadWorkOrderPhoto} className="form-grid" style={{ marginTop: 16 }}>
+          <input type="hidden" name="work_order_id" value={row.id} />
+          <input type="file" name="file" accept="image/jpeg,image/png,image/webp,image/heic" required />
+          <button>Upload site photo</button>
+        </form>
+        <PhotoStrip workspaceId={ctx.workspaceId} entityType="work_order" entityId={row.id} />
       </section>
     </>
   );
