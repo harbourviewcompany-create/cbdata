@@ -97,13 +97,30 @@ export async function updateProperty(formData: FormData) {
   if (!ctx) throw new Error("No workspace access");
 
   const s = await createClient();
-  const id = String(formData.get("id"));
+  const { requireWorkspaceRole, ROLES } = await import("@/lib/authz");
+  await requireWorkspaceRole(s, ctx.workspaceId, ROLES.operations);
+
+  const id = String(formData.get("id") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim();
+  const address_line_1 = String(formData.get("address_line_1") ?? "").trim();
+  const city = String(formData.get("city") ?? "").trim();
+  const property_type = String(formData.get("property_type") ?? "").trim();
+  if (!id || !name || !address_line_1 || !city || !property_type) {
+    throw new Error("Name, address, city and property type are required");
+  }
+
   const { error } = await s
     .from("properties")
     .update({
-      name: String(formData.get("name") ?? ""),
-      site_notes: String(formData.get("site_notes") || "") || null,
-      access_notes: String(formData.get("access_notes") || "") || null,
+      name,
+      address_line_1,
+      address_line_2: String(formData.get("address_line_2") ?? "").trim() || null,
+      city,
+      province: String(formData.get("province") ?? "").trim() || null,
+      postal_code: String(formData.get("postal_code") ?? "").trim() || null,
+      property_type,
+      access_notes: String(formData.get("access_notes") ?? "").trim() || null,
+      site_notes: String(formData.get("site_notes") ?? "").trim() || null,
     } as never)
     .eq("id", id)
     .eq("workspace_id", ctx.workspaceId);
@@ -111,4 +128,5 @@ export async function updateProperty(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath("/properties");
   revalidatePath(`/properties/${id}`);
+  revalidatePath("/dashboard");
 }

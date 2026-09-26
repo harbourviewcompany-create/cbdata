@@ -30,7 +30,13 @@ export default async function DashboardPage({
   const supabase = await createClient();
   const { workspaceId, user } = ctx;
 
-  const [properties, work, issues, renewals, recentWork, recentIssues] =
+  const now = new Date();
+  const dayStart = new Date(now);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+
+  const [properties, work, issues, renewals, recentWork, recentIssues, todayWork, dispatchCandidates] =
     await Promise.all([
       supabase
         .from("property_360")
@@ -60,7 +66,23 @@ export default async function DashboardPage({
         .eq("workspace_id", workspaceId)
         .order("reported_at", { ascending: false })
         .limit(5),
+      supabase
+        .from("work_orders")
+        .select("id", { count: "exact", head: true })
+        .eq("workspace_id", workspaceId)
+        .gte("scheduled_start", dayStart.toISOString())
+        .lt("scheduled_start", dayEnd.toISOString()),
+      supabase
+        .from("work_orders")
+        .select("id, work_order_assignments(status)")
+        .eq("workspace_id", workspaceId)
+        .in("status", ["scheduled", "draft", "assigned"]),
     ]);
+
+  const needsDispatch = (dispatchCandidates.data ?? []).filter((r) => {
+    const assigns = (r as { work_order_assignments?: { status?: string }[] }).work_order_assignments ?? [];
+    return !assigns.some((a) => a.status === "assigned");
+  }).length;
 
   const propertyCount = properties.count ?? 0;
   const workCount = work.count ?? 0;
@@ -240,6 +262,23 @@ export default async function DashboardPage({
           </article>
         </section>
       )}
+
+      {!isEmpty ? (
+        <section className="panel" style={{ marginBottom: 14 }}>
+          <div className="panel-head">
+            <div>
+              <span className="eyebrow">TODAY</span>
+              <h3>Field control</h3>
+            </div>
+            <Link href="/dispatch">Open dispatch →</Link>
+          </div>
+          <div className="checks" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+            <div>Jobs today <strong>{todayWork.count ?? 0}</strong></div>
+            <div>Needs dispatch <strong>{needsDispatch}</strong></div>
+            <div>Open issues <strong>{issueCount}</strong></div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="quick-actions" aria-label="Quick actions">
         <h3 className="section-label">Quick actions</h3>
