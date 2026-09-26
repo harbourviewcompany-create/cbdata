@@ -1831,6 +1831,51 @@ export type Database = {
           },
         ]
       }
+
+      outreach_touches: {
+        Row: {
+          channel: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          occurred_at: string
+          outcome: string | null
+          outreach_target_id: string
+          workspace_id: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          occurred_at?: string
+          outcome?: string | null
+          outreach_target_id: string
+          workspace_id: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          occurred_at?: string
+          outcome?: string | null
+          outreach_target_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_touches_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       outreach_targets: {
         Row: {
           contact_id: string | null
@@ -2083,6 +2128,9 @@ export type Database = {
           updated_at: string
           website: string | null
           workspace_id: string
+          doors_managed: number | null
+          buildings_managed: number | null
+          primary_region: string | null
         }
         Insert: {
           archived_at?: string | null
@@ -2098,6 +2146,9 @@ export type Database = {
           updated_at?: string
           website?: string | null
           workspace_id: string
+          doors_managed?: number | null
+          buildings_managed?: number | null
+          primary_region?: string | null
         }
         Update: {
           archived_at?: string | null
@@ -2113,6 +2164,9 @@ export type Database = {
           updated_at?: string
           website?: string | null
           workspace_id?: string
+          doors_managed?: number | null
+          buildings_managed?: number | null
+          primary_region?: string | null
         }
         Relationships: [
           {
