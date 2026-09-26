@@ -408,3 +408,19 @@ begin
     perform public.refresh_workspace_ops_snapshot(r.id);
   end loop;
 end $$;
+
+-- Cover FKs introduced after the generic performance pass.
+create index if not exists idx_outreach_lists_created_by
+  on public.outreach_lists(created_by);
+create index if not exists idx_outreach_touches_performed_by
+  on public.outreach_touches(performed_by);
+create index if not exists idx_outreach_sequences_workspace_id
+  on public.outreach_sequences(workspace_id);
+create index if not exists idx_outreach_sequence_steps_workspace_id
+  on public.outreach_sequence_steps(workspace_id);
+create index if not exists idx_outreach_enrollments_outreach_target_id
+  on public.outreach_enrollments(outreach_target_id);
+create index if not exists idx_user_profiles_active_workspace_id
+  on public.user_profiles(active_workspace_id);
+create index if not exists idx_invoices_work_order_id
+  on public.invoices(work_order_id);
