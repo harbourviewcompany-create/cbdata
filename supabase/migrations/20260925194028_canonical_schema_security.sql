@@ -42,22 +42,6 @@ create type public.work_order_status as enum ('draft','scheduled','assigned','en
 create type public.work_priority as enum ('low','normal','high','urgent','emergency');
 create type public.workspace_status as enum ('active','suspended','archived');
 
-CREATE OR REPLACE FUNCTION public.has_workspace_role(p_workspace_id uuid, p_roles membership_role[])
- RETURNS boolean
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$ select exists(select 1 from public.workspace_memberships m where m.workspace_id=p_workspace_id and m.user_id=auth.uid() and m.status='active' and m.role=any(p_roles)) $function$;
-
-
-CREATE OR REPLACE FUNCTION public.is_workspace_member(p_workspace_id uuid)
- RETURNS boolean
- LANGUAGE sql
- STABLE SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$ select exists(select 1 from public.workspace_memberships m where m.workspace_id=p_workspace_id and m.user_id=auth.uid() and m.status='active') $function$;
-
-
 CREATE OR REPLACE FUNCTION public.touch_updated_at()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -718,6 +702,23 @@ create table public.workspace_memberships (
   created_at pg_catalog.timestamptz not null default now(),
   updated_at pg_catalog.timestamptz not null default now()
 );
+
+
+CREATE OR REPLACE FUNCTION public.has_workspace_role(p_workspace_id uuid, p_roles membership_role[])
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$ select exists(select 1 from public.workspace_memberships m where m.workspace_id=p_workspace_id and m.user_id=auth.uid() and m.status='active' and m.role=any(p_roles)) $function$;
+
+
+CREATE OR REPLACE FUNCTION public.is_workspace_member(p_workspace_id uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$ select exists(select 1 from public.workspace_memberships m where m.workspace_id=p_workspace_id and m.user_id=auth.uid() and m.status='active') $function$;
+
 
 create table public.workspaces (
   id pg_catalog.uuid not null default uuid_generate_v4(),
