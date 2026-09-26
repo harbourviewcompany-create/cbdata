@@ -34,8 +34,6 @@ alter policy membership_manage_update on public.workspace_memberships using (pri
 alter policy workspace_member_select on public.workspaces using (private.is_workspace_member(id));
 alter policy workspace_member_update on public.workspaces using (private.has_workspace_role(id,ARRAY['owner'::membership_role,'administrator'::membership_role])) with check (private.has_workspace_role(id,ARRAY['owner'::membership_role,'administrator'::membership_role]));
 
-revoke execute on function public.is_workspace_member(uuid) from anon,authenticated;
-revoke execute on function public.has_workspace_role(uuid,public.membership_role[]) from anon,authenticated;
 drop function if exists public.is_workspace_member(uuid);
 drop function if exists public.has_workspace_role(uuid,public.membership_role[]);
 
