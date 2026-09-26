@@ -4,28 +4,6 @@ import { getWorkspaceContext } from "@/lib/workspace";
 
 export const revalidate = 15;
 
-type Snapshot = {
-  workspace_id: string;
-  property_count: number;
-  open_work_count: number;
-  open_issue_count: number;
-  renewal_count: number;
-  needs_dispatch_count: number;
-  open_task_count: number;
-  overdue_task_count: number;
-  updated_at: string;
-};
-
-type Action = {
-  action_type: string;
-  title: string;
-  detail: string | null;
-  entity_id: string;
-  due_at: string | null;
-  priority_score: number;
-  href: string;
-};
-
 export default async function DashboardPage() {
   const ctx = await getWorkspaceContext();
 
@@ -72,7 +50,7 @@ export default async function DashboardPage() {
       }),
     ]);
 
-  const metrics = (snapshot as Snapshot | null) ?? {
+  const metrics = snapshot ?? {
     workspace_id: workspaceId,
     property_count: 0,
     open_work_count: 0,
@@ -84,7 +62,7 @@ export default async function DashboardPage() {
     updated_at: new Date(0).toISOString(),
   };
 
-  const actions = (nextActions as Action[] | null) ?? [];
+  const actions = nextActions ?? [];
   const isEmpty =
     metrics.property_count === 0 &&
     metrics.open_work_count === 0 &&
