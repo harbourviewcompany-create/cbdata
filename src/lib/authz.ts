@@ -30,4 +30,6 @@ export const ROLES = {
   field: ["owner", "administrator", "operations_manager", "operations_supervisor", "field_supervisor", "field_worker"] as const,
   sales: ["owner", "administrator", "sales_manager", "sales_rep"] as const,
   contracts: ["owner", "administrator", "operations_manager", "sales_manager"] as const,
+  finance: ["owner", "administrator", "finance", "operations_manager"] as const,
+  people: ["owner", "administrator", "operations_manager"] as const,
 } satisfies Record<string, readonly WorkspaceRole[]>;
