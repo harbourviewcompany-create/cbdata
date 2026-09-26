@@ -119,7 +119,7 @@ export default async function DashboardPage() {
           <ul className="queue-list">
             {actions.map((action, index) => (
               <li key={`${action.action_type}-${action.entity_id}-${index}`}>
-                <Link href={action.href}>
+                <Link href={action.href as never}>
                   <strong>{action.title}</strong>
                   <span className="muted">
                     {action.action_type} · priority {action.priority_score}
@@ -226,7 +226,7 @@ function Metric({ label, value, href, emptyHint, alert }: {
   label: string; value: number; href: string; emptyHint: string; alert?: boolean;
 }) {
   return (
-    <Link className={`metric${alert && value > 0 ? " metric-alert" : ""}`} href={href}>
+    <Link className={`metric${alert && value > 0 ? " metric-alert" : ""}`} href={href as never}>
       <span>{label}</span>
       <strong>{value}</strong>
       <small>{value === 0 ? emptyHint : "Open →"}</small>
@@ -242,7 +242,7 @@ function QueueList({ rows, empty }: {
     <ul className="queue-list">
       {rows.map((r) => (
         <li key={r.id}>
-          <Link href={r.href}><strong>{r.title}</strong><span className="muted">{r.meta}</span></Link>
+          <Link href={r.href as never}><strong>{r.title}</strong><span className="muted">{r.meta}</span></Link>
         </li>
       ))}
     </ul>
