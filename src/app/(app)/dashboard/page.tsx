@@ -84,6 +84,13 @@ export default async function DashboardPage({
     return !assigns.some((a) => a.status === "assigned");
   }).length;
 
+  const { data: nextActions } = await supabase
+    .from("v_next_actions" as never)
+    .select("action_type,title,detail,entity_id,due_at,priority_score,href")
+    .eq("workspace_id", workspaceId)
+    .order("priority_score", { ascending: false })
+    .limit(25);
+
   const propertyCount = properties.count ?? 0;
   const workCount = work.count ?? 0;
   const issueCount = issues.count ?? 0;
@@ -120,7 +127,36 @@ export default async function DashboardPage({
           </p>
         </div>
         <div className="hero-cta">
-          {isEmpty ? (
+          
+      <section className="panel" style={{ marginBottom: 14 }}>
+        <div className="panel-head">
+          <div>
+            <span className="eyebrow">ACTION OS</span>
+            <h3>What to do next</h3>
+          </div>
+        </div>
+        {(nextActions as { action_type: string; title: string; detail: string | null; due_at: string | null; priority_score: number; href: string }[] | null)?.length ? (
+          <ul className="queue-list">
+            {((nextActions as { action_type: string; title: string; detail: string | null; due_at: string | null; priority_score: number; href: string }[]) ?? []).map((a, i) => (
+              <li key={`${a.action_type}-${a.entity_id ?? i}`}>
+                <Link href={a.href as never}>
+                  <strong>{a.title}</strong>
+                  <span className="muted">
+                    {a.action_type} · score {a.priority_score}
+                    {a.detail ? ` · ${a.detail}` : ""}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted empty-queue">
+            No urgent actions. When work is unassigned, issues are critical, targets need follow-up, or renewals approach, they appear here automatically.
+          </p>
+        )}
+      </section>
+
+{isEmpty ? (
             <Link className="primary" href="/properties">
               Add your first property
             </Link>

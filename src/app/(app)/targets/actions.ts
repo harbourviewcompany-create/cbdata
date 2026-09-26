@@ -96,3 +96,51 @@ export async function refreshScores(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath("/targets");
 }
+
+export async function ensurePmSequence() {
+  const { s, user } = await requireUser();
+  const { data: memberships } = await s
+    .from("workspace_memberships")
+    .select("workspace_id")
+    .eq("user_id", user.id)
+    .limit(1);
+  const workspaceId = memberships?.[0]?.workspace_id;
+  if (!workspaceId) throw new Error("No workspace");
+  const { data, error } = await s.rpc("ensure_default_pm_sequence" as never, {
+    p_workspace_id: workspaceId,
+  } as never);
+  if (error) throw new Error(error.message);
+  revalidatePath("/targets");
+  return data as string;
+}
+
+export async function enrollTarget(formData: FormData) {
+  const { s } = await requireUser();
+  const targetId = String(formData.get("target_id") ?? "");
+  const sequenceId = String(formData.get("sequence_id") ?? "");
+  const { error } = await s.rpc("enroll_outreach_target" as never, {
+    p_target_id: targetId,
+    p_sequence_id: sequenceId,
+  } as never);
+  if (error) throw new Error(error.message);
+  revalidatePath("/targets");
+}
+
+export async function processSequences() {
+  const { s, user } = await requireUser();
+  const { data: memberships } = await s
+    .from("workspace_memberships")
+    .select("workspace_id")
+    .eq("user_id", user.id)
+    .limit(1);
+  const workspaceId = memberships?.[0]?.workspace_id;
+  if (!workspaceId) throw new Error("No workspace");
+  const { data, error } = await s.rpc("process_due_sequence_steps" as never, {
+    p_workspace_id: workspaceId,
+    p_limit: 50,
+  } as never);
+  if (error) throw new Error(error.message);
+  revalidatePath("/targets");
+  revalidatePath("/dashboard");
+  return data as number;
+}

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { convertTarget, logTouch, refreshScores, updateTargetStatus } from "./actions";
+import { convertTarget, logTouch, refreshScores, updateTargetStatus, ensurePmSequence, enrollTarget, processSequences } from "./actions";
 
 type QueueRow = {
   id: string;
@@ -80,7 +80,10 @@ export default async function TargetsPage({
   if (statusFilter) query = query.eq("status", statusFilter);
   if (regionFilter) query = query.ilike("region", regionFilter);
 
-  const { data: rows, error } = await query;
+  const [{ data: rows, error }, { data: sequences }] = await Promise.all([
+    query,
+    (s as any).from("outreach_sequences").select("id,name,is_active").eq("is_active", true).order("name"),
+  ]);
   if (error) {
     return (
       <main className="list-shell">
@@ -159,6 +162,14 @@ export default async function TargetsPage({
         </div>
       </section>
 
+      <section className="panel" style={{ marginBottom: 18 }}>
+        <div className="panel-head"><div><span className="eyebrow">AUTOMATION</span><h3>Sequence engine</h3></div></div>
+        <div className="hero-cta" style={{ marginTop: 12 }}>
+          <form action={ensurePmSequence}><button type="submit" className="button">Ensure PM Intro sequence</button></form>
+          <form action={processSequences}><button type="submit" className="primary">Run due sequence steps</button></form>
+        </div>
+        <p className="muted" style={{ marginTop: 10 }}>Creates call/email/follow-up tasks and notifications for enrolled targets.</p>
+      </section>
       <section className="table-panel" style={{ marginBottom: 18 }}>
         <form method="get" className="form-grid">
           <input name="q" placeholder="Search company or contact" defaultValue={q} />
@@ -304,6 +315,17 @@ export default async function TargetsPage({
                           </button>
                         </form>
 
+                        {(sequences as {id:string;name:string}[] | null)?.length ? (
+                          <form action={enrollTarget} className="mini-form">
+                            <input type="hidden" name="target_id" value={r.id} />
+                            <select name="sequence_id" required>
+                              {(sequences as {id:string;name:string}[]).map(seq => (
+                                <option key={seq.id} value={seq.id}>{seq.name}</option>
+                              ))}
+                            </select>
+                            <button type="submit" className="button">Enroll sequence</button>
+                          </form>
+                        ) : null}
                         {r.status !== "converted" && r.status !== "do_not_contact" ? (
                           <form action={convertTarget}>
                             <input type="hidden" name="target_id" value={r.id} />

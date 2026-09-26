@@ -63,3 +63,19 @@ export async function completeWorkOrder(f:FormData){
  const {error:e}=await s.from("work_orders").update({status:"completed",completed_at:new Date().toISOString()}).eq("id",id);if(e)throw new Error(e.message);
  revalidatePath("/work-orders");revalidatePath("/dispatch");
 }
+export async function completeWorkOrderWithInvoice(f: FormData) {
+  const { s } = await auth();
+  const id = v(f, "id");
+  if (!id) throw new Error("Work order required");
+  const { data: w } = await s.from("work_orders").select("workspace_id,status").eq("id", id).single();
+  if (!w) throw new Error("Work order not found");
+  await requireWorkspaceRole(s, w.workspace_id, ROLES.field);
+  const { data, error } = await s.rpc("complete_work_order_with_invoice" as never, {
+    p_work_order_id: id,
+  } as never);
+  if (error) throw new Error(error.message);
+  revalidatePath("/work-orders");
+  revalidatePath("/dispatch");
+  revalidatePath("/dashboard");
+  return data as string | null;
+}
