@@ -1084,94 +1084,10 @@ create or replace view public.property_360 as  SELECT p.id,
      LEFT JOIN contracts c ON ((c.property_id = p.id)))
      LEFT JOIN work_orders w ON ((w.property_id = p.id)))
      LEFT JOIN issues i ON ((i.property_id = p.id)))
-  GROUP BY p.id, o.operating_name;;create or replace view public.contract_renewal_queue as  SELECT id,
-    workspace_id,
-    contract_number,
-    organization_id,
-    property_id,
-    opportunity_id,
-    proposal_id,
-    name,
-    status,
-    start_date,
-    end_date,
-    contract_value,
-    billing_frequency,
-    renewal_type,
-    signed_document_id,
-    created_at,
-    updated_at,
-    terminated_at
-   FROM contracts
-  WHERE ((status = ANY (ARRAY['active'::contract_status, 'renewal_pending'::contract_status])) AND (end_date IS NOT NULL));;
-create or replace view public.open_issue_queue as  SELECT id,
-    workspace_id,
-    property_id,
-    work_order_id,
-    contract_id,
-    issue_type,
-    severity,
-    status,
-    title,
-    description,
-    reported_by,
-    assigned_to,
-    reported_at,
-    due_at,
-    resolved_at,
-    resolution_notes,
-    customer_visible,
-    created_at,
-    updated_at
-   FROM issues
-  WHERE (status = ANY (ARRAY['open'::issue_status, 'in_progress'::issue_status, 'blocked'::issue_status]))
-  ORDER BY
-        CASE severity
-            WHEN 'critical'::issue_severity THEN 1
-            WHEN 'high'::issue_severity THEN 2
-            WHEN 'medium'::issue_severity THEN 3
-            ELSE 4
-        END, due_at;;
-create or replace view public.open_work_exceptions as  SELECT id,
-    workspace_id,
-    work_order_number,
-    property_id,
-    contract_id,
-    contract_service_id,
-    source_type,
-    priority,
-    status,
-    scheduled_start,
-    scheduled_end,
-    estimated_duration_minutes,
-    actual_duration_minutes,
-    description,
-    site_instructions,
-    created_by,
-    created_at,
-    updated_at,
-    completed_at,
-    cancelled_at
-   FROM work_orders
-  WHERE (status = ANY (ARRAY['draft'::work_order_status, 'scheduled'::work_order_status, 'assigned'::work_order_status, 'en_route'::work_order_status, 'in_progress'::work_order_status, 'paused'::work_order_status, 'needs_review'::work_order_status]));;
-create or replace view public.property_360 as  SELECT p.id,
-    p.workspace_id,
-    p.name,
-    p.address_line_1,
-    p.city,
-    p.province,
-    p.postal_code,
-    p.status,
-    o.operating_name AS customer_name,
-    count(DISTINCT c.id) FILTER (WHERE (c.status = 'active'::contract_status)) AS active_contracts,
-    count(DISTINCT w.id) FILTER (WHERE (w.status <> ALL (ARRAY['completed'::work_order_status, 'approved'::work_order_status, 'cancelled'::work_order_status]))) AS open_work_orders,
-    count(DISTINCT i.id) FILTER (WHERE (i.status = ANY (ARRAY['open'::issue_status, 'in_progress'::issue_status, 'blocked'::issue_status]))) AS open_issues
-   FROM ((((properties p
-     LEFT JOIN organizations o ON ((o.id = p.primary_customer_organization_id)))
-     LEFT JOIN contracts c ON ((c.property_id = p.id)))
-     LEFT JOIN work_orders w ON ((w.property_id = p.id)))
-     LEFT JOIN issues i ON ((i.property_id = p.id)))
   GROUP BY p.id, o.operating_name;;
+
+
+
 
 
 -- Foreign keys are applied after all referenced primary/unique constraints exist.
