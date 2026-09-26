@@ -1,5 +1,6 @@
 name: Verify
 # Command-center migration verification is intentionally part of this workflow.
+# Keep DB tests authoritative for migration ordering and constraints.
 
 on:
   pull_request:
