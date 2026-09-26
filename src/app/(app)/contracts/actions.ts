@@ -21,5 +21,5 @@ export async function generateWorkOrdersFromContract(f: FormData) {
   revalidatePath("/work-orders");
   revalidatePath("/dispatch");
   revalidatePath("/dashboard");
-  return data as number;
+  void data;
 }
