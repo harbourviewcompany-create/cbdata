@@ -77,5 +77,5 @@ export async function completeWorkOrderWithInvoice(f: FormData) {
   revalidatePath("/work-orders");
   revalidatePath("/dispatch");
   revalidatePath("/dashboard");
-  return data as string | null;
+  void data;
 }

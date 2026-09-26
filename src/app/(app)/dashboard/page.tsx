@@ -135,9 +135,9 @@ export default async function DashboardPage({
             <h3>What to do next</h3>
           </div>
         </div>
-        {(nextActions as { action_type: string; title: string; detail: string | null; due_at: string | null; priority_score: number; href: string }[] | null)?.length ? (
+        {(nextActions as { action_type: string; title: string; detail: string | null; entity_id: string; due_at: string | null; priority_score: number; href: string }[] | null)?.length ? (
           <ul className="queue-list">
-            {((nextActions as { action_type: string; title: string; detail: string | null; due_at: string | null; priority_score: number; href: string }[]) ?? []).map((a, i) => (
+            {((nextActions as { action_type: string; title: string; detail: string | null; entity_id: string; due_at: string | null; priority_score: number; href: string }[]) ?? []).map((a, i) => (
               <li key={`${a.action_type}-${a.entity_id ?? i}`}>
                 <Link href={a.href as never}>
                   <strong>{a.title}</strong>

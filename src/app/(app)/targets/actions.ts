@@ -111,7 +111,7 @@ export async function ensurePmSequence() {
   } as never);
   if (error) throw new Error(error.message);
   revalidatePath("/targets");
-  return data as string;
+  void data;
 }
 
 export async function enrollTarget(formData: FormData) {
@@ -142,5 +142,5 @@ export async function processSequences() {
   if (error) throw new Error(error.message);
   revalidatePath("/targets");
   revalidatePath("/dashboard");
-  return data as number;
+  void data;
 }
