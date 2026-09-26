@@ -48,7 +48,7 @@ export default async function DashboardPage() {
   const [{ data: snapshot }, { data: recentWork }, { data: recentIssues }, { data: nextActions }] =
     await Promise.all([
       supabase
-        .from("workspace_ops_snapshots" as never)
+        .from("workspace_ops_snapshots")
         .select(
           "workspace_id, property_count, open_work_count, open_issue_count, renewal_count, needs_dispatch_count, open_task_count, overdue_task_count, updated_at",
         )
@@ -66,13 +66,13 @@ export default async function DashboardPage() {
         .eq("workspace_id", workspaceId)
         .order("reported_at", { ascending: false })
         .limit(5),
-      supabase.rpc("next_actions" as never, {
+      supabase.rpc("next_actions", {
         p_workspace_id: workspaceId,
         p_limit: 25,
-      } as never),
+      }),
     ]);
 
-  const metrics = (snapshot as unknown as Snapshot | null) ?? {
+  const metrics = (snapshot as Snapshot | null) ?? {
     workspace_id: workspaceId,
     property_count: 0,
     open_work_count: 0,
@@ -84,7 +84,7 @@ export default async function DashboardPage() {
     updated_at: new Date(0).toISOString(),
   };
 
-  const actions = (nextActions as unknown as Action[] | null) ?? [];
+  const actions = (nextActions as Action[] | null) ?? [];
   const isEmpty =
     metrics.property_count === 0 &&
     metrics.open_work_count === 0 &&
