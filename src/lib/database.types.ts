@@ -2788,6 +2788,7 @@ export type Database = {
       }
       user_profiles: {
         Row: {
+          active_workspace_id: string | null
           created_at: string
           display_name: string | null
           first_name: string | null
@@ -2797,6 +2798,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          active_workspace_id?: string | null
           created_at?: string
           display_name?: string | null
           first_name?: string | null
@@ -2806,6 +2808,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          active_workspace_id?: string | null
           created_at?: string
           display_name?: string | null
           first_name?: string | null
@@ -2814,7 +2817,59 @@ export type Database = {
           phone?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_profiles_active_workspace_id_fkey"
+            columns: ["active_workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_ops_snapshots: {
+        Row: {
+          overdue_task_count: number
+          open_issue_count: number
+          open_task_count: number
+          open_work_count: number
+          property_count: number
+          needs_dispatch_count: number
+          renewal_count: number
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          overdue_task_count?: number
+          open_issue_count?: number
+          open_task_count?: number
+          open_work_count?: number
+          property_count?: number
+          needs_dispatch_count?: number
+          renewal_count?: number
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          overdue_task_count?: number
+          open_issue_count?: number
+          open_task_count?: number
+          open_work_count?: number
+          property_count?: number
+          needs_dispatch_count?: number
+          renewal_count?: number
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_ops_snapshots_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       work_order_assignments: {
         Row: {
@@ -3577,6 +3632,20 @@ export type Database = {
       }
     }
     Functions: {
+      complete_work_order_with_invoice: {
+        Args: {
+          p_notes?: string | null
+          p_work_order_id: string
+        }
+        Returns: string
+      }
+      generate_work_orders_from_contract: {
+        Args: {
+          p_contract_id: string
+          p_days_ahead?: number
+        }
+        Returns: number
+      }
       has_workspace_role: {
         Args: {
           p_roles: Database["public"]["Enums"]["membership_role"][]
@@ -3587,6 +3656,36 @@ export type Database = {
       is_workspace_member: {
         Args: { p_workspace_id: string }
         Returns: boolean
+      }
+      next_actions: {
+        Args: {
+          p_limit?: number
+          p_workspace_id: string
+        }
+        Returns: {
+          action_type: string
+          detail: string | null
+          due_at: string | null
+          entity_id: string
+          href: string
+          priority_score: number
+          title: string
+          workspace_id: string
+        }[]
+      }
+      refresh_workspace_ops_snapshot: {
+        Args: { p_workspace_id: string }
+        Returns: {
+          overdue_task_count: number
+          open_issue_count: number
+          open_task_count: number
+          open_work_count: number
+          property_count: number
+          needs_dispatch_count: number
+          renewal_count: number
+          updated_at: string
+          workspace_id: string
+        }
       }
     }
     Enums: {
