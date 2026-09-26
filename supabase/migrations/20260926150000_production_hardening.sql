@@ -36,9 +36,10 @@ alter policy workspace_member_update on public.workspaces using (private.has_wor
 
 revoke execute on function public.is_workspace_member(uuid) from anon,authenticated;
 revoke execute on function public.has_workspace_role(uuid,public.membership_role[]) from anon,authenticated;
-drop function public.is_workspace_member(uuid);
-drop function public.has_workspace_role(uuid,public.membership_role[]);
+drop function if exists public.is_workspace_member(uuid);
+drop function if exists public.has_workspace_role(uuid,public.membership_role[]);
 
+alter table public.work_order_assignments drop constraint if exists work_order_assignments_resource_type_check;
 alter table public.work_order_assignments drop constraint if exists work_order_assignments_resource_type_check;
 alter table public.work_order_assignments add constraint work_order_assignments_resource_type_check check (
  (assignment_type='crew' and crew_id is not null and employee_id is null and contractor_id is null and equipment_id is null)
