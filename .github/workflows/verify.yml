@@ -1,4 +1,7 @@
 name: Verify
+# Command-center migration verification is intentionally part of this workflow.
+# Keep DB tests authoritative for migration ordering and constraints.
+# Re-run after performance test quoting correction.
 
 on:
   pull_request:
@@ -16,3 +19,22 @@ jobs:
       - run: npm install
       - run: npm run typecheck
       - run: npm run build
+
+  db:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: No production fixtures in seed
+        run: |
+          if grep -R -E "insert into public\.(properties|invoices|contracts)" supabase/seed --include='*.sql'; then
+            echo "Production fixture data must not be seeded" >&2
+            exit 1
+          fi
+          true
+      - name: Start local database and run pgTAP-style tests
+        run: |
+          supabase db start
+          supabase test db

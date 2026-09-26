@@ -1,0 +1,15 @@
+project_id = "cbdata"
+
+[api]
+enabled = true
+
+[db]
+port = 54322
+major_version = 15
+
+[db.migrations]
+schema_paths = []
+
+[db.seed]
+enabled = false
+sql_paths = []

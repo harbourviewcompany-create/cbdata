@@ -35,6 +35,16 @@ Database security:
 `supabase/tests/` — database-level verification  
 `docs/` — operating-model and schema documentation
 
+## Command center
+
+Dashboard metrics read `workspace_ops_snapshots` (trigger-maintained).
+Next actions come from `public.next_actions(workspace_id, limit)` with per-arm
+limits and deep links to record pages.
+
+Active workspace is stored on `user_profiles.active_workspace_id`.
+Invoices are unique per work order. Completing a work order requires an assignment.
+
 ## Rule
 
 Schema changes must be made through a new migration and verified with database-level tests before frontend work depends on them.
+CI runs `npm run typecheck`, `npm run build`, and `supabase test db`.
