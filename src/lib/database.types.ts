@@ -1831,6 +1831,99 @@ export type Database = {
           },
         ]
       }
+      outreach_targets: {
+        Row: {
+          contact_id: string | null
+          contact_name: string | null
+          converted_lead_id: string | null
+          created_at: string
+          email: string | null
+          id: string
+          last_touch_at: string | null
+          next_action: string | null
+          next_action_due_at: string | null
+          notes: string | null
+          organization_id: string | null
+          organization_name: string | null
+          owner_user_id: string | null
+          phone: string | null
+          priority: Database["public"]["Enums"]["work_priority"]
+          property_address: string | null
+          region: string | null
+          score: number | null
+          score_reason: string | null
+          status: Database["public"]["Enums"]["outreach_target_status"]
+          updated_at: string
+          workspace_id: string
+          outreach_list_id: string
+        }
+        Insert: {
+          contact_id?: string | null
+          contact_name?: string | null
+          converted_lead_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_touch_at?: string | null
+          next_action?: string | null
+          next_action_due_at?: string | null
+          notes?: string | null
+          organization_id?: string | null
+          organization_name?: string | null
+          owner_user_id?: string | null
+          phone?: string | null
+          priority?: Database["public"]["Enums"]["work_priority"]
+          property_address?: string | null
+          region?: string | null
+          score?: number | null
+          score_reason?: string | null
+          status?: Database["public"]["Enums"]["outreach_target_status"]
+          updated_at?: string
+          workspace_id: string
+          outreach_list_id: string
+        }
+        Update: {
+          contact_id?: string | null
+          contact_name?: string | null
+          converted_lead_id?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_touch_at?: string | null
+          next_action?: string | null
+          next_action_due_at?: string | null
+          notes?: string | null
+          organization_id?: string | null
+          organization_name?: string | null
+          owner_user_id?: string | null
+          phone?: string | null
+          priority?: Database["public"]["Enums"]["work_priority"]
+          property_address?: string | null
+          region?: string | null
+          score?: number | null
+          score_reason?: string | null
+          status?: Database["public"]["Enums"]["outreach_target_status"]
+          updated_at?: string
+          workspace_id?: string
+          outreach_list_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_targets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_targets_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       opportunities: {
         Row: {
           closed_at: string | null
@@ -3787,6 +3880,7 @@ export type Database = {
         | "field_worker"
         | "finance"
         | "read_only"
+      outreach_target_status: "queued" | "contacted" | "responded" | "converted" | "rejected" | "do_not_contact"
       opportunity_stage:
         | "new"
         | "qualified"
