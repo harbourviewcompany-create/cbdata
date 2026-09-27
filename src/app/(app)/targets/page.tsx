@@ -208,125 +208,46 @@ export default async function TargetsPage({
 
       <section className="table-panel">
         <div className="table-wrap">
-          <table className="targets-table">
-            <colgroup>
-              <col className="col-score" />
-              <col className="col-company" />
-              <col className="col-contact" />
-              <col className="col-status" />
-              <col className="col-next-action" />
-              <col className="col-actions" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>Score</th>
-                <th>Company</th>
-                <th>Contact</th>
-                <th>Status</th>
-                <th>Next action</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="muted">
-                    No targets yet. Seed{" "}
-                    <code>supabase/seed/001_pm_targets_example.sql</code> after
-                    the migration, or add outreach targets manually.
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((r) => (
-                  <tr key={r.id}>
-                    <td className="score-cell">
-                      <span className={`score-chip ${(r.score ?? 0) >= 80 ? "score-high" : (r.score ?? 0) >= 60 ? "score-medium" : "score-low"}`}>
-                        {r.score ?? "—"}
-                      </span>
-                    </td>
-                    <td className="company-cell">
-                      <Link href={`/targets/${r.id}`} className="target-company">
-                        <strong>{r.organization_display_name ?? "—"}</strong>
-                      </Link>
-                      {r.region ? <span className="region-tag">{r.region}</span> : null}
-                      <div className="company-meta">
-                        {r.organization_website ? (
-                          <a href={r.organization_website} target="_blank" rel="noreferrer">website</a>
-                        ) : null}
-                        {r.organization_phone ? (
-                          <a href={`tel:${r.organization_phone}`}>{r.organization_phone}</a>
-                        ) : null}
+          <div className="targets-grid" role="table" aria-label="PM target accounts">
+            <div className="targets-grid-row targets-grid-head" role="row">
+              <div role="columnheader">Score</div><div role="columnheader">Company</div><div role="columnheader">Contact</div><div role="columnheader">Status</div><div role="columnheader">Next action</div><div role="columnheader">Actions</div>
+            </div>
+            {filtered.length === 0 ? (
+              <div className="targets-grid-row targets-grid-empty" role="row"><div role="cell" className="muted">No targets yet. Seed <code>supabase/seed/001_pm_targets_example.sql</code> after the migration, or add outreach targets manually.</div></div>
+            ) : filtered.map((r) => (
+              <div className="targets-grid-row" role="row" key={r.id}>
+                <div className="score-cell" role="cell"><span className={`score-chip ${(r.score ?? 0) >= 80 ? "score-high" : (r.score ?? 0) >= 60 ? "score-medium" : "score-low"}`}>{r.score ?? "—"}</span></div>
+                <div className="company-cell" role="cell">
+                  <Link href={`/targets/${r.id}`} className="target-company"><strong>{r.organization_display_name ?? "—"}</strong></Link>
+                  {r.region ? <span className="region-tag">{r.region}</span> : null}
+                  <div className="company-meta">{r.organization_website ? <a href={r.organization_website} target="_blank" rel="noreferrer">website</a> : null}{r.organization_phone ? <a href={`tel:${r.organization_phone}`}>{r.organization_phone}</a> : null}</div>
+                </div>
+                <div className="contact-cell" role="cell">
+                  <strong>{r.contact_display_name ?? "No named contact"}</strong>
+                  {r.contact_job_title ? <span className="contact-role">{r.contact_job_title}</span> : null}
+                  {r.contact_phone ? <a href={`tel:${r.contact_phone}`} className="contact-line"><span aria-hidden="true">☎</span>{r.contact_phone}</a> : null}
+                  {(r.contact_email ?? r.organization_email) ? <a href={`mailto:${r.contact_email ?? r.organization_email}`} className="contact-line"><span aria-hidden="true">✉</span>{r.contact_email ?? r.organization_email}</a> : null}
+                </div>
+                <div className="status-cell" role="cell"><span className="pill">{r.status}</span><span className="status-meta">last {fmtDate(r.last_touch_at)} · {r.touch_count ?? 0} touches</span></div>
+                <div className="next-action-cell" role="cell"><div className="next-action-text" title={r.next_action ?? "—"}>{r.next_action ?? "—"}</div><div className="next-action-due">due {fmtDate(r.next_action_due_at)}</div></div>
+                <div className="row-actions-cell" role="cell">
+                  <div className="row-actions">
+                    <form action={logTouch}><input type="hidden" name="target_id" value={r.id}/><input type="hidden" name="channel" value="call"/><input type="hidden" name="new_status" value="contacted"/><button type="submit" className="primary log-touch-button">Log touch</button></form>
+                    <div className="action-menu">
+                      <button type="button" className="action-menu-trigger" aria-label={`More actions for ${r.organization_display_name ?? "target"}`}>⋯</button>
+                      <div className="action-menu-popover">
+                        <form action={logTouch} className="action-menu-form"><input type="hidden" name="target_id" value={r.id}/><label>Channel<select name="channel" defaultValue="call"><option value="call">Call</option><option value="email">Email</option><option value="sms">SMS</option><option value="door_knock">Door knock</option><option value="mail">Mail</option><option value="other">Other</option></select></label><label>Status<select name="new_status" defaultValue="contacted">{STATUSES.map(st => <option key={st} value={st}>{st}</option>)}</select></label><label>Outcome<input name="outcome" placeholder="Outcome"/></label><label>Notes<input name="notes" placeholder="Notes"/></label><label>Next action<input name="next_action" placeholder="Next action" defaultValue={r.next_action ?? ""}/></label><button type="submit" className="button">Save touch details</button></form>
+                        <div className="action-menu-divider"/>
+                        <form action={updateTargetStatus} className="action-menu-form"><input type="hidden" name="target_id" value={r.id}/><label>Status<select name="status" defaultValue={r.status}>{STATUSES.map(st => <option key={st} value={st}>{st}</option>)}</select></label><button type="submit" className="button">Set status</button></form>
+                        {(sequences as {id:string;name:string}[] | null)?.length && ["queued","contacted","responded"].includes(r.status) ? <form action={enrollTarget} className="action-menu-form"><input type="hidden" name="target_id" value={r.id}/><label>Sequence<select name="sequence_id" required>{(sequences as {id:string;name:string}[]).map(seq => <option key={seq.id} value={seq.id}>{seq.name}</option>)}</select></label><button type="submit" className="button">Enroll sequence</button></form> : null}
+                        {["queued","contacted","responded"].includes(r.status) ? <form action={convertTarget}><input type="hidden" name="target_id" value={r.id}/><button type="submit" className="primary action-menu-full-button">Convert to lead</button></form> : r.converted_lead_id ? <span className="muted action-menu-lead">Lead {r.converted_lead_id.slice(0,8)}…</span> : null}
                       </div>
-                    </td>
-                    <td className="contact-cell">
-                      <strong>{r.contact_display_name ?? "No named contact"}</strong>
-                      {r.contact_job_title ? <span className="contact-role">{r.contact_job_title}</span> : null}
-                      {r.contact_phone ? (
-                        <a href={`tel:${r.contact_phone}`} className="contact-line"><span aria-hidden="true">☎</span>{r.contact_phone}</a>
-                      ) : null}
-                      {(r.contact_email ?? r.organization_email) ? (
-                        <a href={`mailto:${r.contact_email ?? r.organization_email}`} className="contact-line"><span aria-hidden="true">✉</span>{r.contact_email ?? r.organization_email}</a>
-                      ) : null}
-                    </td>
-                    <td className="status-cell">
-                      <span className="pill">{r.status}</span>
-                      <span className="status-meta">last {fmtDate(r.last_touch_at)} · {r.touch_count ?? 0} touches</span>
-                    </td>
-                    <td className="next-action-cell">
-                      <div className="next-action-text" title={r.next_action ?? "—"}>{r.next_action ?? "—"}</div>
-                      <div className="next-action-due">due {fmtDate(r.next_action_due_at)}</div>
-                    </td>
-                    <td className="row-actions-cell">
-                      <div className="row-actions">
-                        <form action={logTouch}>
-                          <input type="hidden" name="target_id" value={r.id} />
-                          <input type="hidden" name="channel" value="call" />
-                          <input type="hidden" name="new_status" value="contacted" />
-                          <button type="submit" className="primary log-touch-button">Log touch</button>
-                        </form>
-                        <div className="action-menu">
-                          <button type="button" className="action-menu-trigger" aria-label={`More actions for ${r.organization_display_name ?? "target"}`}>⋯</button>
-                          <div className="action-menu-popover">
-                            <form action={logTouch} className="action-menu-form">
-                              <input type="hidden" name="target_id" value={r.id} />
-                              <label>Channel<select name="channel" defaultValue="call"><option value="call">Call</option><option value="email">Email</option><option value="sms">SMS</option><option value="door_knock">Door knock</option><option value="mail">Mail</option><option value="other">Other</option></select></label>
-                              <label>Status<select name="new_status" defaultValue="contacted">{STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}</select></label>
-                              <label>Outcome<input name="outcome" placeholder="Outcome" /></label>
-                              <label>Notes<input name="notes" placeholder="Notes" /></label>
-                              <label>Next action<input name="next_action" placeholder="Next action" defaultValue={r.next_action ?? ""} /></label>
-                              <button type="submit" className="button">Save touch details</button>
-                            </form>
-                            <div className="action-menu-divider" />
-                            <form action={updateTargetStatus} className="action-menu-form">
-                              <input type="hidden" name="target_id" value={r.id} />
-                              <label>Status<select name="status" defaultValue={r.status}>{STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}</select></label>
-                              <button type="submit" className="button">Set status</button>
-                            </form>
-                            {(sequences as {id:string;name:string}[] | null)?.length &&
-                            ["queued", "contacted", "responded"].includes(r.status) ? (
-                              <form action={enrollTarget} className="action-menu-form">
-                                <input type="hidden" name="target_id" value={r.id} />
-                                <label>Sequence<select name="sequence_id" required>{(sequences as {id:string;name:string}[]).map(seq => <option key={seq.id} value={seq.id}>{seq.name}</option>)}</select></label>
-                                <button type="submit" className="button">Enroll sequence</button>
-                              </form>
-                            ) : null}
-                            {["queued", "contacted", "responded"].includes(r.status) ? (
-                              <form action={convertTarget}>
-                                <input type="hidden" name="target_id" value={r.id} />
-                                <button type="submit" className="primary action-menu-full-button">Convert to lead</button>
-                              </form>
-                            ) : r.converted_lead_id ? (
-                              <span className="muted action-menu-lead">Lead {r.converted_lead_id.slice(0, 8)}…</span>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
     </main>
