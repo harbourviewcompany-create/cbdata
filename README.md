@@ -29,6 +29,15 @@ Database security:
 - audit/system event records are retained as operational control surfaces
 - no production customer/property/financial fixture data is seeded
 
+## Command center
+
+Dashboard metrics read `workspace_ops_snapshots` (trigger-maintained).
+Next actions come from `public.next_actions(workspace_id, limit)` with per-arm
+limits and deep links to record pages.
+
+Active workspace is stored on `user_profiles.active_workspace_id`.
+Invoices are unique per work order. Completing a work order requires an assignment.
+
 ## Repository layout
 
 `supabase/migrations/` — canonical migrations  
