@@ -29,6 +29,17 @@ Database security:
 - audit/system event records are retained as operational control surfaces
 - no production customer/property/financial fixture data is seeded
 
+## Apply migrations to production
+
+GitHub Action `Supabase db push` applies `supabase/migrations/` to project `nzjwhmqrsxztnpdppbub` on push to `main`.
+
+Required Actions secrets:
+
+- `SUPABASE_ACCESS_TOKEN`
+- `SUPABASE_DB_PASSWORD`
+
+Full steps (token, password, dry-run, local fallback): **`docs/db-push.md`**
+
 ## Command center
 
 Dashboard metrics read `workspace_ops_snapshots` (trigger-maintained).
