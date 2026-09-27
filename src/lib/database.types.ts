@@ -172,101 +172,6 @@ export type Database = {
           },
         ]
       }
-      bd_campaign_steps: {
-        Row: {
-          active: boolean
-          campaign_id: string
-          channel: Database["public"]["Enums"]["outreach_touch_channel"]
-          delay_days: number
-          id: string
-          message_template: string | null
-          step_number: number
-          task_title: string
-          task_type: Database["public"]["Enums"]["task_type"]
-          workspace_id: string
-        }
-        Insert: {
-          active?: boolean
-          campaign_id: string
-          channel: Database["public"]["Enums"]["outreach_touch_channel"]
-          delay_days?: number
-          id?: string
-          message_template?: string | null
-          step_number: number
-          task_title: string
-          task_type?: Database["public"]["Enums"]["task_type"]
-          workspace_id: string
-        }
-        Update: {
-          active?: boolean
-          campaign_id?: string
-          channel?: Database["public"]["Enums"]["outreach_touch_channel"]
-          delay_days?: number
-          id?: string
-          message_template?: string | null
-          step_number?: number
-          task_title?: string
-          task_type?: Database["public"]["Enums"]["task_type"]
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bd_campaign_steps_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "bd_campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "bd_campaign_steps_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      bd_campaigns: {
-        Row: {
-          active: boolean
-          created_at: string
-          created_by: string | null
-          description: string | null
-          id: string
-          name: string
-          updated_at: string
-          workspace_id: string
-        }
-        Insert: {
-          active?: boolean
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          name: string
-          updated_at?: string
-          workspace_id: string
-        }
-        Update: {
-          active?: boolean
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          id?: string
-          name?: string
-          updated_at?: string
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bd_campaigns_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       buildings: {
         Row: {
           building_number: string | null
@@ -2651,8 +2556,6 @@ export type Database = {
       }
       outreach_targets: {
         Row: {
-          auto_pilot: boolean
-          campaign_id: string | null
           company_address: string | null
           company_email: string | null
           company_phone: string | null
@@ -2661,12 +2564,9 @@ export type Database = {
           contact_name: string | null
           converted_lead_id: string | null
           created_at: string
-          current_step_number: number | null
           email: string | null
           id: string
           last_touch_at: string | null
-          launched_at: string | null
-          launched_by: string | null
           next_action: string | null
           next_action_due_at: string | null
           notes: string | null
@@ -2685,8 +2585,6 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
-          auto_pilot?: boolean
-          campaign_id?: string | null
           company_address?: string | null
           company_email?: string | null
           company_phone?: string | null
@@ -2695,12 +2593,9 @@ export type Database = {
           contact_name?: string | null
           converted_lead_id?: string | null
           created_at?: string
-          current_step_number?: number | null
           email?: string | null
           id?: string
           last_touch_at?: string | null
-          launched_at?: string | null
-          launched_by?: string | null
           next_action?: string | null
           next_action_due_at?: string | null
           notes?: string | null
@@ -2719,8 +2614,6 @@ export type Database = {
           workspace_id: string
         }
         Update: {
-          auto_pilot?: boolean
-          campaign_id?: string | null
           company_address?: string | null
           company_email?: string | null
           company_phone?: string | null
@@ -2729,12 +2622,9 @@ export type Database = {
           contact_name?: string | null
           converted_lead_id?: string | null
           created_at?: string
-          current_step_number?: number | null
           email?: string | null
           id?: string
           last_touch_at?: string | null
-          launched_at?: string | null
-          launched_by?: string | null
           next_action?: string | null
           next_action_due_at?: string | null
           notes?: string | null
@@ -2753,13 +2643,6 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "outreach_targets_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "bd_campaigns"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "outreach_targets_contact_id_fkey"
             columns: ["contact_id"]
@@ -3620,7 +3503,6 @@ export type Database = {
       tasks: {
         Row: {
           assigned_to: string | null
-          campaign_step_id: string | null
           completed_at: string | null
           contract_id: string | null
           created_at: string
@@ -3642,7 +3524,6 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
-          campaign_step_id?: string | null
           completed_at?: string | null
           contract_id?: string | null
           created_at?: string
@@ -3664,7 +3545,6 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
-          campaign_step_id?: string | null
           completed_at?: string | null
           contract_id?: string | null
           created_at?: string
@@ -3685,13 +3565,6 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "tasks_campaign_step_id_fkey"
-            columns: ["campaign_step_id"]
-            isOneToOne: false
-            referencedRelation: "bd_campaign_steps"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "tasks_contract_id_fkey"
             columns: ["contract_id"]
@@ -4890,6 +4763,7 @@ export type Database = {
       }
     }
     Functions: {
+      claim_outreach_target: { Args: { p_target_id: string }; Returns: string }
       complete_work_order_with_invoice: {
         Args: { p_notes?: string; p_work_order_id: string }
         Returns: string
@@ -4944,8 +4818,8 @@ export type Database = {
         Args: { p_workspace_id: string }
         Returns: boolean
       }
-      launch_bd_campaign: {
-        Args: { p_campaign_id: string; p_target_id: string }
+      log_bd_outcome: {
+        Args: { p_outcome: string; p_target_id: string }
         Returns: string
       }
       log_outreach_touch: {
@@ -5005,6 +4879,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      target_is_reachable: { Args: { p_target_id: string }; Returns: boolean }
     }
     Enums: {
       activity_status: "planned" | "completed" | "cancelled"
