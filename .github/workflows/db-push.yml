@@ -1,7 +1,7 @@
 name: Supabase db push
 
 # Applies pending files in supabase/migrations to the linked project.
-# Does not run on pull requests.
+# Does not run on pull requests or preview branches.
 #
 # Required repo secrets:
 #   SUPABASE_ACCESS_TOKEN   — Personal or CI token (supabase.com/dashboard/account/tokens)
@@ -21,7 +21,7 @@ on:
         type: string
         required: false
   push:
-    branches: [main, perf/command-center-snapshot]
+    branches: [main]
     paths:
       - "supabase/migrations/**"
       - ".github/workflows/db-push.yml"

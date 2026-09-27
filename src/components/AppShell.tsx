@@ -28,7 +28,7 @@ export function AppShell({
             <small>OPERATIONS</small>
           </div>
         </div>
-        <SidebarNav />
+        <SidebarNav role={role} />
         <div className="sidebar-foot">
           {userEmail ? (
             <div className="user-pill sidebar-user" title={userEmail}>
