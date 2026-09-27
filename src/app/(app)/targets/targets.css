@@ -7,3 +7,6 @@
 .target-card .meta{margin-top:8px;color:var(--muted);font-size:13px;line-height:1.45}
 .target-card .reach{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
 .target-card .reach a{display:inline-block;padding:8px 10px;border:1px solid var(--line);border-radius:999px;font-size:12px;font-weight:600}
+
+.targets-table th,.targets-table td{vertical-align:top}
+.targets-table .stack-actions{align-items:flex-start}
