@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { convertTarget, logTouch, refreshScores, updateTargetStatus, ensurePmSequence, enrollTarget, processSequences } from "./actions";
 
+type TargetIntel = { propertyCount:number; unitCount:number; buildingCount:number; highSignalCount:number; recentPermitCount:number; services:string[]; buyingSignals:string[]; };
+
 type QueueRow = {
   id: string;
   workspace_id: string;
@@ -126,6 +128,38 @@ export default async function TargetsPage({
     : all;
 
   const listId = filtered[0]?.outreach_list_id ?? all[0]?.outreach_list_id ?? "";
+
+  const visibleOrgIds = Array.from(new Set(filtered.map((r) => r.organization_id).filter(Boolean) as string[]));
+  const { data: propertyIntelRows } = visibleOrgIds.length
+    ? await (s as any).from("v_property_intelligence").select("property_id,owner_organization_id,management_organization_id,primary_customer_organization_id,unit_count,building_count,intelligence_score,grounds_scope,snow_scope,janitorial_scope,procurement_signal,capital_projects_signal,vendor_signal,recent_permit_count").eq("workspace_id", all[0]?.workspace_id ?? "").limit(500)
+    : { data: [] };
+
+  const intelByOrg = new Map<string, TargetIntel>();
+  const addIntel = (orgId: string, p: any) => {
+    const current = intelByOrg.get(orgId) ?? {propertyCount:0,unitCount:0,buildingCount:0,highSignalCount:0,recentPermitCount:0,services:[],buyingSignals:[]};
+    current.propertyCount += 1;
+    current.unitCount += Number(p.unit_count ?? 0);
+    current.buildingCount += Number(p.building_count ?? 0);
+    current.recentPermitCount += Number(p.recent_permit_count ?? 0);
+    if (p.intelligence_score != null && Number(p.intelligence_score) >= 80) current.highSignalCount += 1;
+    if (p.grounds_scope && !current.services.includes("grounds")) current.services.push("grounds");
+    if (p.snow_scope && !current.services.includes("snow")) current.services.push("snow");
+    if (p.janitorial_scope && !current.services.includes("janitorial")) current.services.push("janitorial");
+    if (p.procurement_signal && !current.buyingSignals.includes("procurement")) current.buyingSignals.push("procurement");
+    if (p.capital_projects_signal && !current.buyingSignals.includes("capital")) current.buyingSignals.push("capital");
+    if (p.vendor_signal && !current.buyingSignals.includes("vendor")) current.buyingSignals.push("vendor");
+    intelByOrg.set(orgId, current);
+  };
+  for (const p of (propertyIntelRows ?? [])) {
+    for (const key of ["owner_organization_id","management_organization_id","primary_customer_organization_id"]) {
+      const orgId = p[key] as string | null;
+      if (orgId && visibleOrgIds.includes(orgId)) addIntel(orgId, p);
+    }
+  }
+  const visibleIntel = filtered.map((r) => r.organization_id ? intelByOrg.get(r.organization_id) : undefined).filter(Boolean) as TargetIntel[];
+  const intelProperties = visibleIntel.reduce((n, x) => n + x.propertyCount, 0);
+  const intelSignals = visibleIntel.reduce((n, x) => n + x.highSignalCount, 0);
+  const buyingSignalTargets = visibleIntel.filter((x) => x.buyingSignals.length > 0).length;
   const regions = Array.from(
     new Set(all.map((r) => r.region).filter(Boolean) as string[]),
   ).sort();
@@ -163,6 +197,9 @@ export default async function TargetsPage({
           <span>Showing</span>
           <strong>{filtered.length}</strong>
         </div>
+        <div className="metric intel-metric"><span>Linked properties</span><strong>{intelProperties}</strong></div>
+        <div className="metric intel-metric"><span>High-signal sites</span><strong>{intelSignals}</strong></div>
+        <div className="metric intel-metric"><span>Buying signals</span><strong>{buyingSignalTargets}</strong></div>
       </section>
 
       <section className="panel" style={{ marginBottom: 18 }}>
@@ -220,6 +257,10 @@ export default async function TargetsPage({
                 <div className="company-cell" role="cell">
                   <Link href={`/targets/${r.id}`} className="target-company"><strong>{r.organization_display_name ?? "—"}</strong></Link>
                   {r.region ? <span className="region-tag">{r.region}</span> : null}
+                  {r.organization_id && intelByOrg.get(r.organization_id) ? (() => {
+                    const i = intelByOrg.get(r.organization_id)!;
+                    return <div className="portfolio-intel">{i.propertyCount} site{i.propertyCount === 1 ? "" : "s"}{i.buildingCount ? " · " + i.buildingCount + " building" + (i.buildingCount === 1 ? "" : "s") : ""}{i.unitCount ? " · " + i.unitCount.toLocaleString() + " units" : ""}</div>;
+                  })() : null}
                   <div className="company-meta">{r.organization_website ? <a href={r.organization_website} target="_blank" rel="noreferrer">website</a> : null}{r.organization_phone ? <a href={`tel:${r.organization_phone}`}>{r.organization_phone}</a> : null}</div>
                 </div>
                 <div className="contact-cell" role="cell">
@@ -229,7 +270,16 @@ export default async function TargetsPage({
                   {(r.contact_email ?? r.organization_email) ? <a href={`mailto:${r.contact_email ?? r.organization_email}`} className="contact-line"><span aria-hidden="true">✉</span>{r.contact_email ?? r.organization_email}</a> : null}
                 </div>
                 <div className="status-cell" role="cell"><span className="pill">{r.status}</span><span className="status-meta">{r.touch_count ? `${r.touch_count} touch${r.touch_count === 1 ? "" : "es"} · last ${fmtDate(r.last_touch_at)}` : "No touches yet"}</span></div>
-                <div className="next-action-cell" role="cell"><div className="next-action-text" title={r.next_action ?? "—"}>{r.next_action ?? "—"}</div>{r.next_action_due_at ? <div className="next-action-due">due {fmtDate(r.next_action_due_at)}</div> : null}</div>
+                <div className="next-action-cell" role="cell">
+                  <div className="next-action-text" title={r.next_action ?? "—"}>{r.next_action ?? "—"}</div>
+                  {r.organization_id && intelByOrg.get(r.organization_id) ? (() => {
+                    const i = intelByOrg.get(r.organization_id)!;
+                    const services = i.services.slice(0, 3).join(" · ");
+                    const buying = i.buyingSignals.slice(0, 2).join(" · ");
+                    return <div className="intel-line">{[services, buying].filter(Boolean).join(" · ") || "Property intelligence pending"}</div>;
+                  })() : null}
+                  {r.next_action_due_at ? <div className="next-action-due">due {fmtDate(r.next_action_due_at)}</div> : null}
+                </div>
                 <div className="row-actions-cell" role="cell">
                   <div className="row-actions">
                     <form action={logTouch}><input type="hidden" name="target_id" value={r.id}/><input type="hidden" name="channel" value="call"/><input type="hidden" name="new_status" value="contacted"/><button type="submit" className="primary log-touch-button">Log touch</button></form>
