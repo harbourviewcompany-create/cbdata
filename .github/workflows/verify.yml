@@ -1,7 +1,6 @@
 name: Verify
 # Command-center migration verification is intentionally part of this workflow.
-# Keep DB tests authoritative for migration ordering and constraints.
-# Re-run after performance test quoting correction.
+# Keep DB verification authoritative for migration ordering and constraints.
 
 on:
   pull_request:
@@ -34,7 +33,15 @@ jobs:
             exit 1
           fi
           true
-      - name: Start local database and run pgTAP-style tests
+      - name: Start local database and run SQL verification
         run: |
+          set -euo pipefail
           supabase db start
-          supabase test db
+
+          for test in supabase/tests/*.sql; do
+            echo "==> Running $test"
+            supabase db reset >/dev/null
+            supabase db query --file "$test"
+          done
+
+          echo "Database migration verification passed."
