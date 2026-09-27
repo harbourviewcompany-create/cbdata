@@ -151,10 +151,12 @@ export default async function TargetsPage({
     intelByOrg.set(orgId, current);
   };
   for (const p of (propertyIntelRows ?? [])) {
+    const matchedOrgIds = new Set<string>();
     for (const key of ["owner_organization_id","management_organization_id","primary_customer_organization_id"]) {
       const orgId = p[key] as string | null;
-      if (orgId && visibleOrgIds.includes(orgId)) addIntel(orgId, p);
+      if (orgId && visibleOrgIds.includes(orgId)) matchedOrgIds.add(orgId);
     }
+    for (const orgId of matchedOrgIds) addIntel(orgId, p);
   }
   const visibleIntel = filtered.map((r) => r.organization_id ? intelByOrg.get(r.organization_id) : undefined).filter(Boolean) as TargetIntel[];
   const intelProperties = visibleIntel.reduce((n, x) => n + x.propertyCount, 0);
