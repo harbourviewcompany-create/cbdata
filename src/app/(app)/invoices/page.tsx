@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import type { Route } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { issueInvoice, recordPayment } from "./actions";
@@ -22,7 +23,7 @@ export default async function InvoicesPage() {
 
   const orgName = (id: string) => {
     const o = orgs?.find((x) => x.id === id);
-    return o?.operating_name ?? o?.legal_name ?? "—";
+    return o?.operating_name ?? o?.legal_name ?? "\u2014";
   };
 
   return (
@@ -52,7 +53,7 @@ export default async function InvoicesPage() {
                 rows!.map((r) => (
                   <tr key={r.id}>
                     <td>
-                      <Link href={`/invoices/${r.id}`}>{r.invoice_number}</Link>
+                      <Link href={`/invoices/${r.id}` as Route}>{r.invoice_number}</Link>
                     </td>
                     <td>{orgName(r.organization_id)}</td>
                     <td>{r.status}</td>
@@ -62,7 +63,7 @@ export default async function InvoicesPage() {
                         currency: "CAD",
                       })}
                     </td>
-                    <td>{r.due_date ?? "—"}</td>
+                    <td>{r.due_date ?? "\u2014"}</td>
                     <td>
                       <div className="stack-actions">
                         {r.status === "draft" ? (
