@@ -38,3 +38,4 @@ Database security:
 ## Rule
 
 Schema changes must be made through a new migration and verified with database-level tests before frontend work depends on them.
+
