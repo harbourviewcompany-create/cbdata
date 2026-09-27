@@ -40,8 +40,7 @@ jobs:
 
           for test in supabase/tests/*.sql; do
             echo "==> Running $test"
-            supabase db reset >/dev/null
-            supabase db query --file "$test"
+            supabase db query --local "$(cat "$test")"
           done
 
           echo "Database migration verification passed."
