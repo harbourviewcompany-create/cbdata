@@ -336,7 +336,8 @@ export default async function TargetsPage({
                           </button>
                         </form>
 
-                        {(sequences as {id:string;name:string}[] | null)?.length ? (
+                        {(sequences as {id:string;name:string}[] | null)?.length &&
+                        ["queued", "contacted", "responded"].includes(r.status) ? (
                           <form action={enrollTarget} className="mini-form">
                             <input type="hidden" name="target_id" value={r.id} />
                             <select name="sequence_id" required>
@@ -347,7 +348,7 @@ export default async function TargetsPage({
                             <button type="submit" className="button">Enroll sequence</button>
                           </form>
                         ) : null}
-                        {r.status !== "converted" && r.status !== "do_not_contact" ? (
+                        {["queued", "contacted", "responded"].includes(r.status) ? (
                           <form action={convertTarget}>
                             <input type="hidden" name="target_id" value={r.id} />
                             <button type="submit" className="primary">
