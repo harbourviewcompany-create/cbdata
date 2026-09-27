@@ -209,6 +209,14 @@ export default async function TargetsPage({
       <section className="table-panel">
         <div className="table-wrap">
           <table className="targets-table">
+            <colgroup>
+              <col className="col-score" />
+              <col className="col-company" />
+              <col className="col-contact" />
+              <col className="col-status" />
+              <col className="col-next-action" />
+              <col className="col-actions" />
+            </colgroup>
             <thead>
               <tr>
                 <th>Score</th>
@@ -216,14 +224,13 @@ export default async function TargetsPage({
                 <th>Contact</th>
                 <th>Status</th>
                 <th>Next action</th>
-                <th>Touches</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="muted">
+                  <td colSpan={6} className="muted">
                     No targets yet. Seed{" "}
                     <code>supabase/seed/001_pm_targets_example.sql</code> after
                     the migration, or add outreach targets manually.
@@ -232,134 +239,87 @@ export default async function TargetsPage({
               ) : (
                 filtered.map((r) => (
                   <tr key={r.id}>
-                    <td>
-                      <strong>{r.score ?? "—"}</strong>
-                      <div className="muted" style={{ fontSize: 12 }}>
-                        {r.doors_managed != null
-                          ? `${r.doors_managed} doors`
-                          : "doors n/a"}
-                        {r.linked_property_count
-                          ? ` · ${r.linked_property_count} props`
-                          : ""}
-                      </div>
+                    <td className="score-cell">
+                      <span className={`score-chip ${(r.score ?? 0) >= 80 ? "score-high" : (r.score ?? 0) >= 60 ? "score-medium" : "score-low"}`}>
+                        {r.score ?? "—"}
+                      </span>
                     </td>
-                    <td>
-                      <Link href={`/targets/${r.id}`} style={{ color: "inherit", textDecoration: "none" }}>
+                    <td className="company-cell">
+                      <Link href={`/targets/${r.id}`} className="target-company">
                         <strong>{r.organization_display_name ?? "—"}</strong>
                       </Link>
-                      <div className="muted" style={{ fontSize: 12 }}>
-                        {r.region ?? "—"}
-                        {r.list_name ? ` · ${r.list_name}` : ""}
-                        {r.buildings_managed != null ? ` · ${r.buildings_managed} buildings` : ""}
-                        {r.doors_managed != null ? ` · ${r.doors_managed} doors` : ""}
-                      </div>
-                      <div style={{ fontSize: 12, marginTop: 4 }}>
+                      {r.region ? <span className="region-tag">{r.region}</span> : null}
+                      <div className="company-meta">
                         {r.organization_website ? (
                           <a href={r.organization_website} target="_blank" rel="noreferrer">website</a>
                         ) : null}
                         {r.organization_phone ? (
-                          <a href={`tel:${r.organization_phone}`} style={{ marginLeft: 8 }}>{r.organization_phone}</a>
-                        ) : null}
-                      </div>
-                      <div className="muted" style={{ fontSize: 11, marginTop: 3 }}>
-                        {r.organization_address ?? ""}
-                      </div>
-                    </td>
-                    <td>
-                      <div><strong>{r.contact_display_name ?? "No named contact"}</strong></div>
-                      <div className="muted" style={{ fontSize: 12 }}>
-                        {r.contact_job_title ?? ""}
-                      </div>
-                      <div style={{ fontSize: 12 }}>
-                        {r.contact_phone ? <a href={`tel:${r.contact_phone}`}>{r.contact_phone}</a> : null}
-                        {r.contact_email ? <a href={`mailto:${r.contact_email}`} style={{ marginLeft: 8 }}>{r.contact_email}</a> : null}
-                        {!r.contact_phone && !r.contact_email && r.organization_email ? (
-                          <a href={`mailto:${r.organization_email}`}>{r.organization_email}</a>
+                          <a href={`tel:${r.organization_phone}`}>{r.organization_phone}</a>
                         ) : null}
                       </div>
                     </td>
-                    <td>
+                    <td className="contact-cell">
+                      <strong>{r.contact_display_name ?? "No named contact"}</strong>
+                      {r.contact_job_title ? <span className="contact-role">{r.contact_job_title}</span> : null}
+                      {r.contact_phone ? (
+                        <a href={`tel:${r.contact_phone}`} className="contact-line"><span aria-hidden="true">☎</span>{r.contact_phone}</a>
+                      ) : null}
+                      {(r.contact_email ?? r.organization_email) ? (
+                        <a href={`mailto:${r.contact_email ?? r.organization_email}`} className="contact-line"><span aria-hidden="true">✉</span>{r.contact_email ?? r.organization_email}</a>
+                      ) : null}
+                    </td>
+                    <td className="status-cell">
                       <span className="pill">{r.status}</span>
-                      <div className="muted" style={{ fontSize: 12 }}>
-                        last {fmtDate(r.last_touch_at)}
-                      </div>
+                      <span className="status-meta">last {fmtDate(r.last_touch_at)} · {r.touch_count ?? 0} touches</span>
                     </td>
-                    <td>
-                      <div>{r.next_action ?? "—"}</div>
-                      <div className="muted" style={{ fontSize: 12 }}>
-                        due {fmtDate(r.next_action_due_at)}
-                      </div>
+                    <td className="next-action-cell">
+                      <div className="next-action-text" title={r.next_action ?? "—"}>{r.next_action ?? "—"}</div>
+                      <div className="next-action-due">due {fmtDate(r.next_action_due_at)}</div>
                     </td>
-                    <td>{r.touch_count ?? 0}</td>
-                    <td>
-                      <div className="stack-actions">
-                        <form action={logTouch} className="mini-form">
+                    <td className="row-actions-cell">
+                      <div className="row-actions">
+                        <form action={logTouch}>
                           <input type="hidden" name="target_id" value={r.id} />
-                          <select name="channel" defaultValue="call">
-                            <option value="call">call</option>
-                            <option value="email">email</option>
-                            <option value="sms">sms</option>
-                            <option value="door_knock">door_knock</option>
-                            <option value="mail">mail</option>
-                            <option value="other">other</option>
-                          </select>
-                          <select name="new_status" defaultValue="contacted">
-                            <option value="contacted">→ contacted</option>
-                            <option value="responded">→ responded</option>
-                            <option value="rejected">→ rejected</option>
-                            <option value="do_not_contact">→ do not contact</option>
-                            <option value="queued">→ queued</option>
-                          </select>
-                          <input name="outcome" placeholder="Outcome" />
-                          <input name="notes" placeholder="Notes" />
-                          <input
-                            name="next_action"
-                            placeholder="Next action"
-                            defaultValue={r.next_action ?? ""}
-                          />
-                          <button type="submit" className="button">
-                            Log touch
-                          </button>
+                          <input type="hidden" name="channel" value="call" />
+                          <input type="hidden" name="new_status" value="contacted" />
+                          <button type="submit" className="primary log-touch-button">Log touch</button>
                         </form>
-
-                        <form action={updateTargetStatus} className="mini-form">
-                          <input type="hidden" name="target_id" value={r.id} />
-                          <select name="status" defaultValue={r.status}>
-                            {STATUSES.map((st) => (
-                              <option key={st} value={st}>
-                                {st}
-                              </option>
-                            ))}
-                          </select>
-                          <button type="submit" className="button">
-                            Set status
-                          </button>
-                        </form>
-
-                        {(sequences as {id:string;name:string}[] | null)?.length &&
-                        ["queued", "contacted", "responded"].includes(r.status) ? (
-                          <form action={enrollTarget} className="mini-form">
-                            <input type="hidden" name="target_id" value={r.id} />
-                            <select name="sequence_id" required>
-                              {(sequences as {id:string;name:string}[]).map(seq => (
-                                <option key={seq.id} value={seq.id}>{seq.name}</option>
-                              ))}
-                            </select>
-                            <button type="submit" className="button">Enroll sequence</button>
-                          </form>
-                        ) : null}
-                        {["queued", "contacted", "responded"].includes(r.status) ? (
-                          <form action={convertTarget}>
-                            <input type="hidden" name="target_id" value={r.id} />
-                            <button type="submit" className="primary">
-                              Convert to lead
-                            </button>
-                          </form>
-                        ) : r.converted_lead_id ? (
-                          <span className="muted" style={{ fontSize: 12 }}>
-                            Lead {r.converted_lead_id.slice(0, 8)}…
-                          </span>
-                        ) : null}
+                        <div className="action-menu">
+                          <button type="button" className="action-menu-trigger" aria-label={`More actions for ${r.organization_display_name ?? "target"}`}>⋯</button>
+                          <div className="action-menu-popover">
+                            <form action={logTouch} className="action-menu-form">
+                              <input type="hidden" name="target_id" value={r.id} />
+                              <label>Channel<select name="channel" defaultValue="call"><option value="call">Call</option><option value="email">Email</option><option value="sms">SMS</option><option value="door_knock">Door knock</option><option value="mail">Mail</option><option value="other">Other</option></select></label>
+                              <label>Status<select name="new_status" defaultValue="contacted">{STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}</select></label>
+                              <label>Outcome<input name="outcome" placeholder="Outcome" /></label>
+                              <label>Notes<input name="notes" placeholder="Notes" /></label>
+                              <label>Next action<input name="next_action" placeholder="Next action" defaultValue={r.next_action ?? ""} /></label>
+                              <button type="submit" className="button">Save touch details</button>
+                            </form>
+                            <div className="action-menu-divider" />
+                            <form action={updateTargetStatus} className="action-menu-form">
+                              <input type="hidden" name="target_id" value={r.id} />
+                              <label>Status<select name="status" defaultValue={r.status}>{STATUSES.map((st) => <option key={st} value={st}>{st}</option>)}</select></label>
+                              <button type="submit" className="button">Set status</button>
+                            </form>
+                            {(sequences as {id:string;name:string}[] | null)?.length &&
+                            ["queued", "contacted", "responded"].includes(r.status) ? (
+                              <form action={enrollTarget} className="action-menu-form">
+                                <input type="hidden" name="target_id" value={r.id} />
+                                <label>Sequence<select name="sequence_id" required>{(sequences as {id:string;name:string}[]).map(seq => <option key={seq.id} value={seq.id}>{seq.name}</option>)}</select></label>
+                                <button type="submit" className="button">Enroll sequence</button>
+                              </form>
+                            ) : null}
+                            {["queued", "contacted", "responded"].includes(r.status) ? (
+                              <form action={convertTarget}>
+                                <input type="hidden" name="target_id" value={r.id} />
+                                <button type="submit" className="primary action-menu-full-button">Convert to lead</button>
+                              </form>
+                            ) : r.converted_lead_id ? (
+                              <span className="muted action-menu-lead">Lead {r.converted_lead_id.slice(0, 8)}…</span>
+                            ) : null}
+                          </div>
+                        </div>
                       </div>
                     </td>
                   </tr>
