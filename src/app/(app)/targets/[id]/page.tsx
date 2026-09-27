@@ -62,7 +62,7 @@ export default async function TargetDetail({
       .order("occurred_at", { ascending: false })
       .limit(20),
     row.organization_id
-      ? s
+      ? (s as any)
           .from("v_property_intelligence")
           .select("property_id,name,address_line_1,address_line_2,city,province,postal_code,property_type,building_count,unit_count,floor_count,estimated_sqft,lot_area_sqft,parking_spaces,construction_year,grounds_scope,snow_scope,janitorial_scope,capital_projects_signal,vendor_signal,procurement_signal,seasonal_priority,access_complexity,liability_signal,intelligence_score,intelligence_summary,primary_source_url,primary_source_label,data_confidence,verified_at,contact_count,permit_count,recent_permit_count,recent_permit_value")
           .eq("workspace_id", ctx.workspaceId)
