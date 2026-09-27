@@ -226,3 +226,43 @@
 @media(max-width:850px){
   .targets-table{min-width:900px !important}
 }
+
+/* Explicit account queue grid. This is intentionally not a table layout. */
+.targets-grid{width:100%;min-width:0}
+.targets-grid-row{
+  display:grid;
+  grid-template-columns:minmax(58px,72px) minmax(190px,1.15fr) minmax(230px,1.35fr) minmax(135px,.8fr) minmax(190px,1.25fr) minmax(128px,142px);
+  align-items:center;
+  min-width:0;
+  min-height:76px;
+  border-bottom:1px solid var(--line);
+}
+.targets-grid-row:last-child{border-bottom:0}
+.targets-grid-row>div{min-width:0;padding:10px 12px;overflow:hidden}
+.targets-grid-head{
+  min-height:42px;
+  border-top:1px solid var(--line);
+  background:#0b1015;
+}
+.targets-grid-head>div{
+  color:var(--muted);
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.targets-grid-empty{grid-template-columns:1fr}
+.targets-grid-empty>div{padding:20px}
+.targets-grid-row:not(.targets-grid-head):hover>div{background:rgba(255,255,255,.015)}
+.targets-grid .score-cell{display:flex;align-items:center}
+.targets-grid .company-cell,.targets-grid .contact-cell,.targets-grid .status-cell,.targets-grid .next-action-cell{align-self:stretch}
+.targets-grid .contact-cell{display:grid;align-content:center}
+.targets-grid .row-actions-cell{position:relative;overflow:visible}
+.targets-grid .row-actions{height:auto}
+@media(max-width:1100px){
+  .targets-grid-row{grid-template-columns:58px minmax(170px,1.05fr) minmax(205px,1.2fr) minmax(125px,.75fr) minmax(180px,1.1fr) 132px}
+}
+@media(max-width:850px){
+  .targets-grid{min-width:900px}
+}
