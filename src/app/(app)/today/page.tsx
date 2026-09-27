@@ -4,7 +4,7 @@ import { requireWorkspace } from "@/lib/workspace";
 import { createClient } from "@/lib/supabase/server";
 import { startWorkOrder, completeWorkOrder } from "../work-orders/actions";
 import { uploadWorkOrderPhoto } from "./actions";
-import { PhotoStrip } from "@/components/PhotoStrip";
+import { loadPhotoStrips, PhotoStripView } from "@/components/PhotoStrip";
 
 export default async function TodayPage() {
   const ctx = await requireWorkspace();
@@ -23,10 +23,21 @@ export default async function TodayPage() {
     .neq("status", "cancelled")
     .order("scheduled_start");
 
-  const propertyIds = Array.from(new Set((rows ?? []).map((r) => r.property_id).filter(Boolean)));
-  const { data: props } = propertyIds.length
-    ? await s.from("properties").select("id,name,address_line_1").in("id", propertyIds)
-    : { data: [] as { id: string; name: string; address_line_1: string }[] };
+  const jobs = rows ?? [];
+  const propertyIds = Array.from(new Set(jobs.map((r) => r.property_id).filter(Boolean) as string[]));
+  const jobIds = jobs.map((r) => r.id);
+
+  const [{ data: props }, photoMap] = await Promise.all([
+    propertyIds.length
+      ? s.from("properties").select("id,name,address_line_1").in("id", propertyIds)
+      : Promise.resolve({ data: [] as { id: string; name: string; address_line_1: string }[] }),
+    loadPhotoStrips({
+      workspaceId: ctx.workspaceId,
+      entityType: "work_order",
+      entityIds: jobIds,
+      perEntity: 3,
+    }),
+  ]);
 
   const propById = new Map((props ?? []).map((p) => [p.id, p]));
 
@@ -53,7 +64,7 @@ export default async function TodayPage() {
               </tr>
             </thead>
             <tbody>
-              {(rows ?? []).map((r) => {
+              {jobs.map((r) => {
                 const p = r.property_id ? propById.get(r.property_id) : undefined;
                 return (
                   <tr key={r.id}>
@@ -77,7 +88,7 @@ export default async function TodayPage() {
                           <input type="file" name="file" accept="image/jpeg,image/png,image/webp,image/heic" required />
                           <button>Upload photo</button>
                         </form>
-                        <PhotoStrip workspaceId={ctx.workspaceId} entityType="work_order" entityId={r.id} />
+                        <PhotoStripView photos={photoMap.get(r.id)} />
                         {r.status === "in_progress" ? (
                           <form action={completeWorkOrder}>
                             <input type="hidden" name="id" value={r.id} />
@@ -93,7 +104,7 @@ export default async function TodayPage() {
             </tbody>
           </table>
         </div>
-        {!rows?.length ? <p className="muted empty-queue">No jobs scheduled today.</p> : null}
+        {!jobs.length ? <p className="muted empty-queue">No jobs scheduled today.</p> : null}
       </section>
     </>
   );
