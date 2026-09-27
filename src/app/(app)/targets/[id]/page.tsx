@@ -6,7 +6,29 @@ import { convertTarget, logTouch } from "../actions";
 import { addTargetContact, saveTargetAccount, setPrimaryTargetContact } from "../account-actions";
 
 type PropertyIntelRow = {
-  property_id: string; name: string; address_line_1: string; address_line_2: string | null; city: string; province: string | null; postal_code: string | null; property_type: string; building_count: number | null; unit_count: number | null; floor_count: number | null; estimated_sqft: number | null; parking_spaces: number | null; construction_year: number | null; grounds_scope: string | null; snow_scope: string | null; janitorial_scope: string | null; capital_projects_signal: string | null; vendor_signal: string | null; procurement_signal: string | null; seasonal_priority: string | null; access_complexity: string | null; liability_signal: string | null; intelligence_score: number | null; intelligence_summary: string | null; primary_source_url: string | null; primary_source_label: string | null; data_confidence: string | null; contact_count: number | null; permit_count: number | null; recent_permit_count: number | null; recent_permit_value: number | null;
+  property_id: string; name: string; address_line_1: string; address_line_2: string | null; city: string; province: string | null; postal_code: string | null; property_type: string; building_count: number | null; unit_count: number | null; floor_count: number | null; estimated_sqft: number | null; parking_spaces: number | null; construction_year: number | null; grounds_scope: string | null; snow_scope: string | null; janitorial_scope: string | null; capital_projects_signal: string | null; vendor_signal: string | null; procurement_signal: string | null; seasonal_priority: string | null; access_complexity: string | null; liability_signal: string | null; intelligence_score: number | null; intelligence_summary: string | null; primary_source_url: string | null; primary_source_label: string | null; data_confidence: string | null; verified_at: string | null; contact_count: number | null; permit_count: number | null; recent_permit_count: number | null; recent_permit_value: number | null;
+};
+
+type PropertyContactRow = {
+  id: string;
+  property_id: string;
+  relationship_type: string;
+  is_primary: boolean;
+  emergency_contact: boolean;
+  notes: string | null;
+  contacts: { id: string; first_name: string; last_name: string; job_title: string | null; email: string | null; phone: string | null; mobile: string | null } | { id: string; first_name: string; last_name: string; job_title: string | null; email: string | null; phone: string | null; mobile: string | null }[] | null;
+};
+
+type PropertyEvidenceRow = {
+  id: string;
+  property_id: string;
+  source_type: string;
+  source_url: string | null;
+  source_title: string | null;
+  observed_at: string;
+  published_at: string | null;
+  summary: string | null;
+  confidence: string | null;
 };
 
 function fmt(v: string | null | undefined) {
@@ -16,6 +38,14 @@ function fmt(v: string | null | undefined) {
   } catch {
     return v;
   }
+}
+
+function freshness(v: string | null | undefined) {
+  if (!v) return "unverified";
+  const days = Math.max(0, Math.floor((Date.now() - new Date(v).getTime()) / 86400000));
+  if (days === 0) return "verified today";
+  if (days === 1) return "verified 1d ago";
+  return "verified " + days + "d ago";
 }
 
 export default async function TargetDetail({
@@ -89,6 +119,37 @@ export default async function TargetDetail({
     for (const p of (linkedIntel ?? []) as PropertyIntelRow[]) propertyMap.set(p.property_id, p);
   }
   const propertyRows = Array.from(propertyMap.values());
+
+  const propertyIds = propertyRows.map((p) => p.property_id);
+  const [{ data: propertyContacts }, { data: propertyEvidence }] = propertyIds.length
+    ? await Promise.all([
+        (s as any)
+          .from("property_contacts")
+          .select("id,property_id,relationship_type,is_primary,emergency_contact,notes,contacts(id,first_name,last_name,job_title,email,phone,mobile)")
+          .eq("workspace_id", ctx.workspaceId)
+          .in("property_id", propertyIds)
+          .order("is_primary", { ascending: false }),
+        (s as any)
+          .from("property_intelligence_sources")
+          .select("id,property_id,source_type,source_url,source_title,observed_at,published_at,summary,confidence")
+          .eq("workspace_id", ctx.workspaceId)
+          .in("property_id", propertyIds)
+          .order("observed_at", { ascending: false }),
+      ])
+    : [{ data: [] }, { data: [] }];
+
+  const contactsByProperty = new Map<string, PropertyContactRow[]>();
+  for (const pc of (propertyContacts ?? []) as PropertyContactRow[]) {
+    const list = contactsByProperty.get(pc.property_id) ?? [];
+    list.push(pc);
+    contactsByProperty.set(pc.property_id, list);
+  }
+  const evidenceByProperty = new Map<string, PropertyEvidenceRow[]>();
+  for (const ev of (propertyEvidence ?? []) as PropertyEvidenceRow[]) {
+    const list = evidenceByProperty.get(ev.property_id) ?? [];
+    list.push(ev);
+    evidenceByProperty.set(ev.property_id, list);
+  }
 
   const companyName = org?.operating_name || org?.legal_name || row.organization_name || "Target";
 
@@ -251,11 +312,11 @@ export default async function TargetDetail({
         <div className="table-wrap" style={{ marginTop: 12 }}>
           <table className="targets-table">
             <thead><tr>
-              <th>Property</th><th>Footprint</th><th>Service signals</th><th>Buying / risk signals</th><th>Evidence</th>
+              <th>Property</th><th>Footprint</th><th>Service signals</th><th>Buying / risk signals</th><th>Decision makers</th><th>Evidence</th>
             </tr></thead>
             <tbody>
               {propertyRows.length === 0 ? (
-                <tr><td colSpan={5} className="muted">No properties linked to this organization yet.</td></tr>
+                <tr><td colSpan={6} className="muted">No properties linked to this organization yet.</td></tr>
               ) : propertyRows.map((p) => (
                 <tr key={p.property_id}>
                   <td>
@@ -291,10 +352,43 @@ export default async function TargetDetail({
                     </div>
                   </td>
                   <td>
+                    {(() => {
+                      const contacts = contactsByProperty.get(p.property_id) ?? [];
+                      return contacts.length ? contacts.slice(0, 3).map((pc) => {
+                        const c = (Array.isArray(pc.contacts) ? pc.contacts[0] : pc.contacts);
+                        if (!c) return null;
+                        return (
+                          <div key={pc.id} className="property-contact">
+                            <strong>{c.first_name} {c.last_name}</strong>
+                            <span className="muted">{pc.relationship_type}{pc.is_primary ? " · primary" : ""}{c.job_title ? " · " + c.job_title : ""}</span>
+                            {(c.phone || c.mobile) ? <a href={"tel:" + (c.phone || c.mobile)}>{c.phone || c.mobile}</a> : null}
+                            {c.email ? <a href={"mailto:" + c.email}>{c.email}</a> : null}
+                          </div>
+                        );
+                      }) : <span className="muted">No property-specific contact verified.</span>;
+                    })()}
+                  </td>
+                  <td>
                     {p.intelligence_score != null ? <strong>{p.intelligence_score}/100</strong> : <span className="muted">not scored</span>}
+                    <div className="evidence-freshness">{freshness(p.verified_at)}</div>
                     {p.intelligence_summary ? <div className="muted" style={{fontSize:12,marginTop:4}}>{p.intelligence_summary}</div> : null}
-                    {p.primary_source_url ? <div style={{fontSize:12,marginTop:5}}><a href={p.primary_source_url} target="_blank" rel="noreferrer">{p.primary_source_label ?? "source"}</a></div> : null}
-                    <div className="muted" style={{fontSize:11,marginTop:4}}>{p.contact_count ?? 0} property contacts</div>
+                    {(() => {
+                      const evidence = evidenceByProperty.get(p.property_id) ?? [];
+                      return evidence.length ? (
+                        <div className="evidence-list">
+                          {evidence.slice(0, 2).map((ev) => (
+                            <div key={ev.id}>
+                              {ev.source_url ? <a href={ev.source_url} target="_blank" rel="noreferrer">{ev.source_title ?? ev.source_type}</a> : <span>{ev.source_title ?? ev.source_type}</span>}
+                              <span className="muted"> · {freshness(ev.observed_at)}</span>
+                            </div>
+                          ))}
+                          {evidence.length > 2 ? <span className="muted">+{evidence.length - 2} more sources</span> : null}
+                        </div>
+                      ) : p.primary_source_url ? (
+                        <div style={{fontSize:12,marginTop:5}}><a href={p.primary_source_url} target="_blank" rel="noreferrer">{p.primary_source_label ?? "primary source"}</a></div>
+                      ) : <span className="muted">No evidence source linked.</span>;
+                    })()}
+                    <div className="muted" style={{fontSize:11,marginTop:4}}>{p.contact_count ?? 0} property contacts · {(evidenceByProperty.get(p.property_id) ?? []).length} evidence records</div>
                   </td>
                 </tr>
               ))}
