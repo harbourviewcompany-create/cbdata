@@ -34,7 +34,7 @@ export default async function TargetDetail({
     .maybeSingle();
   if (!row) notFound();
 
-  const [{ data: org }, { data: links }, { data: touches }] = await Promise.all([
+  const [{ data: org }, { data: links }, { data: touches }, { data: properties }] = await Promise.all([
     row.organization_id
       ? s
           .from("organizations")
@@ -57,6 +57,16 @@ export default async function TargetDetail({
       .eq("outreach_target_id", id)
       .order("occurred_at", { ascending: false })
       .limit(20),
+    row.organization_id
+      ? s
+          .from("v_property_intelligence")
+          .select("property_id,name,address_line_1,address_line_2,city,province,postal_code,property_type,building_count,unit_count,floor_count,estimated_sqft,lot_area_sqft,parking_spaces,construction_year,grounds_scope,snow_scope,janitorial_scope,capital_projects_signal,vendor_signal,procurement_signal,seasonal_priority,access_complexity,liability_signal,intelligence_score,intelligence_summary,primary_source_url,primary_source_label,data_confidence,verified_at,contact_count,permit_count,recent_permit_count,recent_permit_value")
+          .eq("workspace_id", ctx.workspaceId)
+          .or(`owner_organization_id.eq.${row.organization_id},management_organization_id.eq.${row.organization_id},primary_customer_organization_id.eq.${row.organization_id}`)
+          .order("intelligence_score", { ascending: false, nullsFirst: false })
+          .order("name")
+          .limit(100)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const companyName = org?.operating_name || org?.legal_name || row.organization_name || "Target";
@@ -204,6 +214,72 @@ export default async function TargetDetail({
             <button>Add contact</button>
           </form>
         </article>
+      </section>
+
+      <section className="panel" style={{ marginTop: 14 }}>
+        <div className="panel-head">
+          <div>
+            <span className="eyebrow">PROPERTY 360</span>
+            <h3>Property-level intelligence</h3>
+          </div>
+        </div>
+        <p className="muted" style={{ marginTop: 6 }}>
+          Physical footprint, service scope, capital signals and permit activity tied to this account.
+          Only sourced intelligence is shown; blank fields mean the property has not been enriched yet.
+        </p>
+        <div className="table-wrap" style={{ marginTop: 12 }}>
+          <table className="targets-table">
+            <thead><tr>
+              <th>Property</th><th>Footprint</th><th>Service signals</th><th>Buying / risk signals</th><th>Evidence</th>
+            </tr></thead>
+            <tbody>
+              {(properties ?? []).length === 0 ? (
+                <tr><td colSpan={5} className="muted">No properties linked to this organization yet.</td></tr>
+              ) : (properties as any[]).map((p) => (
+                <tr key={p.property_id}>
+                  <td>
+                    <strong>{p.name}</strong>
+                    <div className="muted" style={{fontSize:12}}>
+                      {[p.address_line_1,p.address_line_2,p.city,p.province,p.postal_code].filter(Boolean).join(", ")}
+                    </div>
+                    <div className="muted" style={{fontSize:11,marginTop:4}}>
+                      {p.property_type ?? "type n/a"}{p.construction_year ? ` · built ${p.construction_year}` : ""}{p.data_confidence ? ` · ${p.data_confidence} confidence` : ""}
+                    </div>
+                  </td>
+                  <td>
+                    <div>{p.building_count ?? 0} buildings{p.unit_count != null ? ` · ${p.unit_count} units` : ""}</div>
+                    <div className="muted" style={{fontSize:12}}>
+                      {p.floor_count ?? "—"} floors{p.estimated_sqft ? ` · ${Number(p.estimated_sqft).toLocaleString()} sq ft` : ""}{p.parking_spaces != null ? ` · ${p.parking_spaces} parking` : ""}
+                    </div>
+                    <div className="muted" style={{fontSize:12}}>
+                      {p.permit_count ?? 0} permits{p.recent_permit_count ? ` · ${p.recent_permit_count} in 24mo` : ""}{p.recent_permit_value ? ` · ${Number(p.recent_permit_value).toLocaleString()} recent value` : ""}
+                    </div>
+                  </td>
+                  <td>
+                    <div>{p.grounds_scope ?? "grounds: unknown"}</div>
+                    <div>{p.snow_scope ?? "snow: unknown"}</div>
+                    <div>{p.janitorial_scope ?? "janitorial: unknown"}</div>
+                    {p.seasonal_priority ? <div className="muted" style={{fontSize:12}}>season: {p.seasonal_priority}</div> : null}
+                  </td>
+                  <td>
+                    <div>{p.vendor_signal ?? "vendor relationship: unknown"}</div>
+                    <div>{p.procurement_signal ?? "procurement: unknown"}</div>
+                    <div>{p.capital_projects_signal ?? "capital projects: unknown"}</div>
+                    <div className="muted" style={{fontSize:12}}>
+                      {p.access_complexity ? `access: ${p.access_complexity} · ` : ""}{p.liability_signal ? `liability: ${p.liability_signal}` : ""}
+                    </div>
+                  </td>
+                  <td>
+                    {p.intelligence_score != null ? <strong>{p.intelligence_score}/100</strong> : <span className="muted">not scored</span>}
+                    {p.intelligence_summary ? <div className="muted" style={{fontSize:12,marginTop:4}}>{p.intelligence_summary}</div> : null}
+                    {p.primary_source_url ? <div style={{fontSize:12,marginTop:5}}><a href={p.primary_source_url} target="_blank" rel="noreferrer">{p.primary_source_label ?? "source"}</a></div> : null}
+                    <div className="muted" style={{fontSize:11,marginTop:4}}>{p.contact_count ?? 0} property contacts</div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="grid-two" style={{ marginTop: 14 }}>
