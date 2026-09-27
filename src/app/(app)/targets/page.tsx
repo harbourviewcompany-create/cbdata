@@ -228,8 +228,8 @@ export default async function TargetsPage({
                   {r.contact_phone ? <a href={`tel:${r.contact_phone}`} className="contact-line"><span aria-hidden="true">☎</span>{r.contact_phone}</a> : null}
                   {(r.contact_email ?? r.organization_email) ? <a href={`mailto:${r.contact_email ?? r.organization_email}`} className="contact-line"><span aria-hidden="true">✉</span>{r.contact_email ?? r.organization_email}</a> : null}
                 </div>
-                <div className="status-cell" role="cell"><span className="pill">{r.status}</span><span className="status-meta">last {fmtDate(r.last_touch_at)} · {r.touch_count ?? 0} touches</span></div>
-                <div className="next-action-cell" role="cell"><div className="next-action-text" title={r.next_action ?? "—"}>{r.next_action ?? "—"}</div><div className="next-action-due">due {fmtDate(r.next_action_due_at)}</div></div>
+                <div className="status-cell" role="cell"><span className="pill">{r.status}</span><span className="status-meta">{r.touch_count ? `${r.touch_count} touch${r.touch_count === 1 ? "" : "es"} · last ${fmtDate(r.last_touch_at)}` : "No touches yet"}</span></div>
+                <div className="next-action-cell" role="cell"><div className="next-action-text" title={r.next_action ?? "—"}>{r.next_action ?? "—"}</div>{r.next_action_due_at ? <div className="next-action-due">due {fmtDate(r.next_action_due_at)}</div> : null}</div>
                 <div className="row-actions-cell" role="cell">
                   <div className="row-actions">
                     <form action={logTouch}><input type="hidden" name="target_id" value={r.id}/><input type="hidden" name="channel" value="call"/><input type="hidden" name="new_status" value="contacted"/><button type="submit" className="primary log-touch-button">Log touch</button></form>
