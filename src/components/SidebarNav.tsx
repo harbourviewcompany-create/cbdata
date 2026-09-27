@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { Route } from "next";
 import { usePathname } from "next/navigation";
 
 const NAV = [
@@ -74,7 +75,7 @@ export function SidebarNav({ role }: { role?: string | null }) {
               return (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  href={item.href as Route}
                   className={active ? "active" : undefined}
                 >
                   {item.label}

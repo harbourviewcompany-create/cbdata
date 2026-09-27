@@ -157,7 +157,7 @@ export async function addTargetContact(f: FormData) {
       linkedin_url: linkedin,
       phone_extension: extension,
       status: "active",
-    })
+    } as never)
     .select("id")
     .single();
   if (cErr) throw new Error(cErr.message);
