@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import type { Route } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { convertEstimate } from "./actions";
@@ -54,7 +55,7 @@ export default async function EstimatesPage() {
                 rows!.map((r) => (
                   <tr key={r.id}>
                     <td>
-                      <Link href={`/estimates/${r.id}`}>{r.estimate_number}</Link>
+                      <Link href={`/estimates/${r.id}` as Route}>{r.estimate_number}</Link>
                     </td>
                     <td>{orgName(r.organization_id)}</td>
                     <td>{r.status}</td>
