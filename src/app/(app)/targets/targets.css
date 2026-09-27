@@ -1,0 +1,9 @@
+.target-cards{display:grid;gap:12px}
+.target-card{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02);color:inherit;text-decoration:none}
+.target-card:hover{border-color:rgba(245,200,66,.35);background:rgba(255,255,255,.04)}
+.target-card-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.target-card h2{margin:0;font-size:18px;letter-spacing:-.03em;line-height:1.2}
+.target-card .score{font-size:22px;font-weight:700;line-height:1}
+.target-card .meta{margin-top:8px;color:var(--muted);font-size:13px;line-height:1.45}
+.target-card .reach{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
+.target-card .reach a{display:inline-block;padding:8px 10px;border:1px solid var(--line);border-radius:999px;font-size:12px;font-weight:600}
