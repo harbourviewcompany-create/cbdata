@@ -118,6 +118,15 @@ export async function enrollTarget(formData: FormData) {
   const { s } = await requireUser();
   const targetId = String(formData.get("target_id") ?? "");
   const sequenceId = String(formData.get("sequence_id") ?? "");
+  const { data: target, error: targetError } = await s
+    .from("outreach_targets")
+    .select("status")
+    .eq("id", targetId)
+    .single();
+  if (targetError || !target) throw new Error("Target not found");
+  if (!["queued", "contacted", "responded"].includes(target.status)) {
+    throw new Error("Cannot enroll a closed target");
+  }
   const { error } = await s.rpc("enroll_outreach_target" as never, {
     p_target_id: targetId,
     p_sequence_id: sequenceId,
