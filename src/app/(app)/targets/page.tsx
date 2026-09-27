@@ -23,6 +23,9 @@ type QueueRow = {
   doors_managed: number | null;
   buildings_managed: number | null;
   organization_website: string | null;
+  organization_phone: string | null;
+  organization_email: string | null;
+  organization_address: string | null;
   contact_id: string | null;
   contact_display_name: string | null;
   contact_job_title: string | null;
@@ -241,20 +244,38 @@ export default async function TargetsPage({
                       </div>
                     </td>
                     <td>
-                      <strong>{r.organization_display_name ?? "—"}</strong>
+                      <Link href={`/targets/${r.id}`} style={{ color: "inherit", textDecoration: "none" }}>
+                        <strong>{r.organization_display_name ?? "—"}</strong>
+                      </Link>
                       <div className="muted" style={{ fontSize: 12 }}>
                         {r.region ?? "—"}
                         {r.list_name ? ` · ${r.list_name}` : ""}
+                        {r.buildings_managed != null ? ` · ${r.buildings_managed} buildings` : ""}
+                        {r.doors_managed != null ? ` · ${r.doors_managed} doors` : ""}
+                      </div>
+                      <div style={{ fontSize: 12, marginTop: 4 }}>
+                        {r.organization_website ? (
+                          <a href={r.organization_website} target="_blank" rel="noreferrer">website</a>
+                        ) : null}
+                        {r.organization_phone ? (
+                          <a href={`tel:${r.organization_phone}`} style={{ marginLeft: 8 }}>{r.organization_phone}</a>
+                        ) : null}
+                      </div>
+                      <div className="muted" style={{ fontSize: 11, marginTop: 3 }}>
+                        {r.organization_address ?? ""}
                       </div>
                     </td>
                     <td>
-                      <div>{r.contact_display_name ?? "—"}</div>
+                      <div><strong>{r.contact_display_name ?? "No named contact"}</strong></div>
                       <div className="muted" style={{ fontSize: 12 }}>
                         {r.contact_job_title ?? ""}
-                        {r.contact_phone ? ` · ${r.contact_phone}` : ""}
                       </div>
-                      <div className="muted" style={{ fontSize: 12 }}>
-                        {r.contact_email ?? ""}
+                      <div style={{ fontSize: 12 }}>
+                        {r.contact_phone ? <a href={`tel:${r.contact_phone}`}>{r.contact_phone}</a> : null}
+                        {r.contact_email ? <a href={`mailto:${r.contact_email}`} style={{ marginLeft: 8 }}>{r.contact_email}</a> : null}
+                        {!r.contact_phone && !r.contact_email && r.organization_email ? (
+                          <a href={`mailto:${r.organization_email}`}>{r.organization_email}</a>
+                        ) : null}
                       </div>
                     </td>
                     <td>
