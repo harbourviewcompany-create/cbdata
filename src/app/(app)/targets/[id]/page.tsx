@@ -73,16 +73,20 @@ export default async function TargetDetail({
       : Promise.resolve({ data: [] }),
     (s as any)
       .from("outreach_target_properties")
-      .select("property_id,is_primary,relationship_type,v_property_intelligence(*)")
+      .select("property_id,is_primary,relationship_type")
       .eq("outreach_target_id", id)
       .eq("workspace_id", ctx.workspaceId),
   ]);
 
   const propertyMap = new Map<string, PropertyIntelRow>();
   for (const p of (properties ?? []) as PropertyIntelRow[]) propertyMap.set(p.property_id, p);
-  for (const link of (linkedProperties ?? []) as Array<{property_id:string;v_property_intelligence:PropertyIntelRow | PropertyIntelRow[] | null}>) {
-    const p = Array.isArray(link.v_property_intelligence) ? link.v_property_intelligence[0] : link.v_property_intelligence;
-    if (p) propertyMap.set(p.property_id, p);
+  const linkedIds = ((linkedProperties ?? []) as Array<{ property_id: string }>).map((x) => x.property_id);
+  if (linkedIds.length) {
+    const { data: linkedIntel } = await (s as any)
+      .from("v_property_intelligence")
+      .select("property_id,name,address_line_1,address_line_2,city,province,postal_code,property_type,building_count,unit_count,floor_count,estimated_sqft,lot_area_sqft,parking_spaces,construction_year,grounds_scope,snow_scope,janitorial_scope,capital_projects_signal,vendor_signal,procurement_signal,seasonal_priority,access_complexity,liability_signal,intelligence_score,intelligence_summary,primary_source_url,primary_source_label,data_confidence,verified_at,contact_count,permit_count,recent_permit_count,recent_permit_value")
+      .in("property_id", linkedIds);
+    for (const p of (linkedIntel ?? []) as PropertyIntelRow[]) propertyMap.set(p.property_id, p);
   }
   const propertyRows = Array.from(propertyMap.values());
 
