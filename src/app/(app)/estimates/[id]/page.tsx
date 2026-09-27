@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { convertEstimate } from "../actions";
 
+const CONVERTIBLE = new Set(["draft", "sent", "accepted"]);
+
 export default async function EstimateDetail({
   params,
 }: {
@@ -26,7 +28,7 @@ export default async function EstimateDetail({
     .from("estimate_items")
     .select("id,description,quantity,unit_price,line_total")
     .eq("estimate_id", id)
-    .order("created_at");
+    .order("sort_order");
 
   return (
     <>
@@ -45,9 +47,9 @@ export default async function EstimateDetail({
           <div>Subtotal <strong>{row.subtotal}</strong></div>
           <div>Tax <strong>{row.tax}</strong></div>
           <div>Total <strong>{row.total}</strong></div>
-          <div>Valid <strong>{row.valid_until ?? "—"}</strong></div>
+          <div>Valid <strong>{row.valid_until ?? "\u2014"}</strong></div>
         </dl>
-        {row.status !== "converted" && row.status !== "rejected" ? (
+        {CONVERTIBLE.has(row.status) ? (
           <form action={convertEstimate} style={{ marginTop: 16 }}>
             <input type="hidden" name="id" value={row.id} />
             <button className="primary" type="submit">
