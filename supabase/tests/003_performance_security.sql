@@ -49,4 +49,4 @@ begin
   end if;
 end $$;
 
-raise notice 'CBData performance/security regression checks passed';
+do $$ begin raise notice 'CBData performance/security regression checks passed'; end $$;

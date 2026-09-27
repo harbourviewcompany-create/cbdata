@@ -66,3 +66,24 @@ create trigger validate_work_order_assignment before insert or update on public.
 
 create index if not exists idx_work_order_assignments_active_work_order on public.work_order_assignments(work_order_id) where unassigned_at is null;
 create index if not exists idx_issues_assigned_to_workspace on public.issues(workspace_id,assigned_to) where assigned_to is not null;
+
+-- Compatibility wrappers retained for Action OS and older RPC/policy callers.
+create or replace function public.is_workspace_member(p_workspace_id uuid)
+returns boolean language sql stable security definer
+set search_path = pg_catalog, public, auth
+as $$
+  select private.is_workspace_member(p_workspace_id)
+$$;
+
+create or replace function public.has_workspace_role(
+  p_workspace_id uuid,
+  p_roles public.membership_role[]
+)
+returns boolean language sql stable security definer
+set search_path = pg_catalog, public, auth
+as $$
+  select private.has_workspace_role(p_workspace_id, p_roles)
+$$;
+
+grant execute on function public.is_workspace_member(uuid) to authenticated;
+grant execute on function public.has_workspace_role(uuid, public.membership_role[]) to authenticated;

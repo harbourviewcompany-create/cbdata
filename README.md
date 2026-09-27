@@ -29,15 +29,14 @@ Database security:
 - audit/system event records are retained as operational control surfaces
 - no production customer/property/financial fixture data is seeded
 
-## Repository layout
+## Command center
 
-`supabase/migrations/` — canonical migrations  
-`supabase/tests/` — database-level verification  
-`docs/` — operating-model and schema documentation
+Dashboard metrics read `workspace_ops_snapshots` (trigger-maintained).
+Next actions come from `public.next_actions(workspace_id, limit)` with per-arm
+limits and deep links to record pages.
 
-## Rule
-
-Schema changes must be made through a new migration and verified with database-level tests before frontend work depends on them.
+Active workspace is stored on `user_profiles.active_workspace_id`.
+Invoices are unique per work order. Completing a work order requires an assignment.
 
 ## Regenerating TypeScript types
 
@@ -51,3 +50,13 @@ npx tsc --noEmit
 ```
 
 Full steps: `docs/supabase-types.md`
+
+## Repository layout
+
+`supabase/migrations/` — canonical migrations  
+`supabase/tests/` — database-level verification  
+`docs/` — operating-model and schema documentation
+
+## Rule
+
+Schema changes must be made through a new migration and verified with database-level tests before frontend work depends on them.

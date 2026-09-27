@@ -172,6 +172,101 @@ export type Database = {
           },
         ]
       }
+      bd_campaign_steps: {
+        Row: {
+          active: boolean
+          campaign_id: string
+          channel: Database["public"]["Enums"]["outreach_touch_channel"]
+          delay_days: number
+          id: string
+          message_template: string | null
+          step_number: number
+          task_title: string
+          task_type: Database["public"]["Enums"]["task_type"]
+          workspace_id: string
+        }
+        Insert: {
+          active?: boolean
+          campaign_id: string
+          channel: Database["public"]["Enums"]["outreach_touch_channel"]
+          delay_days?: number
+          id?: string
+          message_template?: string | null
+          step_number: number
+          task_title: string
+          task_type?: Database["public"]["Enums"]["task_type"]
+          workspace_id: string
+        }
+        Update: {
+          active?: boolean
+          campaign_id?: string
+          channel?: Database["public"]["Enums"]["outreach_touch_channel"]
+          delay_days?: number
+          id?: string
+          message_template?: string | null
+          step_number?: number
+          task_title?: string
+          task_type?: Database["public"]["Enums"]["task_type"]
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_campaign_steps_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_campaign_steps_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bd_campaigns: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_campaigns_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       buildings: {
         Row: {
           building_number: string | null
@@ -369,9 +464,11 @@ export type Database = {
           id: string
           job_title: string | null
           last_name: string
+          linkedin_url: string | null
           mobile: string | null
           notes: string | null
           phone: string | null
+          phone_extension: string | null
           status: Database["public"]["Enums"]["record_status"]
           updated_at: string
           workspace_id: string
@@ -383,9 +480,11 @@ export type Database = {
           id?: string
           job_title?: string | null
           last_name: string
+          linkedin_url?: string | null
           mobile?: string | null
           notes?: string | null
           phone?: string | null
+          phone_extension?: string | null
           status?: Database["public"]["Enums"]["record_status"]
           updated_at?: string
           workspace_id: string
@@ -397,9 +496,11 @@ export type Database = {
           id?: string
           job_title?: string | null
           last_name?: string
+          linkedin_url?: string | null
           mobile?: string | null
           notes?: string | null
           phone?: string | null
+          phone_extension?: string | null
           status?: Database["public"]["Enums"]["record_status"]
           updated_at?: string
           workspace_id?: string
@@ -990,6 +1091,7 @@ export type Database = {
       }
       estimates: {
         Row: {
+          accepted_at: string | null
           created_at: string
           created_by: string | null
           estimate_number: string
@@ -1001,6 +1103,8 @@ export type Database = {
           opportunity_id: string | null
           organization_id: string
           property_id: string | null
+          rejected_at: string | null
+          sent_at: string | null
           status: Database["public"]["Enums"]["estimate_status"]
           subtotal: number
           tax: number
@@ -1010,6 +1114,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          accepted_at?: string | null
           created_at?: string
           created_by?: string | null
           estimate_number: string
@@ -1021,6 +1126,8 @@ export type Database = {
           opportunity_id?: string | null
           organization_id: string
           property_id?: string | null
+          rejected_at?: string | null
+          sent_at?: string | null
           status?: Database["public"]["Enums"]["estimate_status"]
           subtotal?: number
           tax?: number
@@ -1030,6 +1137,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          accepted_at?: string | null
           created_at?: string
           created_by?: string | null
           estimate_number?: string
@@ -1041,6 +1149,8 @@ export type Database = {
           opportunity_id?: string | null
           organization_id?: string
           property_id?: string | null
+          rejected_at?: string | null
+          sent_at?: string | null
           status?: Database["public"]["Enums"]["estimate_status"]
           subtotal?: number
           tax?: number
@@ -1175,6 +1285,82 @@ export type Database = {
           },
           {
             foreignKeyName: "expenses_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inbound_submissions: {
+        Row: {
+          channel_detail: string | null
+          created_at: string
+          id: string
+          lead_source_id: string | null
+          matched_lead_id: string | null
+          message: string | null
+          raw_payload: Json | null
+          status: string
+          submitted_email: string | null
+          submitted_name: string | null
+          submitted_phone: string | null
+          utm_campaign: string | null
+          utm_source: string | null
+          wix_submission_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          channel_detail?: string | null
+          created_at?: string
+          id?: string
+          lead_source_id?: string | null
+          matched_lead_id?: string | null
+          message?: string | null
+          raw_payload?: Json | null
+          status?: string
+          submitted_email?: string | null
+          submitted_name?: string | null
+          submitted_phone?: string | null
+          utm_campaign?: string | null
+          utm_source?: string | null
+          wix_submission_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          channel_detail?: string | null
+          created_at?: string
+          id?: string
+          lead_source_id?: string | null
+          matched_lead_id?: string | null
+          message?: string | null
+          raw_payload?: Json | null
+          status?: string
+          submitted_email?: string | null
+          submitted_name?: string | null
+          submitted_phone?: string | null
+          utm_campaign?: string | null
+          utm_source?: string | null
+          wix_submission_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbound_submissions_lead_source_id_fkey"
+            columns: ["lead_source_id"]
+            isOneToOne: false
+            referencedRelation: "lead_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_submissions_matched_lead_id_fkey"
+            columns: ["matched_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inbound_submissions_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -1432,6 +1618,7 @@ export type Database = {
           subtotal: number
           tax: number
           total: number
+          work_order_id: string | null
           workspace_id: string
         }
         Insert: {
@@ -1448,6 +1635,7 @@ export type Database = {
           subtotal?: number
           tax?: number
           total?: number
+          work_order_id?: string | null
           workspace_id: string
         }
         Update: {
@@ -1464,6 +1652,7 @@ export type Database = {
           subtotal?: number
           tax?: number
           total?: number
+          work_order_id?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -1500,6 +1689,20 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "property_360"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "open_work_exceptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
             referencedColumns: ["id"]
           },
           {
@@ -1627,6 +1830,71 @@ export type Database = {
           },
         ]
       }
+      lead_sources: {
+        Row: {
+          adapter: string
+          cadence: string | null
+          channel: Database["public"]["Enums"]["lead_channel"]
+          created_at: string
+          field_mapping: Json | null
+          id: string
+          jurisdiction_url: string | null
+          last_run_at: string | null
+          last_success_at: string | null
+          name: string
+          notes: string | null
+          query_params: Json | null
+          region: string | null
+          status: Database["public"]["Enums"]["lead_source_status"]
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          adapter?: string
+          cadence?: string | null
+          channel: Database["public"]["Enums"]["lead_channel"]
+          created_at?: string
+          field_mapping?: Json | null
+          id?: string
+          jurisdiction_url?: string | null
+          last_run_at?: string | null
+          last_success_at?: string | null
+          name: string
+          notes?: string | null
+          query_params?: Json | null
+          region?: string | null
+          status?: Database["public"]["Enums"]["lead_source_status"]
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          adapter?: string
+          cadence?: string | null
+          channel?: Database["public"]["Enums"]["lead_channel"]
+          created_at?: string
+          field_mapping?: Json | null
+          id?: string
+          jurisdiction_url?: string | null
+          last_run_at?: string | null
+          last_success_at?: string | null
+          name?: string
+          notes?: string | null
+          query_params?: Json | null
+          region?: string | null
+          status?: Database["public"]["Enums"]["lead_source_status"]
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_sources_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           contact_id: string | null
@@ -1638,7 +1906,11 @@ export type Database = {
           owner_user_id: string | null
           property_id: string | null
           qualified_at: string | null
+          region: string | null
+          score: number | null
           source: string | null
+          source_detail_id: string | null
+          source_detail_table: string | null
           status: string
           workspace_id: string
         }
@@ -1652,7 +1924,11 @@ export type Database = {
           owner_user_id?: string | null
           property_id?: string | null
           qualified_at?: string | null
+          region?: string | null
+          score?: number | null
           source?: string | null
+          source_detail_id?: string | null
+          source_detail_table?: string | null
           status?: string
           workspace_id: string
         }
@@ -1666,7 +1942,11 @@ export type Database = {
           owner_user_id?: string | null
           property_id?: string | null
           qualified_at?: string | null
+          region?: string | null
+          score?: number | null
           source?: string | null
+          source_detail_id?: string | null
+          source_detail_table?: string | null
           status?: string
           workspace_id?: string
         }
@@ -1821,6 +2101,62 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          action_href: string | null
+          body: string | null
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          read_at: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["notification_status"]
+          title: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          action_href?: string | null
+          body?: string | null
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          read_at?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_status"]
+          title: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          action_href?: string | null
+          body?: string | null
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          read_at?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_status"]
+          title?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       opportunities: {
         Row: {
           closed_at: string | null
@@ -1829,7 +2165,11 @@ export type Database = {
           estimated_start_date: string | null
           estimated_value: number
           id: string
+          lead_id: string | null
           lost_reason: string | null
+          lost_reason_category:
+            | Database["public"]["Enums"]["opportunity_lost_reason_category"]
+            | null
           name: string
           notes: string | null
           organization_id: string
@@ -1848,7 +2188,11 @@ export type Database = {
           estimated_start_date?: string | null
           estimated_value?: number
           id?: string
+          lead_id?: string | null
           lost_reason?: string | null
+          lost_reason_category?:
+            | Database["public"]["Enums"]["opportunity_lost_reason_category"]
+            | null
           name: string
           notes?: string | null
           organization_id: string
@@ -1867,7 +2211,11 @@ export type Database = {
           estimated_start_date?: string | null
           estimated_value?: number
           id?: string
+          lead_id?: string | null
           lost_reason?: string | null
+          lost_reason_category?:
+            | Database["public"]["Enums"]["opportunity_lost_reason_category"]
+            | null
           name?: string
           notes?: string | null
           organization_id?: string
@@ -1880,6 +2228,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "opportunities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "opportunities_organization_id_fkey"
             columns: ["organization_id"]
@@ -1903,6 +2258,51 @@ export type Database = {
           },
           {
             foreignKeyName: "opportunities_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      opportunity_stage_history: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          from_stage: Database["public"]["Enums"]["opportunity_stage"] | null
+          id: string
+          opportunity_id: string
+          to_stage: Database["public"]["Enums"]["opportunity_stage"]
+          workspace_id: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          from_stage?: Database["public"]["Enums"]["opportunity_stage"] | null
+          id?: string
+          opportunity_id: string
+          to_stage: Database["public"]["Enums"]["opportunity_stage"]
+          workspace_id: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          from_stage?: Database["public"]["Enums"]["opportunity_stage"] | null
+          id?: string
+          opportunity_id?: string
+          to_stage?: Database["public"]["Enums"]["opportunity_stage"]
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_stage_history_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunity_stage_history_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -1968,14 +2368,26 @@ export type Database = {
       organizations: {
         Row: {
           archived_at: string | null
+          buildings_managed: number | null
           created_at: string
+          doors_managed: number | null
           email: string | null
+          hq_address_line_1: string | null
+          hq_address_line_2: string | null
+          hq_city: string | null
+          hq_postal_code: string | null
+          hq_province: string | null
           id: string
           legal_name: string
+          linkedin_url: string | null
+          main_fax: string | null
           notes: string | null
           operating_name: string | null
           organization_type: Database["public"]["Enums"]["organization_type"]
           phone: string | null
+          primary_region: string | null
+          service_regions: string[] | null
+          source_notes: string | null
           status: Database["public"]["Enums"]["record_status"]
           updated_at: string
           website: string | null
@@ -1983,14 +2395,26 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
+          buildings_managed?: number | null
           created_at?: string
+          doors_managed?: number | null
           email?: string | null
+          hq_address_line_1?: string | null
+          hq_address_line_2?: string | null
+          hq_city?: string | null
+          hq_postal_code?: string | null
+          hq_province?: string | null
           id?: string
           legal_name: string
+          linkedin_url?: string | null
+          main_fax?: string | null
           notes?: string | null
           operating_name?: string | null
           organization_type: Database["public"]["Enums"]["organization_type"]
           phone?: string | null
+          primary_region?: string | null
+          service_regions?: string[] | null
+          source_notes?: string | null
           status?: Database["public"]["Enums"]["record_status"]
           updated_at?: string
           website?: string | null
@@ -1998,14 +2422,26 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
+          buildings_managed?: number | null
           created_at?: string
+          doors_managed?: number | null
           email?: string | null
+          hq_address_line_1?: string | null
+          hq_address_line_2?: string | null
+          hq_city?: string | null
+          hq_postal_code?: string | null
+          hq_province?: string | null
           id?: string
           legal_name?: string
+          linkedin_url?: string | null
+          main_fax?: string | null
           notes?: string | null
           operating_name?: string | null
           organization_type?: Database["public"]["Enums"]["organization_type"]
           phone?: string | null
+          primary_region?: string | null
+          service_regions?: string[] | null
+          source_notes?: string | null
           status?: Database["public"]["Enums"]["record_status"]
           updated_at?: string
           website?: string | null
@@ -2014,6 +2450,401 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "organizations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_enrollments: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          current_step_order: number
+          enrolled_by: string | null
+          id: string
+          next_run_at: string
+          outreach_target_id: string
+          sequence_id: string
+          status: Database["public"]["Enums"]["enrollment_status"]
+          workspace_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          current_step_order?: number
+          enrolled_by?: string | null
+          id?: string
+          next_run_at?: string
+          outreach_target_id: string
+          sequence_id: string
+          status?: Database["public"]["Enums"]["enrollment_status"]
+          workspace_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          current_step_order?: number
+          enrolled_by?: string | null
+          id?: string
+          next_run_at?: string
+          outreach_target_id?: string
+          sequence_id?: string
+          status?: Database["public"]["Enums"]["enrollment_status"]
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_enrollments_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_enrollments_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_target_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_enrollments_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_sequences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_enrollments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_lists: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          criteria: Json | null
+          id: string
+          name: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          criteria?: Json | null
+          id?: string
+          name: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          criteria?: Json | null
+          id?: string
+          name?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_lists_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_sequence_steps: {
+        Row: {
+          body_template: string | null
+          channel: Database["public"]["Enums"]["sequence_step_channel"]
+          created_at: string
+          delay_days: number
+          id: string
+          sequence_id: string
+          step_order: number
+          title: string
+          workspace_id: string
+        }
+        Insert: {
+          body_template?: string | null
+          channel: Database["public"]["Enums"]["sequence_step_channel"]
+          created_at?: string
+          delay_days?: number
+          id?: string
+          sequence_id: string
+          step_order: number
+          title: string
+          workspace_id: string
+        }
+        Update: {
+          body_template?: string | null
+          channel?: Database["public"]["Enums"]["sequence_step_channel"]
+          created_at?: string
+          delay_days?: number
+          id?: string
+          sequence_id?: string
+          step_order?: number
+          title?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_sequence_steps_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_sequences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_sequence_steps_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_sequences: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_sequences_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_targets: {
+        Row: {
+          auto_pilot: boolean
+          campaign_id: string | null
+          company_address: string | null
+          company_email: string | null
+          company_phone: string | null
+          company_website: string | null
+          contact_id: string | null
+          contact_name: string | null
+          converted_lead_id: string | null
+          created_at: string
+          current_step_number: number | null
+          email: string | null
+          id: string
+          last_touch_at: string | null
+          launched_at: string | null
+          launched_by: string | null
+          next_action: string | null
+          next_action_due_at: string | null
+          notes: string | null
+          organization_id: string | null
+          organization_name: string | null
+          outreach_list_id: string
+          owner_user_id: string | null
+          phone: string | null
+          priority: Database["public"]["Enums"]["work_priority"]
+          property_address: string | null
+          region: string | null
+          score: number | null
+          score_reason: string | null
+          status: Database["public"]["Enums"]["outreach_target_status"]
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          auto_pilot?: boolean
+          campaign_id?: string | null
+          company_address?: string | null
+          company_email?: string | null
+          company_phone?: string | null
+          company_website?: string | null
+          contact_id?: string | null
+          contact_name?: string | null
+          converted_lead_id?: string | null
+          created_at?: string
+          current_step_number?: number | null
+          email?: string | null
+          id?: string
+          last_touch_at?: string | null
+          launched_at?: string | null
+          launched_by?: string | null
+          next_action?: string | null
+          next_action_due_at?: string | null
+          notes?: string | null
+          organization_id?: string | null
+          organization_name?: string | null
+          outreach_list_id: string
+          owner_user_id?: string | null
+          phone?: string | null
+          priority?: Database["public"]["Enums"]["work_priority"]
+          property_address?: string | null
+          region?: string | null
+          score?: number | null
+          score_reason?: string | null
+          status?: Database["public"]["Enums"]["outreach_target_status"]
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          auto_pilot?: boolean
+          campaign_id?: string | null
+          company_address?: string | null
+          company_email?: string | null
+          company_phone?: string | null
+          company_website?: string | null
+          contact_id?: string | null
+          contact_name?: string | null
+          converted_lead_id?: string | null
+          created_at?: string
+          current_step_number?: number | null
+          email?: string | null
+          id?: string
+          last_touch_at?: string | null
+          launched_at?: string | null
+          launched_by?: string | null
+          next_action?: string | null
+          next_action_due_at?: string | null
+          notes?: string | null
+          organization_id?: string | null
+          organization_name?: string | null
+          outreach_list_id?: string
+          owner_user_id?: string | null
+          phone?: string | null
+          priority?: Database["public"]["Enums"]["work_priority"]
+          property_address?: string | null
+          region?: string | null
+          score?: number | null
+          score_reason?: string | null
+          status?: Database["public"]["Enums"]["outreach_target_status"]
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_targets_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_targets_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_targets_converted_lead_id_fkey"
+            columns: ["converted_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_targets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_targets_outreach_list_id_fkey"
+            columns: ["outreach_list_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_targets_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_touches: {
+        Row: {
+          channel: Database["public"]["Enums"]["outreach_touch_channel"]
+          id: string
+          notes: string | null
+          occurred_at: string
+          outcome: string | null
+          outreach_target_id: string
+          performed_by: string | null
+          workspace_id: string
+        }
+        Insert: {
+          channel: Database["public"]["Enums"]["outreach_touch_channel"]
+          id?: string
+          notes?: string | null
+          occurred_at?: string
+          outcome?: string | null
+          outreach_target_id: string
+          performed_by?: string | null
+          workspace_id: string
+        }
+        Update: {
+          channel?: Database["public"]["Enums"]["outreach_touch_channel"]
+          id?: string
+          notes?: string | null
+          occurred_at?: string
+          outcome?: string | null
+          outreach_target_id?: string
+          performed_by?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_touches_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_touches_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_target_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_touches_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -2062,6 +2893,112 @@ export type Database = {
           },
           {
             foreignKeyName: "payments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permit_records: {
+        Row: {
+          applicant_name: string | null
+          contractor_of_record: string | null
+          created_at: string
+          estimated_value: number | null
+          filed_date: string | null
+          id: string
+          jurisdiction: string
+          lead_id: string | null
+          lead_source_id: string | null
+          matched_organization_id: string | null
+          matched_property_id: string | null
+          permit_number: string | null
+          permit_status: string | null
+          permit_type: string | null
+          property_address: string | null
+          raw_payload: Json | null
+          work_description: string | null
+          workspace_id: string
+        }
+        Insert: {
+          applicant_name?: string | null
+          contractor_of_record?: string | null
+          created_at?: string
+          estimated_value?: number | null
+          filed_date?: string | null
+          id?: string
+          jurisdiction: string
+          lead_id?: string | null
+          lead_source_id?: string | null
+          matched_organization_id?: string | null
+          matched_property_id?: string | null
+          permit_number?: string | null
+          permit_status?: string | null
+          permit_type?: string | null
+          property_address?: string | null
+          raw_payload?: Json | null
+          work_description?: string | null
+          workspace_id: string
+        }
+        Update: {
+          applicant_name?: string | null
+          contractor_of_record?: string | null
+          created_at?: string
+          estimated_value?: number | null
+          filed_date?: string | null
+          id?: string
+          jurisdiction?: string
+          lead_id?: string | null
+          lead_source_id?: string | null
+          matched_organization_id?: string | null
+          matched_property_id?: string | null
+          permit_number?: string | null
+          permit_status?: string | null
+          permit_type?: string | null
+          property_address?: string | null
+          raw_payload?: Json | null
+          work_description?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permit_records_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permit_records_lead_source_id_fkey"
+            columns: ["lead_source_id"]
+            isOneToOne: false
+            referencedRelation: "lead_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permit_records_matched_organization_id_fkey"
+            columns: ["matched_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permit_records_matched_property_id_fkey"
+            columns: ["matched_property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permit_records_matched_property_id_fkey"
+            columns: ["matched_property_id"]
+            isOneToOne: false
+            referencedRelation: "property_360"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permit_records_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -2343,6 +3280,112 @@ export type Database = {
           },
         ]
       }
+      referral_events: {
+        Row: {
+          created_at: string
+          id: string
+          lead_id: string
+          referred_by_contact_id: string | null
+          referred_by_organization_id: string | null
+          relationship_note: string | null
+          reward_status: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lead_id: string
+          referred_by_contact_id?: string | null
+          referred_by_organization_id?: string | null
+          relationship_note?: string | null
+          reward_status?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lead_id?: string
+          referred_by_contact_id?: string | null
+          referred_by_organization_id?: string | null
+          relationship_note?: string | null
+          reward_status?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_events_referred_by_contact_id_fkey"
+            columns: ["referred_by_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_events_referred_by_organization_id_fkey"
+            columns: ["referred_by_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_events_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_targets: {
+        Row: {
+          created_at: string
+          id: string
+          period_end: string
+          period_start: string
+          target_amount: number
+          target_type: string
+          updated_at: string
+          user_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          period_end: string
+          period_start: string
+          target_amount?: number
+          target_type?: string
+          updated_at?: string
+          user_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          period_end?: string
+          period_start?: string
+          target_amount?: number
+          target_type?: string
+          updated_at?: string
+          user_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_targets_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_definitions: {
         Row: {
           active: boolean
@@ -2577,6 +3620,7 @@ export type Database = {
       tasks: {
         Row: {
           assigned_to: string | null
+          campaign_step_id: string | null
           completed_at: string | null
           contract_id: string | null
           created_at: string
@@ -2587,6 +3631,7 @@ export type Database = {
           issue_id: string | null
           opportunity_id: string | null
           organization_id: string | null
+          outreach_target_id: string | null
           priority: Database["public"]["Enums"]["work_priority"]
           property_id: string | null
           status: Database["public"]["Enums"]["task_status"]
@@ -2597,6 +3642,7 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          campaign_step_id?: string | null
           completed_at?: string | null
           contract_id?: string | null
           created_at?: string
@@ -2607,6 +3653,7 @@ export type Database = {
           issue_id?: string | null
           opportunity_id?: string | null
           organization_id?: string | null
+          outreach_target_id?: string | null
           priority?: Database["public"]["Enums"]["work_priority"]
           property_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
@@ -2617,6 +3664,7 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          campaign_step_id?: string | null
           completed_at?: string | null
           contract_id?: string | null
           created_at?: string
@@ -2627,6 +3675,7 @@ export type Database = {
           issue_id?: string | null
           opportunity_id?: string | null
           organization_id?: string | null
+          outreach_target_id?: string | null
           priority?: Database["public"]["Enums"]["work_priority"]
           property_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
@@ -2636,6 +3685,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tasks_campaign_step_id_fkey"
+            columns: ["campaign_step_id"]
+            isOneToOne: false
+            referencedRelation: "bd_campaign_steps"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tasks_contract_id_fkey"
             columns: ["contract_id"]
@@ -2679,6 +3735,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tasks_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_target_queue"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tasks_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
@@ -2708,6 +3778,107 @@ export type Database = {
           },
           {
             foreignKeyName: "tasks_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_records: {
+        Row: {
+          buyer_name: string | null
+          category: string | null
+          closing_date: string | null
+          created_at: string
+          currency: string
+          estimated_value: number | null
+          external_id: string
+          id: string
+          lead_id: string | null
+          lead_source_id: string | null
+          matched_organization_id: string | null
+          notes: string | null
+          published_date: string | null
+          raw_payload: Json | null
+          region: string | null
+          source: string
+          source_url: string | null
+          status: Database["public"]["Enums"]["tender_record_status"]
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          buyer_name?: string | null
+          category?: string | null
+          closing_date?: string | null
+          created_at?: string
+          currency?: string
+          estimated_value?: number | null
+          external_id: string
+          id?: string
+          lead_id?: string | null
+          lead_source_id?: string | null
+          matched_organization_id?: string | null
+          notes?: string | null
+          published_date?: string | null
+          raw_payload?: Json | null
+          region?: string | null
+          source: string
+          source_url?: string | null
+          status?: Database["public"]["Enums"]["tender_record_status"]
+          title: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          buyer_name?: string | null
+          category?: string | null
+          closing_date?: string | null
+          created_at?: string
+          currency?: string
+          estimated_value?: number | null
+          external_id?: string
+          id?: string
+          lead_id?: string | null
+          lead_source_id?: string | null
+          matched_organization_id?: string | null
+          notes?: string | null
+          published_date?: string | null
+          raw_payload?: Json | null
+          region?: string | null
+          source?: string
+          source_url?: string | null
+          status?: Database["public"]["Enums"]["tender_record_status"]
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_records_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_records_lead_source_id_fkey"
+            columns: ["lead_source_id"]
+            isOneToOne: false
+            referencedRelation: "lead_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_records_matched_organization_id_fkey"
+            columns: ["matched_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_records_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -2788,6 +3959,7 @@ export type Database = {
       }
       user_profiles: {
         Row: {
+          active_workspace_id: string | null
           created_at: string
           display_name: string | null
           first_name: string | null
@@ -2797,6 +3969,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          active_workspace_id?: string | null
           created_at?: string
           display_name?: string | null
           first_name?: string | null
@@ -2806,6 +3979,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          active_workspace_id?: string | null
           created_at?: string
           display_name?: string | null
           first_name?: string | null
@@ -2814,7 +3988,15 @@ export type Database = {
           phone?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_profiles_active_workspace_id_fkey"
+            columns: ["active_workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       work_order_assignments: {
         Row: {
@@ -3175,6 +4357,50 @@ export type Database = {
             foreignKeyName: "workspace_memberships_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_ops_snapshots: {
+        Row: {
+          needs_dispatch_count: number
+          open_issue_count: number
+          open_task_count: number
+          open_work_count: number
+          overdue_task_count: number
+          property_count: number
+          renewal_count: number
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          needs_dispatch_count?: number
+          open_issue_count?: number
+          open_task_count?: number
+          open_work_count?: number
+          overdue_task_count?: number
+          property_count?: number
+          renewal_count?: number
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          needs_dispatch_count?: number
+          open_issue_count?: number
+          open_task_count?: number
+          open_work_count?: number
+          overdue_task_count?: number
+          property_count?: number
+          renewal_count?: number
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_ops_snapshots_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
@@ -3575,8 +4801,138 @@ export type Database = {
           },
         ]
       }
+      v_next_actions: {
+        Row: {
+          action_type: string | null
+          detail: string | null
+          due_at: string | null
+          entity_id: string | null
+          entity_table: string | null
+          href: string | null
+          priority_score: number | null
+          title: string | null
+          workspace_id: string | null
+        }
+        Relationships: []
+      }
+      v_outreach_target_queue: {
+        Row: {
+          buildings_managed: number | null
+          contact_display_name: string | null
+          contact_email: string | null
+          contact_id: string | null
+          contact_job_title: string | null
+          contact_phone: string | null
+          converted_lead_id: string | null
+          created_at: string | null
+          doors_managed: number | null
+          id: string | null
+          last_touch_at: string | null
+          linked_property_count: number | null
+          list_name: string | null
+          next_action: string | null
+          next_action_due_at: string | null
+          notes: string | null
+          organization_display_name: string | null
+          organization_id: string | null
+          organization_type:
+            | Database["public"]["Enums"]["organization_type"]
+            | null
+          organization_website: string | null
+          outreach_list_id: string | null
+          owner_user_id: string | null
+          priority: Database["public"]["Enums"]["work_priority"] | null
+          region: string | null
+          score: number | null
+          score_reason: string | null
+          status: Database["public"]["Enums"]["outreach_target_status"] | null
+          touch_count: number | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_targets_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_targets_converted_lead_id_fkey"
+            columns: ["converted_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_targets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_targets_outreach_list_id_fkey"
+            columns: ["outreach_list_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_targets_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      complete_work_order_with_invoice: {
+        Args: { p_notes?: string; p_work_order_id: string }
+        Returns: string
+      }
+      compute_outreach_target_score: {
+        Args: {
+          p_buildings_managed: number
+          p_doors_managed: number
+          p_has_contact: boolean
+          p_has_phone_or_email: boolean
+          p_linked_property_count?: number
+          p_same_primary_region: boolean
+        }
+        Returns: number
+      }
+      convert_outreach_target_to_lead: {
+        Args: { p_target_id: string }
+        Returns: string
+      }
+      create_notification: {
+        Args: {
+          p_action_href?: string
+          p_body?: string
+          p_entity_id?: string
+          p_entity_type?: string
+          p_title: string
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: string
+      }
+      enroll_outreach_target: {
+        Args: { p_sequence_id: string; p_target_id: string }
+        Returns: string
+      }
+      ensure_default_pm_sequence: {
+        Args: { p_workspace_id: string }
+        Returns: string
+      }
+      generate_work_orders_from_contract: {
+        Args: { p_contract_id: string; p_days_ahead?: number }
+        Returns: number
+      }
       has_workspace_role: {
         Args: {
           p_roles: Database["public"]["Enums"]["membership_role"][]
@@ -3587,6 +4943,67 @@ export type Database = {
       is_workspace_member: {
         Args: { p_workspace_id: string }
         Returns: boolean
+      }
+      launch_bd_campaign: {
+        Args: { p_campaign_id: string; p_target_id: string }
+        Returns: string
+      }
+      log_outreach_touch: {
+        Args: {
+          p_channel: Database["public"]["Enums"]["outreach_touch_channel"]
+          p_new_status?: Database["public"]["Enums"]["outreach_target_status"]
+          p_next_action?: string
+          p_next_action_due_at?: string
+          p_notes?: string
+          p_outcome?: string
+          p_target_id: string
+        }
+        Returns: string
+      }
+      next_actions: {
+        Args: { p_limit?: number; p_workspace_id: string }
+        Returns: {
+          action_type: string
+          detail: string
+          due_at: string
+          entity_id: string
+          href: string
+          priority_score: number
+          title: string
+          workspace_id: string
+        }[]
+      }
+      process_due_sequence_steps: {
+        Args: { p_limit?: number; p_workspace_id: string }
+        Returns: number
+      }
+      refresh_outreach_target_score: {
+        Args: { p_target_id: string }
+        Returns: number
+      }
+      refresh_outreach_target_scores_for_list: {
+        Args: { p_list_id: string }
+        Returns: number
+      }
+      refresh_workspace_ops_snapshot: {
+        Args: { p_workspace_id: string }
+        Returns: {
+          needs_dispatch_count: number
+          open_issue_count: number
+          open_task_count: number
+          open_work_count: number
+          overdue_task_count: number
+          property_count: number
+          renewal_count: number
+          updated_at: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "workspace_ops_snapshots"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {
@@ -3634,6 +5051,7 @@ export type Database = {
         | "other"
       employment_status: "active" | "inactive" | "terminated"
       employment_type: "employee" | "contractor"
+      enrollment_status: "active" | "paused" | "completed" | "cancelled"
       equipment_status: "available" | "assigned" | "maintenance" | "retired"
       estimate_status:
         | "draft"
@@ -3667,6 +5085,15 @@ export type Database = {
         | "billing"
         | "staffing"
         | "other"
+      lead_channel:
+        | "permit"
+        | "referral"
+        | "inbound"
+        | "cold_outreach"
+        | "other"
+        | "tender"
+        | "directory"
+      lead_source_status: "active" | "paused" | "error"
       membership_role:
         | "owner"
         | "administrator"
@@ -3678,6 +5105,16 @@ export type Database = {
         | "field_worker"
         | "finance"
         | "read_only"
+      notification_channel: "in_app" | "email" | "sms"
+      notification_status: "pending" | "sent" | "read" | "dismissed" | "failed"
+      opportunity_lost_reason_category:
+        | "price"
+        | "timing"
+        | "competitor"
+        | "no_budget"
+        | "scope_mismatch"
+        | "unresponsive"
+        | "other"
       opportunity_stage:
         | "new"
         | "qualified"
@@ -3699,6 +5136,20 @@ export type Database = {
         | "supplier"
         | "partner"
         | "other"
+      outreach_target_status:
+        | "queued"
+        | "contacted"
+        | "responded"
+        | "converted"
+        | "rejected"
+        | "do_not_contact"
+      outreach_touch_channel:
+        | "call"
+        | "email"
+        | "sms"
+        | "door_knock"
+        | "mail"
+        | "other"
       pricing_model:
         | "fixed"
         | "unit"
@@ -3717,6 +5168,7 @@ export type Database = {
         | "superseded"
       record_status: "active" | "inactive" | "archived"
       schedule_type: "recurring" | "one_time" | "event_triggered"
+      sequence_step_channel: "call" | "email" | "sms" | "task" | "wait"
       system_event_status:
         | "pending"
         | "processing"
@@ -3733,6 +5185,15 @@ export type Database = {
         | "billing"
         | "administrative"
         | "other"
+      tender_record_status:
+        | "new"
+        | "reviewing"
+        | "pursuing"
+        | "submitted"
+        | "won"
+        | "lost"
+        | "not_pursuing"
+        | "expired"
       unit_type:
         | "flat"
         | "hour"
@@ -3939,6 +5400,7 @@ export const Constants = {
       ],
       employment_status: ["active", "inactive", "terminated"],
       employment_type: ["employee", "contractor"],
+      enrollment_status: ["active", "paused", "completed", "cancelled"],
       equipment_status: ["available", "assigned", "maintenance", "retired"],
       estimate_status: [
         "draft",
@@ -3975,6 +5437,16 @@ export const Constants = {
         "staffing",
         "other",
       ],
+      lead_channel: [
+        "permit",
+        "referral",
+        "inbound",
+        "cold_outreach",
+        "other",
+        "tender",
+        "directory",
+      ],
+      lead_source_status: ["active", "paused", "error"],
       membership_role: [
         "owner",
         "administrator",
@@ -3986,6 +5458,17 @@ export const Constants = {
         "field_worker",
         "finance",
         "read_only",
+      ],
+      notification_channel: ["in_app", "email", "sms"],
+      notification_status: ["pending", "sent", "read", "dismissed", "failed"],
+      opportunity_lost_reason_category: [
+        "price",
+        "timing",
+        "competitor",
+        "no_budget",
+        "scope_mismatch",
+        "unresponsive",
+        "other",
       ],
       opportunity_stage: [
         "new",
@@ -4010,6 +5493,22 @@ export const Constants = {
         "partner",
         "other",
       ],
+      outreach_target_status: [
+        "queued",
+        "contacted",
+        "responded",
+        "converted",
+        "rejected",
+        "do_not_contact",
+      ],
+      outreach_touch_channel: [
+        "call",
+        "email",
+        "sms",
+        "door_knock",
+        "mail",
+        "other",
+      ],
       pricing_model: [
         "fixed",
         "unit",
@@ -4030,6 +5529,7 @@ export const Constants = {
       ],
       record_status: ["active", "inactive", "archived"],
       schedule_type: ["recurring", "one_time", "event_triggered"],
+      sequence_step_channel: ["call", "email", "sms", "task", "wait"],
       system_event_status: [
         "pending",
         "processing",
@@ -4047,6 +5547,16 @@ export const Constants = {
         "billing",
         "administrative",
         "other",
+      ],
+      tender_record_status: [
+        "new",
+        "reviewing",
+        "pursuing",
+        "submitted",
+        "won",
+        "lost",
+        "not_pursuing",
+        "expired",
       ],
       unit_type: [
         "flat",

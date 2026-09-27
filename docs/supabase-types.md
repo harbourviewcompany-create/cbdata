@@ -10,7 +10,7 @@ Regenerate **after every migration that adds/renames tables, columns, views, RPC
 ## Project
 
 | Field | Value |
-|-------|--------|
+|-------|-------|
 | Project | Cbdata |
 | Ref | `nzjwhmqrsxztnpdppbub` |
 | URL | https://nzjwhmqrsxztnpdppbub.supabase.co |
@@ -78,7 +78,7 @@ git commit -m "chore: regenerate database types after <migration name>"
 
 ## CI / Vercel
 
-Do **not** generate types during `vercel build`. Generate locally (or in a
+**Do not generate types during `vercel build`.** Generate locally (or in a
 GitHub Action with a Supabase access token), commit the file, then deploy.
 
 If `tsc` fails on a new table name that exists in SQL but not in
