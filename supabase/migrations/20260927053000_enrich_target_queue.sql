@@ -14,7 +14,9 @@ alter table public.outreach_targets
   add column if not exists company_website text,
   add column if not exists company_address text;
 
-create or replace view public.v_outreach_target_queue
+drop view if exists public.v_outreach_target_queue;
+
+create view public.v_outreach_target_queue
 with (security_invoker = true)
 as
 select
