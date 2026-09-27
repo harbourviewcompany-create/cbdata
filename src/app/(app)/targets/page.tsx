@@ -205,7 +205,7 @@ export default async function TargetsPage({
 
       <section className="table-panel">
         <div className="table-wrap">
-          <table>
+          <table className="targets-table">
             <thead>
               <tr>
                 <th>Score</th>
