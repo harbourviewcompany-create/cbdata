@@ -5,6 +5,10 @@ import { getWorkspaceContext } from "@/lib/workspace";
 import { convertTarget, logTouch } from "../actions";
 import { addTargetContact, saveTargetAccount, setPrimaryTargetContact } from "../account-actions";
 
+type PropertyIntelRow = {
+  property_id: string; name: string; address_line_1: string; address_line_2: string | null; city: string; province: string | null; postal_code: string | null; property_type: string; building_count: number | null; unit_count: number | null; floor_count: number | null; estimated_sqft: number | null; parking_spaces: number | null; construction_year: number | null; grounds_scope: string | null; snow_scope: string | null; janitorial_scope: string | null; capital_projects_signal: string | null; vendor_signal: string | null; procurement_signal: string | null; seasonal_priority: string | null; access_complexity: string | null; liability_signal: string | null; intelligence_score: number | null; intelligence_summary: string | null; primary_source_url: string | null; primary_source_label: string | null; data_confidence: string | null; contact_count: number | null; permit_count: number | null; recent_permit_count: number | null; recent_permit_value: number | null;
+};
+
 function fmt(v: string | null | undefined) {
   if (!v) return "—";
   try {
@@ -235,7 +239,7 @@ export default async function TargetDetail({
             <tbody>
               {(properties ?? []).length === 0 ? (
                 <tr><td colSpan={5} className="muted">No properties linked to this organization yet.</td></tr>
-              ) : (properties as any[]).map((p) => (
+              ) : (properties as PropertyIntelRow[]).map((p) => (
                 <tr key={p.property_id}>
                   <td>
                     <strong>{p.name}</strong>
