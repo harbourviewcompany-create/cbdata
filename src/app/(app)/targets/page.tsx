@@ -1,41 +1,28 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { convertTarget, logTouch, refreshScores, updateTargetStatus, ensurePmSequence, enrollTarget, processSequences } from "./actions";
 
 type QueueRow = {
   id: string;
-  workspace_id: string;
   outreach_list_id: string;
-  list_name: string | null;
   status: string;
   score: number | null;
-  score_reason: string | null;
-  priority: string;
   region: string | null;
   next_action: string | null;
   next_action_due_at: string | null;
   last_touch_at: string | null;
-  owner_user_id: string | null;
-  organization_id: string | null;
   organization_display_name: string | null;
-  organization_type: string | null;
-  doors_managed: number | null;
-  buildings_managed: number | null;
   organization_website: string | null;
   organization_phone: string | null;
   organization_email: string | null;
-  organization_address: string | null;
-  contact_id: string | null;
   contact_display_name: string | null;
   contact_job_title: string | null;
   contact_phone: string | null;
   contact_email: string | null;
   converted_lead_id: string | null;
-  notes: string | null;
-  linked_property_count: number | null;
   touch_count: number | null;
-  updated_at: string;
 };
 
 const STATUSES = [
@@ -46,6 +33,9 @@ const STATUSES = [
   "rejected",
   "do_not_contact",
 ] as const;
+
+const QUEUE_COLUMNS =
+  "id,outreach_list_id,status,score,region,next_action,next_action_due_at,last_touch_at,organization_display_name,organization_website,organization_phone,organization_email,contact_display_name,contact_job_title,contact_phone,contact_email,converted_lead_id,touch_count";
 
 function fmtDate(v: string | null) {
   if (!v) return "—";
@@ -71,27 +61,44 @@ export default async function TargetsPage({
   const statusFilter = typeof params.status === "string" ? params.status : "";
   const regionFilter = typeof params.region === "string" ? params.region : "";
   const q = typeof params.q === "string" ? params.q.trim().toLowerCase() : "";
+  const term = q.replace(/[%_,()]/g, " ").trim();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = (s as any)
+  const db = s as any;
+  let query = db
     .from("v_outreach_target_queue")
-    .select("*")
+    .select(QUEUE_COLUMNS)
     .order("score", { ascending: false, nullsFirst: false })
     .order("next_action_due_at", { ascending: true, nullsFirst: false })
-    .limit(200);
+    .limit(80);
 
   if (statusFilter) query = query.eq("status", statusFilter);
   if (regionFilter) query = query.ilike("region", regionFilter);
+  if (term) {
+    query = query.or(
+      `organization_display_name.ilike.%${term}%,contact_display_name.ilike.%${term}%,contact_email.ilike.%${term}%,region.ilike.%${term}%,next_action.ilike.%${term}%`,
+    );
+  }
 
-  const [{ data: rows, error }, { data: sequences }] = await Promise.all([
-    query,
-    (s as any).from("outreach_sequences").select("id,name,is_active").eq("is_active", true).order("name"),
-  ]);
+  const [{ data: rows, error }, { data: sequences }, openRes, convertedRes, { data: regionRows }] =
+    await Promise.all([
+      query,
+      db.from("outreach_sequences").select("id,name").eq("is_active", true).order("name"),
+      db
+        .from("v_outreach_target_queue")
+        .select("id", { count: "exact", head: true })
+        .in("status", ["queued", "contacted", "responded"]),
+      db
+        .from("v_outreach_target_queue")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "converted"),
+      db.from("v_outreach_target_queue").select("region").not("region", "is", null).limit(80),
+    ]);
   if (error) {
     return (
       <main className="list-shell">
         <header className="list-header">
-          <Link className="back" href="/dashboard">
+          <Link className="back" href={"/dashboard" as Route}>
             ← Command
           </Link>
           <span className="eyebrow">BUSINESS DEVELOPMENT</span>
@@ -99,46 +106,25 @@ export default async function TargetsPage({
         </header>
         <section className="table-panel">
           <p className="muted">
-            Could not load target queue. Apply migration{" "}
-            <code>20260926140000_pm_target_account_outreach</code> and ensure RLS
-            allows workspace members. ({error.message})
+            Could not load target queue. ({error.message})
           </p>
         </section>
       </main>
     );
   }
 
-  const all = (rows ?? []) as QueueRow[];
-  const filtered = q
-    ? all.filter((r) => {
-        const hay = [
-          r.organization_display_name,
-          r.contact_display_name,
-          r.contact_email,
-          r.region,
-          r.next_action,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        return hay.includes(q);
-      })
-    : all;
-
-  const listId = filtered[0]?.outreach_list_id ?? all[0]?.outreach_list_id ?? "";
+  const filtered = (rows ?? []) as QueueRow[];
+  const listId = filtered[0]?.outreach_list_id ?? "";
   const regions = Array.from(
-    new Set(all.map((r) => r.region).filter(Boolean) as string[]),
+    new Set((regionRows ?? []).map((r: { region: string | null }) => r.region).filter(Boolean) as string[]),
   ).sort();
-
-  const openCount = all.filter((r) =>
-    ["queued", "contacted", "responded"].includes(r.status),
-  ).length;
-  const convertedCount = all.filter((r) => r.status === "converted").length;
+  const openCount = openRes.count ?? 0;
+  const convertedCount = convertedRes.count ?? 0;
 
   return (
     <main className="list-shell">
       <header className="list-header">
-        <Link className="back" href="/dashboard">
+        <Link className="back" href={"/dashboard" as Route}>
           ← Command
         </Link>
         <span className="eyebrow">BUSINESS DEVELOPMENT</span>
@@ -218,7 +204,7 @@ export default async function TargetsPage({
               <div className="targets-grid-row" role="row" key={r.id}>
                 <div className="score-cell" role="cell"><span className={`score-chip ${(r.score ?? 0) >= 80 ? "score-high" : (r.score ?? 0) >= 60 ? "score-medium" : "score-low"}`}>{r.score ?? "—"}</span></div>
                 <div className="company-cell" role="cell">
-                  <Link href={`/targets/${r.id}`} className="target-company"><strong>{r.organization_display_name ?? "—"}</strong></Link>
+                  <Link href={`/targets/${r.id}` as Route} className="target-company"><strong>{r.organization_display_name ?? "—"}</strong></Link>
                   {r.region ? <span className="region-tag">{r.region}</span> : null}
                   <div className="company-meta">{r.organization_website ? <a href={r.organization_website} target="_blank" rel="noreferrer">website</a> : null}{r.organization_phone ? <a href={`tel:${r.organization_phone}`}>{r.organization_phone}</a> : null}</div>
                 </div>
