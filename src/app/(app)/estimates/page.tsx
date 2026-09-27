@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { convertEstimate } from "./actions";
 
+const CONVERTIBLE = new Set(["draft", "sent", "accepted"]);
+
 export default async function EstimatesPage() {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect("/login");
@@ -22,7 +24,7 @@ export default async function EstimatesPage() {
 
   const orgName = (id: string) => {
     const o = orgs?.find((x) => x.id === id);
-    return o?.operating_name ?? o?.legal_name ?? "—";
+    return o?.operating_name ?? o?.legal_name ?? "\u2014";
   };
 
   return (
@@ -62,9 +64,9 @@ export default async function EstimatesPage() {
                         currency: "CAD",
                       })}
                     </td>
-                    <td>{r.valid_until ?? "—"}</td>
+                    <td>{r.valid_until ?? "\u2014"}</td>
                     <td>
-                      {r.status !== "converted" && r.status !== "rejected" ? (
+                      {CONVERTIBLE.has(r.status) ? (
                         <form action={convertEstimate}>
                           <input type="hidden" name="id" value={r.id} />
                           <button type="submit">Convert to contract</button>
