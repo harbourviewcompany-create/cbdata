@@ -1,8 +1,11 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceContext } from "@/lib/workspace";
 
 export const revalidate = 15;
+
+const OPEN_TARGET_STATUSES = ["queued", "contacted", "responded"] as const;
 
 export default async function DashboardPage() {
   const ctx = await getWorkspaceContext();
@@ -23,42 +26,59 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const { workspaceId, user } = ctx;
 
-  const [{ data: snapshot }, { data: recentWork }, { data: recentIssues }, { data: nextActions }, { data: targetRows }, { data: opportunityRows }] =
-    await Promise.all([
-      supabase
-        .from("workspace_ops_snapshots")
-        .select(
-          "workspace_id, property_count, open_work_count, open_issue_count, renewal_count, needs_dispatch_count, open_task_count, overdue_task_count, updated_at",
-        )
-        .eq("workspace_id", workspaceId)
-        .maybeSingle(),
-      supabase
-        .from("open_work_exceptions")
-        .select("id, description, status, priority, scheduled_start, work_order_number")
-        .eq("workspace_id", workspaceId)
-        .order("scheduled_start", { ascending: true, nullsFirst: false })
-        .limit(5),
-      supabase
-        .from("open_issue_queue")
-        .select("id, title, severity, status, reported_at, issue_type")
-        .eq("workspace_id", workspaceId)
-        .order("reported_at", { ascending: false })
-        .limit(5),
-      supabase.rpc("next_actions", {
-        p_workspace_id: workspaceId,
-        p_limit: 25,
-      }),
-      supabase
-        .from("outreach_targets")
-        .select("id,status")
-        .eq("workspace_id", workspaceId)
-        .limit(500),
-      supabase
-        .from("opportunities")
-        .select("id,status,estimated_value,probability")
-        .eq("workspace_id", workspaceId)
-        .limit(200),
-    ]);
+  const [
+    { data: snapshot },
+    { data: recentWork },
+    { data: recentIssues },
+    { data: nextActions },
+    openTargetsRes,
+    convertedTargetsRes,
+    totalTargetsRes,
+    { data: openOpportunities },
+  ] = await Promise.all([
+    supabase
+      .from("workspace_ops_snapshots")
+      .select(
+        "workspace_id, property_count, open_work_count, open_issue_count, renewal_count, needs_dispatch_count, open_task_count, overdue_task_count, updated_at",
+      )
+      .eq("workspace_id", workspaceId)
+      .maybeSingle(),
+    supabase
+      .from("open_work_exceptions")
+      .select("id, description, status, priority, scheduled_start, work_order_number")
+      .eq("workspace_id", workspaceId)
+      .order("scheduled_start", { ascending: true, nullsFirst: false })
+      .limit(5),
+    supabase
+      .from("open_issue_queue")
+      .select("id, title, severity, status, reported_at, issue_type")
+      .eq("workspace_id", workspaceId)
+      .order("reported_at", { ascending: false })
+      .limit(5),
+    supabase.rpc("next_actions", {
+      p_workspace_id: workspaceId,
+      p_limit: 12,
+    }),
+    supabase
+      .from("outreach_targets")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .in("status", [...OPEN_TARGET_STATUSES]),
+    supabase
+      .from("outreach_targets")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .eq("status", "converted"),
+    supabase
+      .from("outreach_targets")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId),
+    supabase
+      .from("opportunities")
+      .select("estimated_value")
+      .eq("workspace_id", workspaceId)
+      .eq("status", "open"),
+  ]);
 
   const metrics = snapshot ?? {
     workspace_id: workspaceId,
@@ -73,12 +93,11 @@ export default async function DashboardPage() {
   };
 
   const actions = nextActions ?? [];
-  const targets = targetRows ?? [];
-  const opportunities = opportunityRows ?? [];
-  const openTargets = targets.filter((r) => ["queued", "contacted", "responded"].includes(r.status)).length;
-  const convertedTargets = targets.filter((r) => r.status === "converted").length;
-  const openOpportunities = opportunities.filter((r) => r.status === "open");
-  const pipelineValue = openOpportunities.reduce((sum, r) => sum + Number(r.estimated_value ?? 0), 0);
+  const openTargets = openTargetsRes.count ?? 0;
+  const convertedTargets = convertedTargetsRes.count ?? 0;
+  const totalTargets = totalTargetsRes.count ?? 0;
+  const opportunities = openOpportunities ?? [];
+  const pipelineValue = opportunities.reduce((sum, r) => sum + Number(r.estimated_value ?? 0), 0);
   const isEmpty =
     metrics.property_count === 0 &&
     metrics.open_work_count === 0 &&
@@ -109,10 +128,10 @@ export default async function DashboardPage() {
           </p>
         </div>
         <div className="hero-cta">
-          <Link className="primary" href={isEmpty ? "/properties" : "/work-orders"}>
+          <Link className="primary" href={(isEmpty ? "/properties" : "/work-orders") as Route}>
             {isEmpty ? "Add your first property" : "Open work board"}
           </Link>
-          <Link className="button" href="/targets">PM targets</Link>
+          <Link className="button" href={"/targets" as Route}>PM targets</Link>
         </div>
       </section>
 
@@ -127,22 +146,22 @@ export default async function DashboardPage() {
         <div className="panel-head">
           <div>
             <span className="eyebrow">GROWTH</span>
-            <h3>Targets &amp; pipeline</h3>
+            <h3>Targets & pipeline</h3>
           </div>
-          <Link href="/targets">Open growth →</Link>
+          <Link href={"/targets" as Route}>Open growth →</Link>
         </div>
         <div className="growth-grid">
-          <Link className="growth-card" href="/targets">
+          <Link className="growth-card" href={"/targets" as Route}>
             <span className="muted">PM targets in queue</span>
             <strong>{openTargets}</strong>
-            <small>{convertedTargets} converted · {targets.length} total targets</small>
+            <small>{convertedTargets} converted · {totalTargets} total targets</small>
           </Link>
-          <Link className="growth-card" href="/sales">
+          <Link className="growth-card" href={"/sales" as Route}>
             <span className="muted">Open opportunities</span>
-            <strong>{openOpportunities.length}</strong>
+            <strong>{opportunities.length}</strong>
             <small>${pipelineValue.toLocaleString("en-CA", { maximumFractionDigits: 0 })} estimated pipeline</small>
           </Link>
-          <Link className="growth-card growth-card-action" href="/targets">
+          <Link className="growth-card growth-card-action" href={"/targets" as Route}>
             <strong>Work the target list</strong>
             <span>Score, contact, follow up, and convert PM accounts.</span>
           </Link>
@@ -160,7 +179,7 @@ export default async function DashboardPage() {
           <ul className="queue-list">
             {actions.map((action, index) => (
               <li key={`${action.action_type}-${action.entity_id}-${index}`}>
-                <Link href={action.href as never}>
+                <Link href={action.href as Route}>
                   <strong>{action.title}</strong>
                   <span className="muted">
                     {action.action_type} · priority {action.priority_score}
@@ -187,16 +206,16 @@ export default async function DashboardPage() {
           </div>
           <ol className="setup-steps">
             <li>
-              <div><strong>Add properties &amp; customers</strong><p className="muted">Sites you service, who pays, and who manages the building.</p></div>
-              <Link className="button" href="/properties">Open properties</Link>
+              <div><strong>Add properties & customers</strong><p className="muted">Sites you service, who pays, and who manages the building.</p></div>
+              <Link className="button" href={"/properties" as Route}>Open properties</Link>
             </li>
             <li>
               <div><strong>Create work orders</strong><p className="muted">Schedule, assign, and close jobs so nothing sits in email.</p></div>
-              <Link className="button" href="/work-orders">Open work orders</Link>
+              <Link className="button" href={"/work-orders" as Route}>Open work orders</Link>
             </li>
             <li>
               <div><strong>Build your PM target list</strong><p className="muted">Find property managers, log outreach, and convert conversations to leads.</p></div>
-              <Link className="button" href="/targets">Open targets</Link>
+              <Link className="button" href={"/targets" as Route}>Open targets</Link>
             </li>
           </ol>
         </section>
@@ -205,7 +224,7 @@ export default async function DashboardPage() {
           <article className="panel">
             <div className="panel-head">
               <div><span className="eyebrow">NEEDS ATTENTION</span><h3>Work exceptions</h3></div>
-              <Link href="/work-orders">View all</Link>
+              <Link href={"/work-orders" as Route}>View all</Link>
             </div>
             <QueueList
               empty="No open work exceptions."
@@ -220,7 +239,7 @@ export default async function DashboardPage() {
           <article className="panel">
             <div className="panel-head">
               <div><span className="eyebrow">ISSUES</span><h3>Open issue queue</h3></div>
-              <Link href="/issues">View all</Link>
+              <Link href={"/issues" as Route}>View all</Link>
             </div>
             <QueueList
               empty="No open issues."
@@ -238,7 +257,7 @@ export default async function DashboardPage() {
       <section className="panel" style={{ marginBottom: 14 }}>
         <div className="panel-head">
           <div><span className="eyebrow">TODAY</span><h3>Field control</h3></div>
-          <Link href="/dispatch">Open dispatch →</Link>
+          <Link href={"/dispatch" as Route}>Open dispatch →</Link>
         </div>
         <div className="checks" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
           <div>Needs dispatch <strong>{metrics.needs_dispatch_count}</strong></div>
@@ -251,12 +270,12 @@ export default async function DashboardPage() {
       <section className="quick-actions" aria-label="Quick actions">
         <h3 className="section-label">Quick actions</h3>
         <div className="quick-grid">
-          <Link className="quick-card" href="/properties"><strong>Properties</strong><span>Coverage and site notes</span></Link>
-          <Link className="quick-card" href="/work-orders"><strong>Work orders</strong><span>Schedule and complete jobs</span></Link>
-          <Link className="quick-card" href="/dispatch"><strong>Dispatch</strong><span>Who is where today</span></Link>
-          <Link className="quick-card" href="/targets"><strong>PM targets</strong><span>Outreach and pipeline</span></Link>
-          <Link className="quick-card" href="/sales"><strong>Sales</strong><span>Opportunities</span></Link>
-          <Link className="quick-card" href="/contracts"><strong>Contracts</strong><span>Active and renewals</span></Link>
+          <Link className="quick-card" href={"/properties" as Route}><strong>Properties</strong><span>Coverage and site notes</span></Link>
+          <Link className="quick-card" href={"/work-orders" as Route}><strong>Work orders</strong><span>Schedule and complete jobs</span></Link>
+          <Link className="quick-card" href={"/dispatch" as Route}><strong>Dispatch</strong><span>Who is where today</span></Link>
+          <Link className="quick-card" href={"/targets" as Route}><strong>PM targets</strong><span>Outreach and pipeline</span></Link>
+          <Link className="quick-card" href={"/sales" as Route}><strong>Sales</strong><span>Opportunities</span></Link>
+          <Link className="quick-card" href={"/contracts" as Route}><strong>Contracts</strong><span>Active and renewals</span></Link>
         </div>
       </section>
     </>
@@ -264,10 +283,10 @@ export default async function DashboardPage() {
 }
 
 function Metric({ label, value, href, emptyHint, alert }: {
-  label: string; value: number; href: string; emptyHint: string; alert?: boolean;
+  label: string; value: number; href: Route; emptyHint: string; alert?: boolean;
 }) {
   return (
-    <Link className={`metric${alert && value > 0 ? " metric-alert" : ""}`} href={href as never}>
+    <Link className={`metric${alert && value > 0 ? " metric-alert" : ""}`} href={href}>
       <span>{label}</span>
       <strong>{value}</strong>
       <small>{value === 0 ? emptyHint : "Open →"}</small>
@@ -283,7 +302,7 @@ function QueueList({ rows, empty }: {
     <ul className="queue-list">
       {rows.map((r) => (
         <li key={r.id}>
-          <Link href={r.href as never}><strong>{r.title}</strong><span className="muted">{r.meta}</span></Link>
+          <Link href={r.href as Route}><strong>{r.title}</strong><span className="muted">{r.meta}</span></Link>
         </li>
       ))}
     </ul>
