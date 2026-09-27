@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { requireWorkspace } from "@/lib/workspace";
 import { createClient } from "@/lib/supabase/server";
 import { startWorkOrder, completeWorkOrder } from "../work-orders/actions";
@@ -15,14 +16,19 @@ export default async function TodayPage() {
 
   const { data: rows } = await s
     .from("work_orders")
-    .select("id,work_order_number,status,priority,scheduled_start,description,property_id,site_instructions")
+    .select("id,work_order_number,status,priority,scheduled_start,description,property_id")
     .eq("workspace_id", ctx.workspaceId)
     .gte("scheduled_start", start.toISOString())
     .lt("scheduled_start", end.toISOString())
     .neq("status", "cancelled")
     .order("scheduled_start");
 
-  const { data: props } = await s.from("properties").select("id,name,address_line_1,city").eq("workspace_id", ctx.workspaceId);
+  const propertyIds = Array.from(new Set((rows ?? []).map((r) => r.property_id).filter(Boolean)));
+  const { data: props } = propertyIds.length
+    ? await s.from("properties").select("id,name,address_line_1").in("id", propertyIds)
+    : { data: [] as { id: string; name: string; address_line_1: string }[] };
+
+  const propById = new Map((props ?? []).map((p) => [p.id, p]));
 
   return (
     <>
@@ -32,7 +38,7 @@ export default async function TodayPage() {
           <h1>Today</h1>
           <p className="muted">Jobs on the board for this calendar day. Start, photo, complete.</p>
         </div>
-        <Link className="button" href="/work-orders">Full board</Link>
+        <Link className="button" href={"/work-orders" as Route}>Full board</Link>
       </header>
       <section className="table-panel">
         <div className="table-wrap">
@@ -48,15 +54,15 @@ export default async function TodayPage() {
             </thead>
             <tbody>
               {(rows ?? []).map((r) => {
-                const p = props?.find((x) => x.id === r.property_id);
+                const p = r.property_id ? propById.get(r.property_id) : undefined;
                 return (
                   <tr key={r.id}>
                     <td>
-                      <Link href={`/work-orders/${r.id}`}>{r.work_order_number}</Link>
+                      <Link href={`/work-orders/${r.id}` as Route}>{r.work_order_number}</Link>
                       <div className="muted">{r.description}</div>
                     </td>
-                    <td>{p ? `${p.name} · ${p.address_line_1}` : "—"}</td>
-                    <td>{r.scheduled_start ?? "—"}</td>
+                    <td>{p ? `${p.name} · ${p.address_line_1}` : "\u2014"}</td>
+                    <td>{r.scheduled_start ?? "\u2014"}</td>
                     <td>{r.status} · {r.priority}</td>
                     <td>
                       <div className="actions">
