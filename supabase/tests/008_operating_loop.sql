@@ -1,27 +1,40 @@
 begin;
+
 do $$
 begin
-  if not exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='log_property_visit') then
-    raise exception 'log_property_visit missing';
+  if not exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'target_is_reachable'
+  ) then
+    raise exception 'target_is_reachable missing';
   end if;
-  if not exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='convert_estimate_to_contract') then
-    raise exception 'convert_estimate_to_contract missing';
+
+  if not exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'claim_outreach_target'
+  ) then
+    raise exception 'claim_outreach_target missing';
   end if;
-  if not exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='issue_invoice') then
-    raise exception 'issue_invoice missing';
+
+  if not exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'log_bd_outcome'
+  ) then
+    raise exception 'log_bd_outcome missing';
   end if;
-  if not exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='record_invoice_payment') then
-    raise exception 'record_invoice_payment missing';
+
+  if not exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'enroll_outreach_target'
+  ) then
+    raise exception 'enroll_outreach_target missing';
   end if;
-  if not exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='run_nightly_ops') then
-    raise exception 'run_nightly_ops missing';
-  end if;
-  if not exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='assignment_overlaps') then
-    raise exception 'assignment_overlaps missing';
-  end if;
-  if not exists (select 1 from information_schema.tables where table_schema='public' and table_name='workspace_invites') then
-    raise exception 'workspace_invites missing';
-  end if;
-  raise notice 'Operating loop verification passed';
+
+  raise notice 'BD operating loop verification passed';
 end $$;
+
 rollback;
