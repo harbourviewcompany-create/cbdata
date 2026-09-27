@@ -23,7 +23,7 @@ export default async function InvoiceDetail({
     .maybeSingle();
   if (!row) notFound();
   const [{ data: items }, { data: pays }] = await Promise.all([
-    s.from("invoice_items").select("id,description,quantity,unit_price,line_total").eq("invoice_id", id),
+    s.from("invoice_items").select("id,description,quantity,unit_price,total").eq("invoice_id", id),
     s.from("payments").select("id,amount,payment_date,payment_method").eq("invoice_id", id).order("payment_date"),
   ]);
 
@@ -83,7 +83,7 @@ export default async function InvoiceDetail({
                   <td>{i.description}</td>
                   <td>{i.quantity}</td>
                   <td>{i.unit_price}</td>
-                  <td>{i.line_total}</td>
+                  <td>{i.total}</td>
                 </tr>
               ))}
             </tbody>
