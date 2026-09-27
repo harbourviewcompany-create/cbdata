@@ -161,7 +161,5 @@ begin
       notes = coalesce(notes, 'Ottawa residential PM. Office 118 Noel St. Main 613-744-8719.'),
       updated_at = now()
     where id = r.id;
-
-    perform public.refresh_outreach_target_score(r.id);
   end loop;
 end $$;
