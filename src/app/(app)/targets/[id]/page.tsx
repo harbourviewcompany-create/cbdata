@@ -38,7 +38,7 @@ export default async function TargetDetail({
     .maybeSingle();
   if (!row) notFound();
 
-  const [{ data: org }, { data: links }, { data: touches }, { data: properties }] = await Promise.all([
+  const [{ data: org }, { data: links }, { data: touches }, { data: properties }, { data: linkedProperties }] = await Promise.all([
     row.organization_id
       ? s
           .from("organizations")
@@ -71,7 +71,20 @@ export default async function TargetDetail({
           .order("name")
           .limit(100)
       : Promise.resolve({ data: [] }),
+    (s as any)
+      .from("outreach_target_properties")
+      .select("property_id,is_primary,relationship_type,v_property_intelligence(*)")
+      .eq("outreach_target_id", id)
+      .eq("workspace_id", ctx.workspaceId),
   ]);
+
+  const propertyMap = new Map<string, PropertyIntelRow>();
+  for (const p of (properties ?? []) as PropertyIntelRow[]) propertyMap.set(p.property_id, p);
+  for (const link of (linkedProperties ?? []) as Array<{property_id:string;v_property_intelligence:PropertyIntelRow | PropertyIntelRow[] | null}>) {
+    const p = Array.isArray(link.v_property_intelligence) ? link.v_property_intelligence[0] : link.v_property_intelligence;
+    if (p) propertyMap.set(p.property_id, p);
+  }
+  const propertyRows = Array.from(propertyMap.values());
 
   const companyName = org?.operating_name || org?.legal_name || row.organization_name || "Target";
 
@@ -237,9 +250,9 @@ export default async function TargetDetail({
               <th>Property</th><th>Footprint</th><th>Service signals</th><th>Buying / risk signals</th><th>Evidence</th>
             </tr></thead>
             <tbody>
-              {(properties ?? []).length === 0 ? (
+              {propertyRows.length === 0 ? (
                 <tr><td colSpan={5} className="muted">No properties linked to this organization yet.</td></tr>
-              ) : (properties as PropertyIntelRow[]).map((p) => (
+              ) : propertyRows.map((p) => (
                 <tr key={p.property_id}>
                   <td>
                     <strong>{p.name}</strong>
