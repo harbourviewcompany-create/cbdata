@@ -23,7 +23,7 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const { workspaceId, user } = ctx;
 
-  const [{ data: snapshot }, { data: recentWork }, { data: recentIssues }, { data: nextActions }] =
+  const [{ data: snapshot }, { data: recentWork }, { data: recentIssues }, { data: nextActions }, { data: targetRows }, { data: opportunityRows }] =
     await Promise.all([
       supabase
         .from("workspace_ops_snapshots")
@@ -48,6 +48,16 @@ export default async function DashboardPage() {
         p_workspace_id: workspaceId,
         p_limit: 25,
       }),
+      supabase
+        .from("outreach_targets")
+        .select("id,status")
+        .eq("workspace_id", workspaceId)
+        .limit(500),
+      supabase
+        .from("opportunities")
+        .select("id,status,estimated_value,probability")
+        .eq("workspace_id", workspaceId)
+        .limit(200),
     ]);
 
   const metrics = snapshot ?? {
@@ -63,6 +73,12 @@ export default async function DashboardPage() {
   };
 
   const actions = nextActions ?? [];
+  const targets = targetRows ?? [];
+  const opportunities = opportunityRows ?? [];
+  const openTargets = targets.filter((r) => ["queued", "contacted", "responded"].includes(r.status)).length;
+  const convertedTargets = targets.filter((r) => r.status === "converted").length;
+  const openOpportunities = opportunities.filter((r) => r.status === "open");
+  const pipelineValue = openOpportunities.reduce((sum, r) => sum + Number(r.estimated_value ?? 0), 0);
   const isEmpty =
     metrics.property_count === 0 &&
     metrics.open_work_count === 0 &&
@@ -107,6 +123,31 @@ export default async function DashboardPage() {
         <Metric label="Renewals due" value={metrics.renewal_count} href="/contracts" emptyHint="None upcoming" alert={metrics.renewal_count > 0} />
       </section>
 
+      <section className="panel growth-panel" style={{ marginBottom: 14 }}>
+        <div className="panel-head">
+          <div>
+            <span className="eyebrow">GROWTH</span>
+            <h3>Targets &amp; pipeline</h3>
+          </div>
+          <Link href="/targets">Open growth →</Link>
+        </div>
+        <div className="growth-grid">
+          <Link className="growth-card" href="/targets">
+            <span className="muted">PM targets in queue</span>
+            <strong>{openTargets}</strong>
+            <small>{convertedTargets} converted · {targets.length} total targets</small>
+          </Link>
+          <Link className="growth-card" href="/sales">
+            <span className="muted">Open opportunities</span>
+            <strong>{openOpportunities.length}</strong>
+            <small>${pipelineValue.toLocaleString("en-CA", { maximumFractionDigits: 0 })} estimated pipeline</small>
+          </Link>
+          <Link className="growth-card growth-card-action" href="/targets">
+            <strong>Work the target list</strong>
+            <span>Score, contact, follow up, and convert PM accounts.</span>
+          </Link>
+        </div>
+      </section>
       <section className="panel" style={{ marginBottom: 14 }}>
         <div className="panel-head">
           <div>
