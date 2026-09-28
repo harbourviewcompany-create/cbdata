@@ -158,7 +158,7 @@ begin
           f.workspace_id,v_list_id,v_org_id,f.buyer_name,v_contact_id,
           'queued',f.buyer_region,f.fit_score,
           'Procurement pre-position signal: '||coalesce(f.contract_title,f.title),
-          case when f.fit_score>=90 then 'urgent'::outreach_priority else 'high'::outreach_priority end,
+          case when f.fit_score>=90 then 'urgent'::work_priority else 'high'::work_priority end,
           case
             when coalesce(v_contact_count,0)=0 then 'Find procurement/facilities decision-maker before the expected rebid window'
             when v_registration_status is null then 'Verify supplier registration and procurement portal readiness'
@@ -179,7 +179,7 @@ begin
         set
           contact_id=coalesce(contact_id,v_contact_id),
           score=greatest(coalesce(score,0),f.fit_score),
-          priority=case when f.fit_score>=90 then 'urgent'::outreach_priority else priority end,
+          priority=case when f.fit_score>=90 then 'urgent'::work_priority else priority end,
           next_action=case
             when coalesce(v_contact_count,0)=0 then 'Find procurement/facilities decision-maker before the expected rebid window'
             when v_registration_status is null then 'Verify supplier registration and procurement portal readiness'
