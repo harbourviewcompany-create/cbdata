@@ -44,6 +44,10 @@ begin
   if n < 8 then raise exception 'Expected Minto Ottawa property depth, found %', n; end if;
 
   select count(*) into n from public.contacts
+  where workspace_id=v_workspace and first_name='Ron' and last_name='Matheson' and source_confidence='high';
+  if n <> 1 then raise exception 'Expected verified Ron Matheson commercial route, found %', n; end if;
+
+  select count(*) into n from public.contacts
   where workspace_id=v_workspace and email='michaelmorin@districtrealty.com'
     and source_confidence='high';
   if n <> 1 then raise exception 'Expected verified District commercial-operations contact, found %', n; end if;
