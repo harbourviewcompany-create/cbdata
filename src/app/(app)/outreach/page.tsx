@@ -145,6 +145,11 @@ export default async function OutreachPage({
                 <summary className="button" style={{cursor:"pointer"}}>Log reply</summary>
                 <form action={classifyReply} style={{display:"grid",gap:8,minWidth:320,marginTop:8}}>
                   <input type="hidden" name="target_id" value={r.id}/>
+                  <select name="channel" defaultValue={r.latest_draft_channel ?? "email"} aria-label="Reply channel">
+                    <option value="email">Email</option><option value="linkedin">LinkedIn</option>
+                    <option value="sms">SMS</option><option value="call">Call</option>
+                    <option value="voicemail">Voicemail</option><option value="other">Other</option>
+                  </select>
                   <select name="classification" defaultValue="interested">
                     <option value="interested">Interested</option><option value="request_quote">Request quote</option>
                     <option value="request_call">Request call</option><option value="referral">Referral</option>
