@@ -117,7 +117,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = pg_catalog, public
-as $
+as $$
 declare
   v_mode text := coalesce(current_setting('app.estimate_internal_update',true),'');
 begin
@@ -171,7 +171,7 @@ begin
 
   return new;
 end;
-$;
+$$;
 
 revoke all on function private.guard_estimate_update() from public, anon, authenticated;
 
