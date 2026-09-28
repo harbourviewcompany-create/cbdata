@@ -154,11 +154,19 @@ export async function removeMaterialRequestItem(f: FormData) {
     .eq("id", itemId);
   if (error) throw new Error(error.message);
 
-  await (s as any)
-    .from("material_requests")
-    .update({ status: "draft", updated_at: new Date().toISOString() })
-    .eq("workspace_id", ctx.workspaceId)
-    .eq("id", requestId);
+  await Promise.all([
+    (s as any)
+      .from("material_requests")
+      .update({ status: "draft", updated_at: new Date().toISOString() })
+      .eq("workspace_id", ctx.workspaceId)
+      .eq("id", requestId),
+    (s as any)
+      .from("material_price_plans")
+      .update({ is_selected: false })
+      .eq("workspace_id", ctx.workspaceId)
+      .eq("request_id", requestId)
+      .eq("is_selected", true),
+  ]);
 
   revalidatePath(`/materials/${requestId}`);
   revalidatePath("/materials");
