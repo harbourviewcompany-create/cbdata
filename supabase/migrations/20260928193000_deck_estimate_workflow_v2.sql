@@ -142,7 +142,7 @@ begin
   end if;
 
   if old.status is distinct from new.status then
-    if v_mode <> 'transition:' || new.status::text then
+    if v_mode <> ('transition:' || new.status::text) then
       raise exception 'Estimate status changes must use advance_estimate';
     end if;
     if old.status='draft' and new.status='sent' then
