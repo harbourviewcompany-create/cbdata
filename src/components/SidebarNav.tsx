@@ -23,6 +23,7 @@ const NAV = [
     roles: ["owner","administrator","sales_manager","sales_rep","operations_manager"],
     items: [
       { href: "/targets", label: "Targets", roles: ["owner","administrator","sales_manager","sales_rep"] },
+      { href: "/outreach", label: "Outreach", roles: ["owner","administrator","sales_manager","sales_rep"] },
       { href: "/procurement", label: "Tender Intelligence", roles: ["owner","administrator","sales_manager","sales_rep","operations_manager"] },
       { href: "/sales", label: "Sales", roles: ["owner","administrator","sales_manager","sales_rep"] },
       { href: "/estimates", label: "Estimates", roles: ["owner","administrator","sales_manager","sales_rep","operations_manager"] },
