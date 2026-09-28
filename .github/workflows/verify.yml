@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.118.0
       - name: No production fixtures in seed
         run: |
           if grep -R -E "insert into public\.(properties|invoices|contracts)" supabase/seed --include='*.sql'; then
