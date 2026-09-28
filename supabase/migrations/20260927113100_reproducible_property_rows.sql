@@ -1,3 +1,9 @@
+-- Fresh database bootstrap for deterministic CBData fixture migrations.
+-- Production already has this workspace; ON CONFLICT keeps the migration a no-op there.
+insert into public.workspaces(id,name,slug)
+values ('431aa13d-3e7c-41e3-9686-e840b8ea5b7c','CB Contracting','cb-contracting')
+on conflict do nothing;
+
 -- Reproducible verified property rows and intelligence.
 -- Safe to rerun: each property/intelligence row is resolved by workspace + canonical name/address.
 with seed(name,address_line_1,city,province,postal_code,property_type,owner_name,customer_name,manager_name,summary,source_url,source_label) as (
