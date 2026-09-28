@@ -5,6 +5,8 @@ import { runCanadaBuysScout } from "./actions";
 import "./procurement.css";
 
 function fmtDate(value:string|null){ if(!value) return "—"; return new Date(value).toLocaleDateString("en-CA",{year:"numeric",month:"short",day:"numeric"}); }
+function daysLeft(value:string|null){ if(!value) return null; const end=new Date(value+"T23:59:59Z").getTime(); return Math.ceil((end-Date.now())/86400000); }
+function urgencyLabel(value:string|null){ const d=daysLeft(value); if(d===null) return "no deadline"; if(d<0) return "closed"; if(d===0) return "closes today"; if(d===1) return "1 day"; return `${d} days`; }
 
 export default async function ProcurementPage(){
   const s=await createClient();
@@ -56,7 +58,7 @@ export default async function ProcurementPage(){
       <div className="table-wrap"><div className="targets-grid procurement-grid">
         <div className="targets-grid-row targets-grid-head"><div>Close</div><div>Notice</div><div>Buyer</div><div>Fit</div><div>Coverage</div><div>Action</div></div>
         {open.length===0 ? <div className="targets-grid-row"><div className="muted">No open qualifying notices have been ingested yet.</div></div> : open.map((t:any)=><div className="targets-grid-row" key={t.id}>
-          <div><strong>{fmtDate(t.closing_date)}</strong>{t.published_date?<span className="status-meta">opened {fmtDate(t.published_date)}</span>:null}</div>
+          <div><strong>{fmtDate(t.closing_date)}</strong><span className="status-meta">{urgencyLabel(t.closing_date)}</span>{t.published_date?<span className="status-meta">opened {fmtDate(t.published_date)}</span>:null}</div>
           <div><strong>{t.title}</strong><span className="status-meta">{t.category||"Service"} · {t.external_id}</span></div>
           <div><strong>{t.buyer_name||"—"}</strong><span className="status-meta">{t.region||"NCR"}</span></div>
           <div><span className="score-chip score-high">{t.fit_score??"—"}</span><span className="status-meta">{t.fit_note||"Fit note pending"}</span></div>
@@ -74,8 +76,8 @@ export default async function ProcurementPage(){
           <div><strong>{t.external_id}</strong><span className="status-meta">{fmtDate(t.closing_date)}</span></div>
           <div>{t.buyer_name||"—"}</div>
           <div>{c?<><strong>{c.first_name} {c.last_name}</strong><span className="status-meta">{c.job_title||"Buyer contact"} · {c.email||"no email"}</span></>:<span className="status-meta">contact gap</span>}</div>
-          <div>{c?<span className="status-meta">{c.source_label||"source verified"} · {c.source_confidence||"—"}</span>:<span className="status-meta">unverified</span>}</div>
-          <div>{c?"—":"Find procurement/contact authority"}</div>
+          <div>{c?<span className="status-meta">{c.source_label||"source"} · {c.source_confidence||"unknown"}{c.source_confidence==="reported"?" · verify":""}</span>:<span className="status-meta">unverified</span>}</div>
+          <div>{!c?"Find procurement/contact authority":c.source_confidence==="reported"?"Verify named contact":"—"}</div>
           <div><strong>{t.next_action||"Assign next bid-review step"}</strong>{t.next_action_due_at?<span className="status-meta">due {fmtDate(t.next_action_due_at)}</span>:null}</div>
         </div>})}
       </div></div>
