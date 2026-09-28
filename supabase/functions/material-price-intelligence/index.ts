@@ -375,7 +375,7 @@ Deno.serve(async (req) => {
       delivery_total: deliveryTotal,
       total: round2(materialSubtotal + deliveryTotal),
       lines: splitLines,
-      suppliers: used.map((id) => ({ id, name: supplierById.get(id)?.name || id })),
+      suppliers: used.map((id) => ({ id, name: supplierById.get(id)?.name || id, delivery_fee: supplierById.get(id)?.default_delivery_fee ?? null, delivery_verified: supplierById.get(id)?.default_delivery_fee != null })),
     });
   }
 
@@ -396,7 +396,7 @@ Deno.serve(async (req) => {
       delivery_total: round2(deliveryTotal),
       total: round2(materialSubtotal + deliveryTotal),
       lines,
-      suppliers: [{ id: supplier.id, name: supplier.name }],
+      suppliers: [{ id: supplier.id, name: supplier.name, delivery_fee: supplier.default_delivery_fee ?? null, delivery_verified: supplier.default_delivery_fee != null }],
     });
   }
 
