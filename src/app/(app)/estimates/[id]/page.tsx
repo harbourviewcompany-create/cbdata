@@ -18,7 +18,7 @@ export default async function EstimateDetail({
   const { data: row } = await s
     .from("estimates")
     .select(
-      "id,estimate_number,status,subtotal,tax,total,valid_until,sent_at,accepted_at,organization_id",
+      "id,estimate_number,status,subtotal,tax,total,valid_until,sent_at,accepted_at,organization_id,property_id",
     )
     .eq("id", id)
     .eq("workspace_id", ctx.workspaceId)
@@ -26,9 +26,15 @@ export default async function EstimateDetail({
   if (!row) notFound();
   const { data: items } = await s
     .from("estimate_items")
-    .select("id,description,quantity,unit_price,line_total")
+    .select("id,description,quantity,unit_price,line_total,service_definition_id")
     .eq("estimate_id", id)
     .order("sort_order");
+
+  const blockers: string[] = [];
+  if (!row.property_id) blockers.push("Assign a property to this estimate.");
+  if (!(items ?? []).length) blockers.push("Add at least one estimate line item.");
+  if ((items ?? []).some((i) => !i.service_definition_id)) blockers.push("Assign a service definition to every line item.");
+  const canConvert = CONVERTIBLE.has(row.status) && blockers.length === 0;
 
   return (
     <>
@@ -49,13 +55,20 @@ export default async function EstimateDetail({
           <div>Total <strong>{row.total}</strong></div>
           <div>Valid <strong>{row.valid_until ?? "\u2014"}</strong></div>
         </dl>
-        {CONVERTIBLE.has(row.status) ? (
+        {canConvert ? (
           <form action={convertEstimate} style={{ marginTop: 16 }}>
             <input type="hidden" name="id" value={row.id} />
             <button className="primary" type="submit">
               Convert to contract
             </button>
           </form>
+        ) : CONVERTIBLE.has(row.status) ? (
+          <div style={{ marginTop: 16 }}>
+            <strong>Contract conversion blocked</strong>
+            <ul className="muted" style={{ marginTop: 8, paddingLeft: 20 }}>
+              {blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}
+            </ul>
+          </div>
         ) : null}
       </section>
       <section className="table-panel" style={{ marginTop: 14 }}>
