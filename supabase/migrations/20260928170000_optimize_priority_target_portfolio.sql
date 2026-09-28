@@ -139,7 +139,7 @@ begin
         + least(15,m.high_signal_properties*3) + least(8,m.evidence_count*2)
         + least(10,m.open_signals*5) + case when m.has_buying_route then 5 else 0 end
       ) >= 85 then 'high'
-      when coalesce(t.score,0) >= 65 then 'medium'
+      when coalesce(t.score,0) >= 65 then 'normal'
       else t.priority end,
     updated_at=now()
   from metrics m where t.id=m.id;
