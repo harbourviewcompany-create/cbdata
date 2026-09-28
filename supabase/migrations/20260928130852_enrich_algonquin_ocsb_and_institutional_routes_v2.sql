@@ -16,16 +16,44 @@ update public.outreach_targets t set organization_id=o.id,contact_id=c.id,contac
 from public.organizations o,public.contacts c
 where o.workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c' and o.operating_name='Algonquin College' and c.email='southwr@algonquincollege.com' and t.organization_name='Algonquin College' and t.workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c';
 
+insert into public.organizations (workspace_id,legal_name,operating_name,organization_type,status,website,primary_region,hq_city,hq_province,source_notes)
+select '431aa13d-3e7c-41e3-9686-e840b8ea5b7c','Ottawa Catholic School Board','OCSB','owner','active','https://www.ocsb.ca/our-board/departments/planning-and-facilities/','Ottawa','Ottawa','ON','Source: official OCSB planning/facilities page.'
+where not exists (
+  select 1 from public.organizations
+  where workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c'
+    and (legal_name='Ottawa Catholic School Board' or operating_name='OCSB')
+);
+
 insert into public.contacts (workspace_id,first_name,last_name,job_title,email,phone,phone_extension,status,source_url,source_label,source_confidence,source_verified_at)
 select '431aa13d-3e7c-41e3-9686-e840b8ea5b7c','Miro','Vala','Superintendent of Planning and Facilities','Miro.Vala@ocsb.ca','613-224-4455','2322','active','https://www.ocsb.ca/our-board/executive-council/','OCSB Executive Council','high',now()
-where not exists (select 1 from public.contacts where workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c' and email='Miro.Vala@ocsb.ca');
+where not exists (select 1 from public.contacts where workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c' and lower(email)=lower('Miro.Vala@ocsb.ca'));
 
 insert into public.organization_contacts (workspace_id,organization_id,contact_id,relationship_type,is_primary)
-select '431aa13d-3e7c-41e3-9686-e840b8ea5b7c','ae39bff3-fc51-45b6-a41c-59edc121c6df',(select id from public.contacts where email='Miro.Vala@ocsb.ca' limit 1),'planning_facilities',true
-where not exists (select 1 from public.organization_contacts where organization_id='ae39bff3-fc51-45b6-a41c-59edc121c6df' and contact_id=(select id from public.contacts where email='Miro.Vala@ocsb.ca' limit 1));
+select '431aa13d-3e7c-41e3-9686-e840b8ea5b7c',o.id,c.id,'planning_facilities',true
+from public.organizations o
+join public.contacts c on c.workspace_id=o.workspace_id and lower(c.email)=lower('Miro.Vala@ocsb.ca')
+where o.workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c'
+  and (o.legal_name='Ottawa Catholic School Board' or o.operating_name='OCSB')
+  and not exists (
+    select 1 from public.organization_contacts oc
+    where oc.workspace_id=o.workspace_id and oc.organization_id=o.id and oc.contact_id=c.id
+  );
 
-update public.outreach_targets set contact_id=(select id from public.contacts where email='Miro.Vala@ocsb.ca' limit 1),contact_name='Miro Vala',phone='613-224-4455',email='Miro.Vala@ocsb.ca',company_phone='613-224-2222',company_email='info@ocsb.ca',next_action='Planning + Facilities: maintenance, operations, custodial, renewal'
-where organization_name='Ottawa Catholic School Board' and workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c';
+update public.outreach_targets t
+set organization_id=o.id,
+    contact_id=c.id,
+    contact_name='Miro Vala',
+    phone='613-224-4455',
+    email='Miro.Vala@ocsb.ca',
+    company_phone='613-224-2222',
+    company_email='info@ocsb.ca',
+    next_action='Planning + Facilities: maintenance, operations, custodial, renewal'
+from public.organizations o
+join public.contacts c on c.workspace_id=o.workspace_id and lower(c.email)=lower('Miro.Vala@ocsb.ca')
+where t.organization_name='Ottawa Catholic School Board'
+  and t.workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c'
+  and o.workspace_id=t.workspace_id
+  and (o.legal_name='Ottawa Catholic School Board' or o.operating_name='OCSB');
 
 update public.outreach_targets set contact_name='Chartwell Ottawa residences administration',company_website='https://chartwell.com',next_action='Route to Ottawa residence operations: grounds, snow, janitorial'
 where organization_name='Chartwell Retirement Residences (Ottawa properties)' and workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c';
