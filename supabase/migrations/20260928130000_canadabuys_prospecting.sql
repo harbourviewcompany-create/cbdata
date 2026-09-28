@@ -47,16 +47,19 @@ create index if not exists idx_canadabuys_runs_workspace_started
 alter table public.canadabuys_runs enable row level security;
 alter table public.canadabuys_runs force row level security;
 
+drop policy if exists canadabuys_runs_select on public.canadabuys_runs;
 create policy canadabuys_runs_select
   on public.canadabuys_runs for select
   to authenticated
   using (public.is_workspace_member(workspace_id));
 
+drop policy if exists canadabuys_runs_insert on public.canadabuys_runs;
 create policy canadabuys_runs_insert
   on public.canadabuys_runs for insert
   to authenticated
   with check (public.is_workspace_member(workspace_id));
 
+drop policy if exists canadabuys_runs_update on public.canadabuys_runs;
 create policy canadabuys_runs_update
   on public.canadabuys_runs for update
   to authenticated
