@@ -119,12 +119,21 @@ begin
         continue;
       end if;
 
-      select count(*), min(oc.contact_id)
-      into v_contact_count,v_contact_id
+      select count(*)
+      into v_contact_count
       from public.organization_contacts oc
       where oc.workspace_id=f.workspace_id
         and oc.organization_id=v_org_id
         and oc.end_date is null;
+
+      select oc.contact_id
+      into v_contact_id
+      from public.organization_contacts oc
+      where oc.workspace_id=f.workspace_id
+        and oc.organization_id=v_org_id
+        and oc.end_date is null
+      order by oc.is_primary desc nulls last, oc.start_date desc nulls last, oc.contact_id
+      limit 1;
 
       select sr.status into v_registration_status
       from public.supplier_registrations sr
