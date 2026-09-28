@@ -14,6 +14,23 @@ begin
     and priority='high' and score>=90;
   if n <> 5 then raise exception 'Expected 5 additional Tier-1 Ottawa portfolio targets, found %', n; end if;
 
+  select count(*) into n from public.properties p
+  join public.outreach_target_properties otp on otp.property_id=p.id
+  join public.outreach_targets t on t.id=otp.outreach_target_id
+  where t.workspace_id=v_workspace and t.organization_name='Colonnade BridgePort'
+    and p.name in ('CBP — Mata','CBP — Ori','CBP — 600 Mountaineer','CBP — 601 Mountaineer');
+  if n <> 4 then raise exception 'Expected 4 fresh CBP mandate properties, found %', n; end if;
+
+  select count(*) into n from public.target_opportunity_signals s
+  join public.outreach_targets t on t.id=s.target_id
+  where t.workspace_id=v_workspace and t.organization_name='Colonnade BridgePort'
+    and s.signal_type='management_change' and s.status='open';
+  if n < 4 then raise exception 'Expected CBP management-change signals, found %', n; end if;
+
+  select count(*) into n from public.contacts
+  where workspace_id=v_workspace and first_name='Kandas' and last_name='Miller' and source_confidence='high';
+  if n <> 1 then raise exception 'Expected verified Kandas Miller contact, found %', n; end if;
+
   select count(*) into n from public.contacts
   where workspace_id=v_workspace and email='michaelmorin@districtrealty.com'
     and source_confidence='high';
