@@ -114,13 +114,13 @@ Deno.serve(async(req)=>{
 
   const serviceCategory=fit.join(", ");
   const {data:cycleExisting}=await admin.from("procurement_contract_cycles").select("id").eq("workspace_id",workspaceId)
-    .ilike("buyer_name",a.buyer||"Unknown buyer").eq("service_category",serviceCategory)
-    .eq("contract_end_date",a.contractEndDate||"9999-12-31").maybeSingle();
+    .ilike("buyer_name",a.buyer||"Unknown buyer").eq("contract_title",a.title)
+    .eq("service_category",serviceCategory).eq("contract_end_date",a.contractEndDate||"9999-12-31").maybeSingle();
   let cycleId=cycleExisting?.id||null;
   if(!cycleId){
     const {data:cycle}=await admin.from("procurement_contract_cycles").insert({
       workspace_id:workspaceId,organization_id:buyer?.organization_id||org?.id||null,buyer_name:a.buyer||"Unknown buyer",
-      service_category:serviceCategory,incumbent_name:a.awardedTo,award_value:a.amount,currency:"CAD",
+      contract_title:a.title,service_category:serviceCategory,incumbent_name:a.awardedTo,award_value:a.amount,currency:"CAD",
       contract_end_date:a.contractEndDate,expected_rebid_date:expectedRebid,confidence:a.contractEndDate?"high":"medium",
       evidence_url:a.url,source:"canadabuys",notes:"CanadaBuys award notice; rebid date is contract end minus 180 days when not explicitly published.",
       status:expectedRebid&&expectedRebid<=new Date(Date.now()+180*86400000).toISOString().slice(0,10)?"recompete_expected":"active",
@@ -135,7 +135,7 @@ Deno.serve(async(req)=>{
     if(!existingFuture){
       const {error:fErr}=await admin.from("procurement_future_opportunities").insert({
         workspace_id:workspaceId,contract_cycle_id:cycleId,organization_id:buyer?.organization_id||org?.id||null,
-        buyer_name:a.buyer||"Unknown buyer",title:"Prepare for rebid — "+serviceCategory,service_category:serviceCategory,
+        buyer_name:a.buyer||"Unknown buyer",title:"Prepare for rebid — "+a.title,service_category:serviceCategory,
         signal_type:"award_rebid",expected_publish_start:start,expected_publish_end:end,
         fit_score:Math.min(100,Number(buyer?.watch_priority||60)+20),confidence:a.contractEndDate?"high":"medium",
         status:expectedRebid<=new Date(Date.now()+120*86400000).toISOString().slice(0,10)?"pre_position":"watch",
