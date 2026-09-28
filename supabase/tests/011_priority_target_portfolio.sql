@@ -31,6 +31,18 @@ begin
   where workspace_id=v_workspace and first_name='Kandas' and last_name='Miller' and source_confidence='high';
   if n <> 1 then raise exception 'Expected verified Kandas Miller contact, found %', n; end if;
 
+  select count(*) into n from public.properties p
+  join public.outreach_target_properties otp on otp.property_id=p.id
+  join public.outreach_targets t on t.id=otp.outreach_target_id
+  where t.workspace_id=v_workspace and t.organization_name='CLV Group' and p.name like 'CLV — %';
+  if n < 6 then raise exception 'Expected CLV Ottawa property depth, found %', n; end if;
+
+  select count(*) into n from public.properties p
+  join public.outreach_target_properties otp on otp.property_id=p.id
+  join public.outreach_targets t on t.id=otp.outreach_target_id
+  where t.workspace_id=v_workspace and t.organization_name='Minto Commercial' and p.name like 'Minto — %';
+  if n < 8 then raise exception 'Expected Minto Ottawa property depth, found %', n; end if;
+
   select count(*) into n from public.contacts
   where workspace_id=v_workspace and email='michaelmorin@districtrealty.com'
     and source_confidence='high';
