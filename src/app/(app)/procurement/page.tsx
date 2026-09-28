@@ -12,6 +12,13 @@ export default async function ProcurementPage(){
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const {data:tenders}=await (s as any).from("tender_records").select("id,external_id,title,buyer_name,category,region,published_date,closing_date,source_url,status,matched_organization_id,lead_id,response_mode,registration_required,fit_score,fit_note,last_verified_at").eq("source","CanadaBuys").order("closing_date",{ascending:true}).limit(100);
+  const leadIds=(tenders??[]).map((t:any)=>t.lead_id).filter(Boolean);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const {data:leadRows}=await (s as any).from("leads").select("id,contact_id").in("id",leadIds.length?leadIds:["00000000-0000-0000-0000-000000000000"]);
+  const contactIds=(leadRows??[]).map((x:any)=>x.contact_id).filter(Boolean);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const {data:contacts}=await (s as any).from("contacts").select("id,first_name,last_name,job_title,email,phone,mobile,source_url,source_label,source_confidence").in("id",contactIds.length?contactIds:["00000000-0000-0000-0000-000000000000"]);
+  const contactByLead=new Map((leadRows??[]).map((x:any)=>[x.id,(contacts??[]).find((c:any)=>c.id===x.contact_id)]));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const {data:runs}=await (s as any).from("canadabuys_runs").select("id,started_at,finished_at,status,fetched_count,qualifying_count,inserted_count,updated_count,lead_created_count,error_count,error_message").order("started_at",{ascending:false}).limit(8);
 
