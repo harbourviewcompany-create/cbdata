@@ -242,32 +242,61 @@ begin
   join public.property_intelligence pi on pi.property_id=otp.property_id
   where otp.outreach_target_id=t.id;
 
+  if p_channel not in ('email','linkedin','call','voicemail','sms') then
+    raise exception 'unsupported outreach channel %', p_channel;
+  end if;
+
   v_services := coalesce(v_services,'property services');
   v_subject := case
+    when p_channel <> 'email' then null
     when v_property_name is not null then 'Service support for ' || v_property_name
     else 'Property service support for ' || coalesce(t.organization_name,'your portfolio')
   end;
 
-  v_body :=
-    'Hi ' || v_first_name || ',' || E'\n\n' ||
-    'I’m reaching out from CB Contracting in Ottawa. ' ||
-    case
-      when v_property_name is not null then
-        'I was reviewing ' || v_property_name ||
-        case when v_property_address is not null then ' at ' || v_property_address else '' end ||
-        ' and wanted to understand how you currently handle ' || v_services || '.'
-      else
-        'I was reviewing ' || coalesce(t.organization_name,'your portfolio') ||
-        ' and wanted to understand how you currently handle ' || v_services || '.'
-    end ||
-    case when v_signal is not null then
-      E'\n\n' || 'I also noticed a current planning/procurement signal relevant to the account: ' || v_signal || '.'
-    else '' end ||
-    E'\n\n' ||
-    'If you are reviewing contractors, dealing with a service gap, or approaching a renewal, I can price one site so you have a direct comparison without committing to a portfolio-wide change.' ||
-    E'\n\n' ||
-    'Are you the right person for this, or should I speak with someone on the property/facilities team?' ||
-    E'\n\n' || 'Tyler' || E'\n' || 'CB Contracting';
+  v_body := case p_channel
+    when 'linkedin' then
+      'Hi ' || v_first_name || ' — I’m with CB Contracting in Ottawa. ' ||
+      case when v_property_name is not null
+        then 'I was looking at ' || v_property_name || ' and its ' || v_services || ' requirements. '
+        else 'I was looking at ' || coalesce(t.organization_name,'your portfolio') || ' and its ' || v_services || ' requirements. '
+      end ||
+      'Are you the right person for property/facility service vendors, or should I connect with someone else on the team?'
+    when 'call' then
+      'Hi ' || v_first_name || ', this is Tyler with CB Contracting in Ottawa. ' ||
+      case when v_property_name is not null
+        then 'I’m calling about ' || v_property_name || '. '
+        else 'I’m calling regarding ' || coalesce(t.organization_name,'your portfolio') || '. '
+      end ||
+      'We support properties with ' || v_services || '. I wanted to confirm who handles those vendor decisions and whether there are any upcoming reviews, service gaps, or renewal windows where it would make sense for us to quote.'
+    when 'voicemail' then
+      'Hi ' || v_first_name || ', Tyler here with CB Contracting in Ottawa. I’m reaching out regarding ' ||
+      coalesce(v_property_name,coalesce(t.organization_name,'your properties')) ||
+      ' and ' || v_services || '. I’d like to understand who handles those service contracts and whether there is an upcoming opportunity to quote. You can reach me back at your convenience. Thanks.'
+    when 'sms' then
+      'Hi ' || v_first_name || ' — Tyler from CB Contracting. Reaching out about ' ||
+      coalesce(v_property_name,coalesce(t.organization_name,'your property portfolio')) ||
+      ' and ' || v_services || '. Are you the right contact for vendor/service decisions?'
+    else
+      'Hi ' || v_first_name || ',' || E'\n\n' ||
+      'I’m reaching out from CB Contracting in Ottawa. ' ||
+      case
+        when v_property_name is not null then
+          'I was reviewing ' || v_property_name ||
+          case when v_property_address is not null then ' at ' || v_property_address else '' end ||
+          ' and wanted to understand how you currently handle ' || v_services || '.'
+        else
+          'I was reviewing ' || coalesce(t.organization_name,'your portfolio') ||
+          ' and wanted to understand how you currently handle ' || v_services || '.'
+      end ||
+      case when v_signal is not null then
+        E'\n\n' || 'I also noticed a current planning/procurement signal relevant to the account: ' || v_signal || '.'
+      else '' end ||
+      E'\n\n' ||
+      'If you are reviewing contractors, dealing with a service gap, or approaching a renewal, I can price one site so you have a direct comparison without committing to a portfolio-wide change.' ||
+      E'\n\n' ||
+      'Are you the right person for this, or should I speak with someone on the property/facilities team?' ||
+      E'\n\n' || 'Tyler' || E'\n' || 'CB Contracting'
+  end;
 
   insert into public.outreach_drafts(
     workspace_id,outreach_target_id,contact_id,property_id,channel,objective,subject,body,evidence,created_by
@@ -322,7 +351,9 @@ language plpgsql
 security invoker
 set search_path=public
 as $$
-declare d public.outreach_drafts%rowtype;
+declare
+  d public.outreach_drafts%rowtype;
+  v_touch_channel public.outreach_touch_channel;
 begin
   if auth.uid() is null then raise exception 'Authentication required'; end if;
   select * into d from public.outreach_drafts where id=p_draft_id for update;
@@ -334,8 +365,16 @@ begin
       provider_thread_id=p_provider_thread_id,sent_at=now(),updated_at=now()
   where id=p_draft_id;
 
+  v_touch_channel := case d.channel
+    when 'email' then 'email'::public.outreach_touch_channel
+    when 'sms' then 'sms'::public.outreach_touch_channel
+    when 'call' then 'call'::public.outreach_touch_channel
+    when 'voicemail' then 'call'::public.outreach_touch_channel
+    else 'other'::public.outreach_touch_channel
+  end;
+
   perform public.log_outreach_touch(
-    d.outreach_target_id,'email','sent',left(d.body,1000),'contacted',
+    d.outreach_target_id,v_touch_channel,'sent',left(d.body,1000),'contacted',
     'Follow up on outreach',now()+interval '4 days'
   );
   return p_draft_id;
