@@ -19,7 +19,7 @@ export default async function ProcurementPage(){
   const contactIds=(leadRows??[]).map((x:any)=>x.contact_id).filter(Boolean);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const {data:contacts}=await (s as any).from("contacts").select("id,first_name,last_name,job_title,email,phone,mobile,source_url,source_label,source_confidence").in("id",contactIds.length?contactIds:["00000000-0000-0000-0000-000000000000"]);
-  const contactByLead=new Map((leadRows??[]).map((x:any)=>[x.id,(contacts??[]).find((c:any)=>c.id===x.contact_id)]));
+  const contactByLead=new Map<string, { first_name:string|null; last_name:string|null; job_title:string|null; email:string|null; phone:string|null; mobile:string|null; source_url:string|null; source_label:string|null; source_confidence:string|null } | undefined>((leadRows??[]).map((x:any)=>[x.id,(contacts??[]).find((c:any)=>c.id===x.contact_id) as { first_name:string|null; last_name:string|null; job_title:string|null; email:string|null; phone:string|null; mobile:string|null; source_url:string|null; source_label:string|null; source_confidence:string|null } | undefined]));
   const {data:tenderProperties}=await (s as any).from("tender_properties").select("tender_record_id,property_id,scope_note,evidence_url,evidence_label,source_confidence").in("tender_record_id",(tenders??[]).map((t:any)=>t.id).length?(tenders??[]).map((t:any)=>t.id):["00000000-0000-0000-0000-000000000000"]);
   const propertyIds=(tenderProperties??[]).map((x:any)=>x.property_id).filter(Boolean);
   const {data:properties}=await (s as any).from("properties").select("id,name,address_line_1,city,province,property_type").in("id",propertyIds.length?propertyIds:["00000000-0000-0000-0000-000000000000"]);
