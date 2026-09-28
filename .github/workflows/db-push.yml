@@ -21,11 +21,6 @@ on:
         description: "Override project ref"
         type: string
         required: false
-  push:
-    branches: [main]
-    paths:
-      - "supabase/migrations/**"
-      - ".github/workflows/db-push.yml"
 
 concurrency:
   group: supabase-db-push-${{ github.ref }}
