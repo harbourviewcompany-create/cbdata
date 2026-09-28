@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { requireWorkspace } from "@/lib/workspace";
-import { runCanadaBuysScout, updateSupplierRegistration, updateTenderStage } from "./actions";
+import { runCanadaBuysScout, runRegionalTenderScout, updateSupplierRegistration, updateTenderStage } from "./actions";
 import "./procurement.css";
 
 function fmtDate(value:string|null){ if(!value) return "—"; return new Date(value).toLocaleDateString("en-CA",{year:"numeric",month:"short",day:"numeric"}); }
@@ -35,6 +35,7 @@ export default async function ProcurementPage(){
   for(const row of tenderProperties??[]){ const p=propertyById.get(row.property_id); if(p) propertiesByTender.set(row.tender_record_id,[...(propertiesByTender.get(row.tender_record_id)??[]),{...p,...row}]); }
 
   const {data:runs}=await (s as any).from("canadabuys_runs").select("id,started_at,finished_at,status,fetched_count,qualifying_count,inserted_count,updated_count,lead_created_count,error_count,error_message").eq("workspace_id",ctx.workspaceId).order("started_at",{ascending:false}).limit(8);
+  const {data:regionalRuns}=await (s as any).from("tender_scout_runs").select("id,source_key,source_name,started_at,finished_at,status,fetched_count,qualifying_count,inserted_count,updated_count,lead_created_count,error_count,error_message").eq("workspace_id",ctx.workspaceId).order("started_at",{ascending:false}).limit(20);
   const {data:sources}=await (s as any).from("tender_sources").select("source_key,display_name,source_url,ingestion_mode,last_run_at,last_success_at,last_error").eq("workspace_id",ctx.workspaceId).eq("enabled",true).order("display_name");
   const {data:registrations}=await (s as any).from("supplier_registrations").select("id,source_key,registration_name,status,account_reference,expires_on,evidence_url,notes,updated_at").eq("workspace_id",ctx.workspaceId).order("registration_name");
 
@@ -66,7 +67,7 @@ export default async function ProcurementPage(){
         {source.last_success_at?<span>last success {fmtDate(source.last_success_at)}</span>:null}
         {source.last_error?<span>{source.last_error}</span>:null}
       </div>)}
-      <form action={runCanadaBuysScout}><button className="primary" type="submit">Run CanadaBuys scout</button></form>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><form action={runRegionalTenderScout}><button className="primary" type="submit">Scan all regional tenders</button></form><form action={runCanadaBuysScout}><button className="button" type="submit">CanadaBuys only</button></form></div>
     </section>
 
     <section className="table-panel" style={{marginBottom:18}}>
@@ -146,7 +147,12 @@ export default async function ProcurementPage(){
       </div></div>
     </section>
 
-    <section className="table-panel"><div className="panel-head"><div><span className="eyebrow">SOURCE HEALTH</span><h3>CanadaBuys scout runs</h3></div></div><div className="table-wrap"><div className="targets-grid procurement-grid">
+    <section className="table-panel" style={{marginBottom:18}}><div className="panel-head"><div><span className="eyebrow">SOURCE HEALTH</span><h3>Regional scout runs</h3></div></div><div className="table-wrap"><div className="targets-grid procurement-grid">
+      <div className="targets-grid-row targets-grid-head"><div>Source</div><div>Status</div><div>Fetched</div><div>Qualified</div><div>Writes</div><div>Leads</div></div>
+      {(regionalRuns??[]).map((r:any)=><div className="targets-grid-row" key={r.id}><div><strong>{r.source_name}</strong><span className="status-meta">{fmtDate(r.started_at)}</span></div><div><span className="pill">{r.status}</span>{r.error_message?<span className="status-meta">{r.error_message}</span>:null}</div><div>{r.fetched_count}</div><div>{r.qualifying_count}</div><div>{Number(r.inserted_count||0)+Number(r.updated_count||0)}</div><div>{r.lead_created_count}</div></div>)}
+    </div></div></section>
+
+    <section className="table-panel"><div className="panel-head"><div><span className="eyebrow">CANADABUYS</span><h3>Federal scout runs</h3></div></div><div className="table-wrap"><div className="targets-grid procurement-grid">
       <div className="targets-grid-row targets-grid-head"><div>Run</div><div>Status</div><div>Fetched</div><div>Qualified</div><div>Writes</div><div>Leads</div></div>
       {(runs??[]).map((r:any)=><div className="targets-grid-row" key={r.id}><div><strong>{fmtDate(r.started_at)}</strong><span className="status-meta">{r.finished_at?fmtDate(r.finished_at):"running"}</span></div><div><span className="pill">{r.status}</span>{r.error_message?<span className="status-meta">{r.error_message}</span>:null}</div><div>{r.fetched_count}</div><div>{r.qualifying_count}</div><div>{Number(r.inserted_count||0)+Number(r.updated_count||0)}</div><div>{r.lead_created_count}</div></div>)}
     </div></div></section>

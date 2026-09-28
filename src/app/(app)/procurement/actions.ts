@@ -347,3 +347,50 @@ export async function runCanadaBuysScout() {
   revalidatePath("/targets");
   revalidatePath("/dashboard");
 }
+
+
+export async function runRegionalTenderScout() {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+
+  const { data: sessionData } = await s.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) throw new Error("No active session");
+
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!base) throw new Error("Supabase URL is not configured");
+
+  const calls = [
+    fetch(base + "/functions/v1/canadabuys-scout", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+      body: JSON.stringify({ workspace_id: ctx.workspaceId }),
+      cache: "no-store",
+    }),
+    fetch(base + "/functions/v1/regional-tender-scout", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+      body: JSON.stringify({ workspace_id: ctx.workspaceId }),
+      cache: "no-store",
+    }),
+  ];
+
+  const responses = await Promise.allSettled(calls);
+  const failures: string[] = [];
+  for (const result of responses) {
+    if (result.status === "rejected") {
+      failures.push(result.reason instanceof Error ? result.reason.message : "Scout request failed");
+      continue;
+    }
+    if (!result.value.ok) {
+      const payload = await result.value.json().catch(() => ({}));
+      failures.push(payload.error || ("Scout failed with " + result.value.status));
+    }
+  }
+
+  revalidatePath("/procurement");
+  revalidatePath("/targets");
+  revalidatePath("/dashboard");
+
+  if (failures.length === responses.length) throw new Error(failures.join("; "));
+}
