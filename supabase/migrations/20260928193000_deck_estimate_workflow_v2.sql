@@ -323,6 +323,7 @@ grant execute on function public.create_deck_estimate_draft(uuid,uuid,uuid,date,
 
 create or replace function public.update_deck_estimate_draft(
   p_estimate_id uuid,
+  p_property_id uuid,
   p_valid_until date,
   p_items jsonb
 ) returns void
@@ -332,6 +333,7 @@ set search_path = ''
 as $$
 declare
   v_workspace_id uuid;
+  v_organization_id uuid;
   v_item jsonb;
   v_description text;
   v_price numeric;
@@ -339,7 +341,8 @@ declare
   v_labor numeric;
   v_index integer := 0;
 begin
-  select e.workspace_id into v_workspace_id
+  select e.workspace_id, e.organization_id
+  into v_workspace_id, v_organization_id
   from public.estimates e
   where e.id=p_estimate_id and e.status='draft' and e.estimate_kind='deck'
   for update;
@@ -349,6 +352,15 @@ begin
     array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]
   ) then
     raise exception 'Draft deck estimate unavailable';
+  end if;
+
+  if p_property_id is not null and not exists (
+    select 1 from public.properties p
+    where p.id=p_property_id and p.workspace_id=v_workspace_id
+      and (p.primary_customer_organization_id is null
+        or p.primary_customer_organization_id=v_organization_id)
+  ) then
+    raise exception 'Property does not belong to this customer';
   end if;
 
   if p_valid_until is null or p_valid_until < current_date then
@@ -399,7 +411,8 @@ begin
   end if;
 
   update public.estimates
-  set valid_until=p_valid_until,
+  set property_id=p_property_id,
+      valid_until=p_valid_until,
       site_verified_at=null,
       site_verified_by=null,
       site_verification_notes=null,
@@ -410,8 +423,9 @@ begin
 end;
 $$;
 
-revoke all on function public.update_deck_estimate_draft(uuid,date,jsonb) from public, anon;
-grant execute on function public.update_deck_estimate_draft(uuid,date,jsonb) to authenticated;
+drop function if exists public.update_deck_estimate_draft(uuid,date,jsonb);
+revoke all on function public.update_deck_estimate_draft(uuid,uuid,date,jsonb) from public, anon;
+grant execute on function public.update_deck_estimate_draft(uuid,uuid,date,jsonb) to authenticated;
 
 create or replace function public.advance_estimate(
   p_estimate_id uuid,
