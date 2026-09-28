@@ -2780,6 +2780,7 @@ export type Database = {
       }
       outreach_replies: {
         Row: {
+          channel: string
           classification: string
           created_at: string
           id: string
@@ -2796,6 +2797,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          channel?: string
           classification: string
           created_at?: string
           id?: string
@@ -2812,6 +2814,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          channel?: string
           classification?: string
           created_at?: string
           id?: string
@@ -6337,6 +6340,7 @@ export type Database = {
       claim_outreach_target: { Args: { p_target_id: string }; Returns: string }
       classify_outreach_reply: {
         Args: {
+          p_channel?: string
           p_classification: string
           p_provider?: string
           p_provider_message_id?: string
