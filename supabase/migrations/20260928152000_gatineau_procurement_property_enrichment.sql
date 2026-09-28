@@ -1,12 +1,17 @@
 -- Gatineau procurement property/contact enrichment.
 do $$
 declare
- w uuid := '431aa13d-3e7c-41e3-9686-e840b8ea5b7c';
- gat uuid := 'b70ac3ee-bc4e-41ae-ba80-9ff8f80fa70f';
+ w uuid;
+ gat uuid;
  p uuid;
  t uuid;
  c uuid;
 begin
+ select id into w from public.workspaces where slug='cb-contracting' limit 1;
+ if w is null then return; end if;
+ select id into gat from public.organizations where workspace_id=w and (lower(legal_name)='ville de gatineau' or lower(operating_name)='ville de gatineau') limit 1;
+ if gat is null then return; end if;
+
  insert into public.properties(workspace_id,name,address_line_1,city,province,country,property_type,status,owner_organization_id,site_notes)
  select w,'Ville de Gatineau — Outdoor Rink Portfolio','83 outdoor rink sites','Gatineau','QC','Canada','municipal_facility_portfolio','prospect',gat,
  'Official Gatineau service page states the city operates or oversees 83 outdoor rinks across multiple rink types; the 2026 procurement covers seasonal maintenance including sweeping, snow removal and watering.'
