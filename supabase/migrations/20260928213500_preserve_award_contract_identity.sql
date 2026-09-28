@@ -175,7 +175,9 @@ grant execute on function private.refresh_procurement_contract_cycles() to servi
 
 select private.refresh_procurement_contract_cycles();
 
-create or replace view public.v_procurement_rebid_queue
+drop view if exists public.v_procurement_rebid_queue;
+
+create view public.v_procurement_rebid_queue
 with (security_invoker = true)
 as
 select
