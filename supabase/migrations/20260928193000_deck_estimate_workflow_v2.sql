@@ -313,7 +313,6 @@ begin
     raise exception 'Estimate total must be positive';
   end if;
 
-  perform private.recalculate_estimate_totals(v_id);
   return v_id;
 end;
 $$;
@@ -419,9 +418,8 @@ begin
       updated_at=now()
   where id=p_estimate_id;
 
-  perform private.recalculate_estimate_totals(p_estimate_id);
 end;
-$$;
+$;
 
 drop function if exists public.update_deck_estimate_draft(uuid,date,jsonb);
 revoke all on function public.update_deck_estimate_draft(uuid,uuid,date,jsonb) from public, anon;
