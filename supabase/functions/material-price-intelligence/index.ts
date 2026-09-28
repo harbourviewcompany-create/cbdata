@@ -167,12 +167,15 @@ Deno.serve(async (req) => {
   const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
   const { data: membership } = await admin
     .from("workspace_memberships")
-    .select("workspace_id")
+    .select("workspace_id,role")
     .eq("workspace_id", workspaceId)
     .eq("user_id", userData.user.id)
     .eq("status", "active")
     .maybeSingle();
-  if (!membership) return json({ error: "Workspace access denied" }, 403);
+  const allowedRoles = new Set(["owner", "administrator", "operations_manager", "sales_manager", "sales_rep"]);
+  if (!membership || !allowedRoles.has(String(membership.role || ""))) {
+    return json({ error: "Material pricing access denied" }, 403);
+  }
 
   const { data: requestRow, error: requestError } = await admin
     .from("material_requests")
