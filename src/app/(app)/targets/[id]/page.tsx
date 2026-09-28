@@ -142,7 +142,7 @@ export default async function TargetDetail({
           .eq("workspace_id", ctx.workspaceId)
           .in("property_id", propertyIds)
           .order("observed_at", { ascending: false }),
-        s.from("target_opportunity_signals")
+        (s as any).from("target_opportunity_signals")
           .select("id,property_id,signal_type,title,service_fit,source_url,source_label,source_confidence,published_at,deadline_at,status,buyer_contact_name,buyer_contact_email,reference_number,notes")
           .eq("workspace_id", ctx.workspaceId)
           .or(row.organization_id ? "organization_id.eq." + row.organization_id + ",property_id.in.(" + propertyIds.join(",") + ")" : "property_id.in.(null)")
