@@ -19,6 +19,13 @@ type PropertyContactRow = {
   contacts: { id: string; first_name: string; last_name: string; job_title: string | null; email: string | null; phone: string | null; mobile: string | null; source_url?: string | null; source_label?: string | null; source_confidence?: string | null; source_verified_at?: string | null } | { id: string; first_name: string; last_name: string; job_title: string | null; email: string | null; phone: string | null; mobile: string | null; source_url?: string | null; source_label?: string | null; source_confidence?: string | null; source_verified_at?: string | null }[] | null;
 };
 
+type OpportunitySignalRow = {
+  id: string; property_id: string | null; signal_type: string; title: string; service_fit: string[];
+  source_url: string; source_label: string | null; source_confidence: string; published_at: string | null;
+  deadline_at: string | null; status: string; buyer_contact_name: string | null; buyer_contact_email: string | null;
+  reference_number: string | null; notes: string | null;
+};
+
 type PropertyEvidenceRow = {
   id: string;
   property_id: string;
@@ -121,7 +128,7 @@ export default async function TargetDetail({
   const propertyRows = Array.from(propertyMap.values());
 
   const propertyIds = propertyRows.map((p) => p.property_id);
-  const [{ data: propertyContacts }, { data: propertyEvidence }] = propertyIds.length
+  const [{ data: propertyContacts }, { data: propertyEvidence }, { data: opportunitySignals }] = propertyIds.length
     ? await Promise.all([
         (s as any)
           .from("property_contacts")
@@ -135,8 +142,14 @@ export default async function TargetDetail({
           .eq("workspace_id", ctx.workspaceId)
           .in("property_id", propertyIds)
           .order("observed_at", { ascending: false }),
+        s.from("target_opportunity_signals")
+          .select("id,property_id,signal_type,title,service_fit,source_url,source_label,source_confidence,published_at,deadline_at,status,buyer_contact_name,buyer_contact_email,reference_number,notes")
+          .eq("workspace_id", ctx.workspaceId)
+          .or(row.organization_id ? "organization_id.eq." + row.organization_id + ",property_id.in.(" + propertyIds.join(",") + ")" : "property_id.in.(null)")
+          .eq("status", "open")
+          .order("deadline_at", { ascending: true, nullsFirst: false }),
       ])
-    : [{ data: [] }, { data: [] }];
+    : [{ data: [] }, { data: [] }, { data: [] }];
 
   const contactsByProperty = new Map<string, PropertyContactRow[]>();
   for (const pc of (propertyContacts ?? []) as PropertyContactRow[]) {
@@ -149,6 +162,15 @@ export default async function TargetDetail({
     const list = evidenceByProperty.get(ev.property_id) ?? [];
     list.push(ev);
     evidenceByProperty.set(ev.property_id, list);
+  }
+
+  const opportunityRows = (opportunitySignals ?? []) as OpportunitySignalRow[];
+  const opportunityByProperty = new Map<string, OpportunitySignalRow[]>();
+  for (const signal of opportunityRows) {
+    if (!signal.property_id) continue;
+    const list = opportunityByProperty.get(signal.property_id) ?? [];
+    list.push(signal);
+    opportunityByProperty.set(signal.property_id, list);
   }
 
   const companyName = org?.operating_name || org?.legal_name || row.organization_name || "Target";
@@ -422,6 +444,21 @@ export default async function TargetDetail({
                       ) : p.primary_source_url ? (
                         <div style={{fontSize:12,marginTop:5}}><a href={p.primary_source_url} target="_blank" rel="noreferrer">{p.primary_source_label ?? "primary source"}</a></div>
                       ) : <span className="muted">No evidence source linked.</span>;
+                    })()}
+                    {(() => {
+                      const opportunities = opportunityByProperty.get(p.property_id) ?? [];
+                      return opportunities.length ? (
+                        <div className="evidence-list" style={{marginTop:6}}>
+                          <strong style={{fontSize:11}}>WHY NOW</strong>
+                          {opportunities.slice(0, 3).map((signal) => (
+                            <div key={signal.id}>
+                              <a href={signal.source_url} target="_blank" rel="noreferrer">{signal.title}</a>
+                              {signal.deadline_at ? <span className="muted"> · due {fmt(signal.deadline_at)}</span> : null}
+                              {signal.buyer_contact_name ? <span className="muted"> · {signal.buyer_contact_name}</span> : null}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null;
                     })()}
                     <div className="muted" style={{fontSize:11,marginTop:4}}>{p.contact_count ?? 0} property contacts · {(evidenceByProperty.get(p.property_id) ?? []).length} evidence records</div>
                   </td>
