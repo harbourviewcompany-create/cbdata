@@ -102,7 +102,6 @@ select
   '2026-09-29T15:00:00-04:00',
   'open',
   'Chris Malloy',
-  null,
   '33426-96872-T01',
   'Current Ottawa snow/ice procurement at ROPEC; source is a tender mirror and should be validated against the official MERX notice before action.'
 where not exists (
