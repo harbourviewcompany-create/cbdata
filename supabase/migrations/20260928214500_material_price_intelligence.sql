@@ -10,7 +10,7 @@ create table if not exists public.material_suppliers (
   website_url text,
   pricing_mode text not null default 'mixed'
     check (pricing_mode in ('live_page','manual_quote','mixed')),
-  default_delivery_fee numeric(12,2) not null default 0 check (default_delivery_fee >= 0),
+  default_delivery_fee numeric(12,2) check (default_delivery_fee is null or default_delivery_fee >= 0),
   active boolean not null default true,
   notes text,
   created_at timestamptz not null default now(),
@@ -172,6 +172,8 @@ create index if not exists idx_material_price_results_run
   on public.material_price_run_results(workspace_id,run_id,request_item_id,rank);
 create index if not exists idx_material_price_plans_run
   on public.material_price_plans(workspace_id,run_id,total);
+create unique index if not exists uq_material_price_plans_selected_request
+  on public.material_price_plans(request_id) where is_selected;
 
 do $$
 declare t text;
@@ -247,10 +249,10 @@ begin
 
   insert into public.material_suppliers(workspace_id,supplier_key,name,region,website_url,pricing_mode,default_delivery_fee,notes)
   values
-    (w,'home-depot','Home Depot','Ottawa, ON','https://www.homedepot.ca','mixed',79,'Live public web price plus store quote verification.'),
-    (w,'rona','RONA','Ottawa, ON','https://www.rona.ca','mixed',79,'Live public web price plus store quote verification.'),
-    (w,'perkins','Perkins Home Building Centre','Ottawa, ON','https://www.homehardware.ca','manual_quote',0,'Contractor desk / manual quote source.'),
-    (w,'bmr-richmond','BMR Richmond','Ottawa, ON','https://www.bmr.ca','manual_quote',0,'Contractor desk / manual quote source.')
+    (w,'home-depot','Home Depot','Ottawa, ON','https://www.homedepot.ca','mixed',null,'Live public web price; delivery and Ottawa-store availability require verification.'),
+    (w,'rona','RONA','Ottawa, ON','https://www.rona.ca','mixed',null,'Live public web price; delivery and Ottawa-store availability require verification.'),
+    (w,'perkins','Perkins Home Building Centre','Ottawa, ON','https://www.homehardware.ca','manual_quote',null,'Contractor desk / manual quote source; capture delivery in the supplier record when verified.'),
+    (w,'bmr-richmond','BMR Richmond','Ottawa, ON','https://www.bmr.ca','manual_quote',null,'Contractor desk / manual quote source; capture delivery in the supplier record when verified.')
   on conflict(workspace_id,supplier_key) do update set
     name=excluded.name,region=excluded.region,website_url=excluded.website_url,
     pricing_mode=excluded.pricing_mode,notes=excluded.notes,updated_at=now();
