@@ -99,7 +99,7 @@ export default async function TargetDetail({
       .order("occurred_at", { ascending: false })
       .limit(20),
     row.organization_id
-      ? (s as any)
+      ? s
           .from("v_property_intelligence")
           .select("property_id,name,address_line_1,address_line_2,city,province,postal_code,property_type,building_count,unit_count,floor_count,estimated_sqft,lot_area_sqft,parking_spaces,construction_year,grounds_scope,snow_scope,janitorial_scope,capital_projects_signal,vendor_signal,procurement_signal,seasonal_priority,access_complexity,liability_signal,intelligence_score,intelligence_summary,primary_source_url,primary_source_label,data_confidence,verified_at,contact_count,permit_count,recent_permit_count,recent_permit_value")
           .eq("workspace_id", ctx.workspaceId)
@@ -108,7 +108,7 @@ export default async function TargetDetail({
           .order("name")
           .limit(100)
       : Promise.resolve({ data: [] }),
-    (s as any)
+    s
       .from("outreach_target_properties")
       .select("property_id,is_primary,relationship_type")
       .eq("outreach_target_id", id)
@@ -119,7 +119,7 @@ export default async function TargetDetail({
   for (const p of (properties ?? []) as PropertyIntelRow[]) propertyMap.set(p.property_id, p);
   const linkedIds = ((linkedProperties ?? []) as Array<{ property_id: string }>).map((x) => x.property_id);
   if (linkedIds.length) {
-    const { data: linkedIntel } = await (s as any)
+    const { data: linkedIntel } = await s
       .from("v_property_intelligence")
       .select("property_id,name,address_line_1,address_line_2,city,province,postal_code,property_type,building_count,unit_count,floor_count,estimated_sqft,lot_area_sqft,parking_spaces,construction_year,grounds_scope,snow_scope,janitorial_scope,capital_projects_signal,vendor_signal,procurement_signal,seasonal_priority,access_complexity,liability_signal,intelligence_score,intelligence_summary,primary_source_url,primary_source_label,data_confidence,verified_at,contact_count,permit_count,recent_permit_count,recent_permit_value")
       .in("property_id", linkedIds);
@@ -130,13 +130,13 @@ export default async function TargetDetail({
   const propertyIds = propertyRows.map((p) => p.property_id);
   const [{ data: propertyContacts }, { data: propertyEvidence }, { data: opportunitySignals }] = propertyIds.length
     ? await Promise.all([
-        (s as any)
+        s
           .from("property_contacts")
           .select("id,property_id,relationship_type,is_primary,emergency_contact,notes,contacts(id,first_name,last_name,job_title,email,phone,mobile)")
           .eq("workspace_id", ctx.workspaceId)
           .in("property_id", propertyIds)
           .order("is_primary", { ascending: false }),
-        (s as any)
+        s
           .from("property_intelligence_sources")
           .select("id,property_id,source_type,source_url,source_title,observed_at,published_at,summary,confidence")
           .eq("workspace_id", ctx.workspaceId)
