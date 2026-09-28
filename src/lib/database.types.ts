@@ -117,6 +117,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "activities_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
             foreignKeyName: "activities_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
@@ -225,7 +232,76 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "buildings_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
             foreignKeyName: "buildings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canadabuys_runs: {
+        Row: {
+          created_at: string
+          error_count: number
+          error_message: string | null
+          fetched_count: number
+          finished_at: string | null
+          id: string
+          inserted_count: number
+          lead_created_count: number
+          qualifying_count: number
+          query: string
+          region: string
+          started_at: string
+          status: string
+          updated_count: number
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_count?: number
+          error_message?: string | null
+          fetched_count?: number
+          finished_at?: string | null
+          id?: string
+          inserted_count?: number
+          lead_created_count?: number
+          qualifying_count?: number
+          query: string
+          region?: string
+          started_at?: string
+          status?: string
+          updated_count?: number
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          error_count?: number
+          error_message?: string | null
+          fetched_count?: number
+          finished_at?: string | null
+          id?: string
+          inserted_count?: number
+          lead_created_count?: number
+          qualifying_count?: number
+          query?: string
+          region?: string
+          started_at?: string
+          status?: string
+          updated_count?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canadabuys_runs_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -353,6 +429,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "communications_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
             foreignKeyName: "communications_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
@@ -374,6 +457,10 @@ export type Database = {
           notes: string | null
           phone: string | null
           phone_extension: string | null
+          source_confidence: string | null
+          source_label: string | null
+          source_url: string | null
+          source_verified_at: string | null
           status: Database["public"]["Enums"]["record_status"]
           updated_at: string
           workspace_id: string
@@ -390,6 +477,10 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           phone_extension?: string | null
+          source_confidence?: string | null
+          source_label?: string | null
+          source_url?: string | null
+          source_verified_at?: string | null
           status?: Database["public"]["Enums"]["record_status"]
           updated_at?: string
           workspace_id: string
@@ -406,6 +497,10 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           phone_extension?: string | null
+          source_confidence?: string | null
+          source_label?: string | null
+          source_url?: string | null
+          source_verified_at?: string | null
           status?: Database["public"]["Enums"]["record_status"]
           updated_at?: string
           workspace_id?: string
@@ -641,6 +736,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "property_360"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
           },
           {
             foreignKeyName: "contracts_proposal_id_fkey"
@@ -1094,6 +1196,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "estimates_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
             foreignKeyName: "estimates_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
@@ -1166,6 +1275,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "property_360"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
           },
           {
             foreignKeyName: "expenses_receipt_document_id_fkey"
@@ -1414,6 +1530,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "inspections_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
             foreignKeyName: "inspections_work_order_id_fkey"
             columns: ["work_order_id"]
             isOneToOne: false
@@ -1597,6 +1720,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "invoices_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
             foreignKeyName: "invoices_work_order_id_fkey"
             columns: ["work_order_id"]
             isOneToOne: false
@@ -1711,6 +1841,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "property_360"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issues_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
           },
           {
             foreignKeyName: "issues_work_order_id_fkey"
@@ -1885,6 +2022,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "leads_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
             foreignKeyName: "leads_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
@@ -1944,6 +2088,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "property_360"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "material_usage_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
           },
           {
             foreignKeyName: "material_usage_work_order_id_fkey"
@@ -2160,6 +2311,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "property_360"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunities_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
           },
           {
             foreignKeyName: "opportunities_workspace_id_fkey"
@@ -2554,6 +2712,82 @@ export type Database = {
           },
         ]
       }
+      outreach_target_properties: {
+        Row: {
+          created_at: string
+          id: string
+          is_primary: boolean
+          notes: string | null
+          outreach_target_id: string
+          property_id: string
+          relationship_type: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          notes?: string | null
+          outreach_target_id: string
+          property_id: string
+          relationship_type?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          notes?: string | null
+          outreach_target_id?: string
+          property_id?: string
+          relationship_type?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_target_properties_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_target_properties_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_target_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_target_properties_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_target_properties_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "property_360"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_target_properties_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
+            foreignKeyName: "outreach_target_properties_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       outreach_targets: {
         Row: {
           company_address: string | null
@@ -2881,6 +3115,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "permit_records_matched_property_id_fkey"
+            columns: ["matched_property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
             foreignKeyName: "permit_records_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
@@ -3094,7 +3335,219 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "property_contacts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
             foreignKeyName: "property_contacts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_intelligence: {
+        Row: {
+          access_complexity: string | null
+          building_count: number | null
+          capital_projects_signal: string | null
+          construction_year: number | null
+          created_at: string
+          data_confidence: string | null
+          estimated_sqft: number | null
+          exterior_scope: string | null
+          floor_count: number | null
+          grounds_scope: string | null
+          id: string
+          intelligence_score: number | null
+          intelligence_summary: string | null
+          janitorial_scope: string | null
+          liability_signal: string | null
+          lot_area_sqft: number | null
+          occupancy_signal: string | null
+          ownership_type: string | null
+          parking_spaces: number | null
+          primary_source_label: string | null
+          primary_source_url: string | null
+          procurement_signal: string | null
+          property_class: string | null
+          property_id: string
+          seasonal_priority: string | null
+          snow_scope: string | null
+          unit_count: number | null
+          updated_at: string
+          vendor_signal: string | null
+          verified_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          access_complexity?: string | null
+          building_count?: number | null
+          capital_projects_signal?: string | null
+          construction_year?: number | null
+          created_at?: string
+          data_confidence?: string | null
+          estimated_sqft?: number | null
+          exterior_scope?: string | null
+          floor_count?: number | null
+          grounds_scope?: string | null
+          id?: string
+          intelligence_score?: number | null
+          intelligence_summary?: string | null
+          janitorial_scope?: string | null
+          liability_signal?: string | null
+          lot_area_sqft?: number | null
+          occupancy_signal?: string | null
+          ownership_type?: string | null
+          parking_spaces?: number | null
+          primary_source_label?: string | null
+          primary_source_url?: string | null
+          procurement_signal?: string | null
+          property_class?: string | null
+          property_id: string
+          seasonal_priority?: string | null
+          snow_scope?: string | null
+          unit_count?: number | null
+          updated_at?: string
+          vendor_signal?: string | null
+          verified_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          access_complexity?: string | null
+          building_count?: number | null
+          capital_projects_signal?: string | null
+          construction_year?: number | null
+          created_at?: string
+          data_confidence?: string | null
+          estimated_sqft?: number | null
+          exterior_scope?: string | null
+          floor_count?: number | null
+          grounds_scope?: string | null
+          id?: string
+          intelligence_score?: number | null
+          intelligence_summary?: string | null
+          janitorial_scope?: string | null
+          liability_signal?: string | null
+          lot_area_sqft?: number | null
+          occupancy_signal?: string | null
+          ownership_type?: string | null
+          parking_spaces?: number | null
+          primary_source_label?: string | null
+          primary_source_url?: string | null
+          procurement_signal?: string | null
+          property_class?: string | null
+          property_id?: string
+          seasonal_priority?: string | null
+          snow_scope?: string | null
+          unit_count?: number | null
+          updated_at?: string
+          vendor_signal?: string | null
+          verified_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_intelligence_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: true
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_intelligence_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: true
+            referencedRelation: "property_360"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_intelligence_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: true
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
+            foreignKeyName: "property_intelligence_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_intelligence_sources: {
+        Row: {
+          confidence: string | null
+          created_at: string
+          id: string
+          observed_at: string
+          property_id: string
+          published_at: string | null
+          raw_payload: Json | null
+          source_title: string | null
+          source_type: string
+          source_url: string | null
+          summary: string | null
+          workspace_id: string
+        }
+        Insert: {
+          confidence?: string | null
+          created_at?: string
+          id?: string
+          observed_at?: string
+          property_id: string
+          published_at?: string | null
+          raw_payload?: Json | null
+          source_title?: string | null
+          source_type: string
+          source_url?: string | null
+          summary?: string | null
+          workspace_id: string
+        }
+        Update: {
+          confidence?: string | null
+          created_at?: string
+          id?: string
+          observed_at?: string
+          property_id?: string
+          published_at?: string | null
+          raw_payload?: Json | null
+          source_title?: string | null
+          source_type?: string
+          source_url?: string | null
+          summary?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_intelligence_sources_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_intelligence_sources_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "property_360"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_intelligence_sources_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
+            foreignKeyName: "property_intelligence_sources_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -3500,6 +3953,75 @@ export type Database = {
           },
         ]
       }
+      target_opportunity_signals: {
+        Row: {
+          buyer_contact_email: string | null
+          buyer_contact_name: string | null
+          created_at: string
+          deadline_at: string | null
+          id: string
+          notes: string | null
+          organization_id: string | null
+          property_id: string | null
+          published_at: string | null
+          reference_number: string | null
+          service_fit: string[]
+          signal_type: string
+          source_confidence: string
+          source_label: string | null
+          source_url: string
+          status: string
+          target_id: string | null
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          buyer_contact_email?: string | null
+          buyer_contact_name?: string | null
+          created_at?: string
+          deadline_at?: string | null
+          id?: string
+          notes?: string | null
+          organization_id?: string | null
+          property_id?: string | null
+          published_at?: string | null
+          reference_number?: string | null
+          service_fit?: string[]
+          signal_type: string
+          source_confidence?: string
+          source_label?: string | null
+          source_url: string
+          status?: string
+          target_id?: string | null
+          title: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          buyer_contact_email?: string | null
+          buyer_contact_name?: string | null
+          created_at?: string
+          deadline_at?: string | null
+          id?: string
+          notes?: string | null
+          organization_id?: string | null
+          property_id?: string | null
+          published_at?: string | null
+          reference_number?: string | null
+          service_fit?: string[]
+          signal_type?: string
+          source_confidence?: string
+          source_label?: string | null
+          source_url?: string
+          status?: string
+          target_id?: string | null
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assigned_to: string | null
@@ -3636,6 +4158,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tasks_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
             foreignKeyName: "tasks_work_order_id_fkey"
             columns: ["work_order_id"]
             isOneToOne: false
@@ -3658,8 +4187,84 @@ export type Database = {
           },
         ]
       }
+      tender_properties: {
+        Row: {
+          created_at: string
+          evidence_label: string | null
+          evidence_url: string | null
+          id: string
+          property_id: string
+          scope_note: string | null
+          source_confidence: string | null
+          tender_record_id: string
+          verified_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          evidence_label?: string | null
+          evidence_url?: string | null
+          id?: string
+          property_id: string
+          scope_note?: string | null
+          source_confidence?: string | null
+          tender_record_id: string
+          verified_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          evidence_label?: string | null
+          evidence_url?: string | null
+          id?: string
+          property_id?: string
+          scope_note?: string | null
+          source_confidence?: string | null
+          tender_record_id?: string
+          verified_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_properties_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_properties_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "property_360"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_properties_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
+            foreignKeyName: "tender_properties_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_properties_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tender_records: {
         Row: {
+          action_state: string
           buyer_name: string | null
           category: string | null
           closing_date: string | null
@@ -3667,22 +4272,31 @@ export type Database = {
           currency: string
           estimated_value: number | null
           external_id: string
+          fit_note: string | null
+          fit_score: number | null
           id: string
+          last_verified_at: string | null
           lead_id: string | null
           lead_source_id: string | null
           matched_organization_id: string | null
+          next_action: string | null
+          next_action_due_at: string | null
           notes: string | null
           published_date: string | null
           raw_payload: Json | null
           region: string | null
+          registration_required: boolean
+          response_mode: string | null
           source: string
           source_url: string | null
           status: Database["public"]["Enums"]["tender_record_status"]
           title: string
           updated_at: string
+          watch_query: string | null
           workspace_id: string
         }
         Insert: {
+          action_state?: string
           buyer_name?: string | null
           category?: string | null
           closing_date?: string | null
@@ -3690,22 +4304,31 @@ export type Database = {
           currency?: string
           estimated_value?: number | null
           external_id: string
+          fit_note?: string | null
+          fit_score?: number | null
           id?: string
+          last_verified_at?: string | null
           lead_id?: string | null
           lead_source_id?: string | null
           matched_organization_id?: string | null
+          next_action?: string | null
+          next_action_due_at?: string | null
           notes?: string | null
           published_date?: string | null
           raw_payload?: Json | null
           region?: string | null
+          registration_required?: boolean
+          response_mode?: string | null
           source: string
           source_url?: string | null
           status?: Database["public"]["Enums"]["tender_record_status"]
           title: string
           updated_at?: string
+          watch_query?: string | null
           workspace_id: string
         }
         Update: {
+          action_state?: string
           buyer_name?: string | null
           category?: string | null
           closing_date?: string | null
@@ -3713,19 +4336,27 @@ export type Database = {
           currency?: string
           estimated_value?: number | null
           external_id?: string
+          fit_note?: string | null
+          fit_score?: number | null
           id?: string
+          last_verified_at?: string | null
           lead_id?: string | null
           lead_source_id?: string | null
           matched_organization_id?: string | null
+          next_action?: string | null
+          next_action_due_at?: string | null
           notes?: string | null
           published_date?: string | null
           raw_payload?: Json | null
           region?: string | null
+          registration_required?: boolean
+          response_mode?: string | null
           source?: string
           source_url?: string | null
           status?: Database["public"]["Enums"]["tender_record_status"]
           title?: string
           updated_at?: string
+          watch_query?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -4128,6 +4759,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "work_orders_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
             foreignKeyName: "work_orders_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
@@ -4399,6 +5037,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "contracts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
             foreignKeyName: "contracts_proposal_id_fkey"
             columns: ["proposal_id"]
             isOneToOne: false
@@ -4513,6 +5158,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "property_360"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "issues_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
           },
           {
             foreignKeyName: "issues_work_order_id_fkey"
@@ -4641,6 +5293,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "work_orders_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
             foreignKeyName: "work_orders_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
@@ -4706,8 +5365,11 @@ export type Database = {
           next_action: string | null
           next_action_due_at: string | null
           notes: string | null
+          organization_address: string | null
           organization_display_name: string | null
+          organization_email: string | null
           organization_id: string | null
+          organization_phone: string | null
           organization_type:
             | Database["public"]["Enums"]["organization_type"]
             | null
@@ -4754,6 +5416,84 @@ export type Database = {
           },
           {
             foreignKeyName: "outreach_targets_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_property_intelligence: {
+        Row: {
+          access_complexity: string | null
+          address_line_1: string | null
+          address_line_2: string | null
+          building_count: number | null
+          capital_projects_signal: string | null
+          city: string | null
+          construction_year: number | null
+          contact_count: number | null
+          data_confidence: string | null
+          estimated_sqft: number | null
+          exterior_scope: string | null
+          floor_count: number | null
+          grounds_scope: string | null
+          intelligence_score: number | null
+          intelligence_summary: string | null
+          janitorial_scope: string | null
+          known_floor_count: number | null
+          liability_signal: string | null
+          lot_area_sqft: number | null
+          management_organization_id: string | null
+          name: string | null
+          occupancy_signal: string | null
+          owner_organization_id: string | null
+          ownership_type: string | null
+          parking_spaces: number | null
+          permit_count: number | null
+          postal_code: string | null
+          primary_customer_organization_id: string | null
+          primary_source_label: string | null
+          primary_source_url: string | null
+          procurement_signal: string | null
+          property_class: string | null
+          property_id: string | null
+          property_type: string | null
+          province: string | null
+          recent_permit_count: number | null
+          recent_permit_value: number | null
+          seasonal_priority: string | null
+          snow_scope: string | null
+          status: Database["public"]["Enums"]["property_status"] | null
+          unit_count: number | null
+          vendor_signal: string | null
+          verified_at: string | null
+          workspace_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "properties_management_organization_id_fkey"
+            columns: ["management_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "properties_owner_organization_id_fkey"
+            columns: ["owner_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "properties_primary_customer_organization_id_fkey"
+            columns: ["primary_customer_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "properties_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -4879,6 +5619,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      storage_workspace_id: { Args: { object_name: string }; Returns: string }
       target_is_reachable: { Args: { p_target_id: string }; Returns: boolean }
     }
     Enums: {
