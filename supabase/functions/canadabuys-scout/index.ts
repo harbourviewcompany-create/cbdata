@@ -26,7 +26,7 @@ const FIT_RULES:FitRule[]=[
 {label:"hvac & mechanical",weight:24,core:true,terms:["hvac","mechanical contractor","mechanical systems","ventilation","air handling","exhaust fan","boiler","chiller","cooling tower"]},
 {label:"renovation & general contracting",weight:18,terms:["general contractor","general contracting","renovation","building renovation","tenant improvement","washroom renovation","accessibility upgrade","ceiling replacement","door replacement","window replacement","demolition"]},
 {label:"site & civil",weight:16,terms:["site work","sitework","asphalt paving","paving","concrete sidewalk","concrete repair","retaining wall","fencing","drainage","excavation","parking lot"]},
-{label:"painting & finishes",weight:12,terms:["painting","flooring","carpet","tile replacement","millwork","carpentry","drywall"]},
+{label:"painting & finishes",weight:16,terms:["painting","flooring","carpet","tile replacement","millwork","carpentry","drywall"]},
 {label:"plumbing",weight:10,terms:["plumbing","plumber","domestic water","sanitary piping"]},
 {label:"electrical",weight:8,terms:["electrical contractor","electrical upgrade","lighting replacement","fire alarm replacement"]},
 {label:"construction",weight:10,terms:["construction","building addition","capital renewal","school renewal"]}
