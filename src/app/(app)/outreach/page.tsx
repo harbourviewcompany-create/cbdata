@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { generateDraft, approveDraft, markSent, classifyReply } from "./actions";
@@ -44,7 +45,7 @@ export default async function OutreachPage({
 
   return <main className="list-shell">
     <header className="list-header">
-      <Link className="back" href="/dashboard">← Command</Link>
+      <Link className="back" href={"/dashboard" as Route}>← Command</Link>
       <span className="eyebrow">GROWTH EXECUTION</span>
       <h1>Outreach</h1>
       <p className="muted" style={{marginTop:8,maxWidth:760}}>
@@ -62,12 +63,12 @@ export default async function OutreachPage({
 
     <section className="panel" style={{marginBottom:18}}>
       <div className="hero-cta" style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-        <Link className="button" href="/outreach">All</Link>
-        <Link className="button" href="/outreach?action=generate_draft">Need draft</Link>
-        <Link className="button" href="/outreach?action=review_draft">Review</Link>
-        <Link className="button" href="/outreach?action=send">Send</Link>
-        <Link className="button" href="/outreach?action=follow_up">Follow up</Link>
-        <Link className="button" href="/outreach?action=research">Research</Link>
+        <Link className="button" href={"/outreach" as Route}>All</Link>
+        <Link className="button" href={"/outreach?action=generate_draft" as Route}>Need draft</Link>
+        <Link className="button" href={"/outreach?action=review_draft" as Route}>Review</Link>
+        <Link className="button" href={"/outreach?action=send" as Route}>Send</Link>
+        <Link className="button" href={"/outreach?action=follow_up" as Route}>Follow up</Link>
+        <Link className="button" href={"/outreach?action=research" as Route}>Research</Link>
       </div>
     </section>
 
@@ -85,7 +86,7 @@ export default async function OutreachPage({
                 <span className="muted" style={{fontSize:11}}>contact {r.contact_confidence_score}</span>
               </div>
               <div>
-                <Link href={`/targets/${r.id}`}><strong>{r.organization_display_name ?? "Target"}</strong></Link>
+                <Link href={`/targets/${r.id}` as Route}><strong>{r.organization_display_name ?? "Target"}</strong></Link>
                 <div className="muted" style={{fontSize:12,marginTop:4}}>{r.contact_display_name ?? "No named contact"}</div>
                 <div className="muted" style={{fontSize:11}}>{r.contact_job_title ?? ""}</div>
                 {r.contact_email ? <a href={`mailto:${r.contact_email}`} style={{fontSize:11}}>{r.contact_email}</a> : null}
