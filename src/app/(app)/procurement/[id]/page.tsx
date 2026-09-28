@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
+import type { Route } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireWorkspace } from "@/lib/workspace";
@@ -84,7 +85,7 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
         </dl>
         <div className="bid-control">
           {tender.source_url?<a className="button" href={tender.source_url} target="_blank" rel="noreferrer">Open source notice</a>:null}
-          {estimate?<Link className="button" href={`/estimates/${estimate.id}`}>Open {estimate.estimate_number}</Link>:
+          {estimate?<Link className="button" href={`/estimates/${estimate.id}` as Route}>Open {estimate.estimate_number}</Link>:
           <form action={createEstimateFromTender}><input type="hidden" name="tender_id" value={id}/><button className="primary" type="submit">Send to estimating</button></form>}
         </div>
       </div>
