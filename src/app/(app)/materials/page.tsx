@@ -10,13 +10,15 @@ const money = (value: number | string | null) =>
     ? "—"
     : Number(value).toLocaleString("en-CA", { style: "currency", currency: "CAD" });
 
-export default async function MaterialsPage() {
+export default async function MaterialsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect("/login");
 
   const allowed = ["owner", "administrator", "operations_manager", "sales_manager", "sales_rep"];
   if (!allowed.includes(ctx.role ?? "")) redirect("/dashboard");
 
+  const params = await searchParams;
+  const defaultEstimateId = typeof params.estimate_id === "string" ? params.estimate_id : "";
   const s = await createClient();
   const [{ data: requests, error }, { data: estimates }] = await Promise.all([
     (s as any)
@@ -75,7 +77,7 @@ export default async function MaterialsPage() {
           </label>
           <label className="field">
             <span>Estimate</span>
-            <select name="estimate_id" defaultValue="">
+            <select name="estimate_id" defaultValue={defaultEstimateId}>
               <option value="">Not linked yet</option>
               {(estimates ?? []).map((e: any) => (
                 <option key={e.id} value={e.id}>
