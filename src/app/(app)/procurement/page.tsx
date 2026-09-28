@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { requireWorkspace } from "@/lib/workspace";
 import { runCanadaBuysScout } from "./actions";
 import "./procurement.css";
 
@@ -9,27 +10,26 @@ function daysLeft(value:string|null){ if(!value) return null; const end=new Date
 function urgencyLabel(value:string|null){ const d=daysLeft(value); if(d===null) return "no deadline"; if(d<0) return "closed"; if(d===0) return "closes today"; if(d===1) return "1 day"; return `${d} days`; }
 
 export default async function ProcurementPage(){
+  const ctx=await requireWorkspace();
   const s=await createClient();
-  const {data:{user}}=await s.auth.getUser();
-  if(!user) return null;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const {data:tenders}=await (s as any).from("tender_records").select("id,external_id,title,buyer_name,category,region,published_date,closing_date,source_url,status,matched_organization_id,lead_id,response_mode,registration_required,fit_score,fit_note,last_verified_at,action_state,next_action,next_action_due_at").eq("source","CanadaBuys").order("closing_date",{ascending:true}).limit(100);
+  const {data:tenders}=await (s as any).from("tender_records").select("id,external_id,title,buyer_name,category,region,published_date,closing_date,source_url,status,matched_organization_id,lead_id,response_mode,registration_required,fit_score,fit_note,last_verified_at,action_state,next_action,next_action_due_at").eq("workspace_id",ctx.workspaceId).eq("source","CanadaBuys").order("closing_date",{ascending:true}).limit(100);
   const leadIds=(tenders??[]).map((t:any)=>t.lead_id).filter(Boolean);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const {data:leadRows}=await (s as any).from("leads").select("id,contact_id,property_id").in("id",leadIds.length?leadIds:["00000000-0000-0000-0000-000000000000"]);
+  const {data:leadRows}=await (s as any).from("leads").select("id,contact_id,property_id").eq("workspace_id",ctx.workspaceId).in("id",leadIds.length?leadIds:["00000000-0000-0000-0000-000000000000"]);
   const contactIds=(leadRows??[]).map((x:any)=>x.contact_id).filter(Boolean);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const {data:contacts}=await (s as any).from("contacts").select("id,first_name,last_name,job_title,email,phone,mobile,source_url,source_label,source_confidence").in("id",contactIds.length?contactIds:["00000000-0000-0000-0000-000000000000"]);
+  const {data:contacts}=await (s as any).from("contacts").select("id,first_name,last_name,job_title,email,phone,mobile,source_url,source_label,source_confidence").eq("workspace_id",ctx.workspaceId).in("id",contactIds.length?contactIds:["00000000-0000-0000-0000-000000000000"]);
   const contactByLead=new Map<string, { first_name:string|null; last_name:string|null; job_title:string|null; email:string|null; phone:string|null; mobile:string|null; source_url:string|null; source_label:string|null; source_confidence:string|null } | undefined>((leadRows??[]).map((x:any)=>[x.id,(contacts??[]).find((c:any)=>c.id===x.contact_id) as { first_name:string|null; last_name:string|null; job_title:string|null; email:string|null; phone:string|null; mobile:string|null; source_url:string|null; source_label:string|null; source_confidence:string|null } | undefined]));
-  const {data:tenderProperties}=await (s as any).from("tender_properties").select("tender_record_id,property_id,scope_note,evidence_url,evidence_label,source_confidence").in("tender_record_id",(tenders??[]).map((t:any)=>t.id).length?(tenders??[]).map((t:any)=>t.id):["00000000-0000-0000-0000-000000000000"]);
+  const {data:tenderProperties}=await (s as any).from("tender_properties").select("tender_record_id,property_id,scope_note,evidence_url,evidence_label,source_confidence").eq("workspace_id",ctx.workspaceId).in("tender_record_id",(tenders??[]).map((t:any)=>t.id).length?(tenders??[]).map((t:any)=>t.id):["00000000-0000-0000-0000-000000000000"]);
   const propertyIds=(tenderProperties??[]).map((x:any)=>x.property_id).filter(Boolean);
-  const {data:properties}=await (s as any).from("properties").select("id,name,address_line_1,city,province,property_type").in("id",propertyIds.length?propertyIds:["00000000-0000-0000-0000-000000000000"]);
+  const {data:properties}=await (s as any).from("properties").select("id,name,address_line_1,city,province,property_type").eq("workspace_id",ctx.workspaceId).in("id",propertyIds.length?propertyIds:["00000000-0000-0000-0000-000000000000"]);
   const propertyById=new Map((properties??[]).map((p:any)=>[p.id,p]));
   const propertiesByTender=new Map<string,any[]>();
   for(const row of tenderProperties??[]){ const p=propertyById.get(row.property_id); if(p) propertiesByTender.set(row.tender_record_id,[...(propertiesByTender.get(row.tender_record_id)??[]),{...p,...row}]); }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const {data:runs}=await (s as any).from("canadabuys_runs").select("id,started_at,finished_at,status,fetched_count,qualifying_count,inserted_count,updated_count,lead_created_count,error_count,error_message").order("started_at",{ascending:false}).limit(8);
+  const {data:runs}=await (s as any).from("canadabuys_runs").select("id,started_at,finished_at,status,fetched_count,qualifying_count,inserted_count,updated_count,lead_created_count,error_count,error_message").eq("workspace_id",ctx.workspaceId).order("started_at",{ascending:false}).limit(8);
 
   const open=(tenders??[]).filter((t:any)=>t.closing_date && new Date(t.closing_date+"T23:59:59Z")>=new Date());
   const registration=open.filter((t:any)=>t.registration_required).length;
