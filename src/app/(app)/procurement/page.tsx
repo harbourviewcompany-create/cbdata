@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
+import type { Route } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { requireWorkspace } from "@/lib/workspace";
 import { runCanadaBuysScout, updateTenderStage } from "./actions";
@@ -91,7 +92,7 @@ export default async function ProcurementPage(){
               <select name="stage" defaultValue={t.action_state||"new"} aria-label="Bid stage">{STAGES.map(stage=><option value={stage} key={stage}>{stage.replace("_"," ")}</option>)}</select>
               <button className="button" type="submit">Update</button>
             </form>
-            <Link className="button" href={`/procurement/${t.id}`}>Review bid</Link>
+            <Link className="button" href={`/procurement/${t.id}` as Route}>Review bid</Link>
             {t.source_url?<a className="button" href={t.source_url} target="_blank" rel="noreferrer">Source</a>:null}
             {t.lead_id?<Link className="button" href="/sales">Lead</Link>:null}
           </div>
