@@ -5,11 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { convertEstimate } from "./actions";
 
-const CONVERTIBLE = new Set(["draft", "sent", "accepted"]);
-
 export default async function EstimatesPage() {
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect("/login");
+  const canManage = ["owner", "administrator", "sales_manager", "sales_rep"].includes(ctx.role ?? "");
   const s = await createClient();
   const [{ data: rows }, { data: orgs }] = await Promise.all([
     s
@@ -36,6 +35,7 @@ export default async function EstimatesPage() {
           <h1>Estimates</h1>
           <p className="muted">Review quotes and convert accepted estimates into contracts.</p>
         </div>
+        {canManage ? <Link className="button" href="/estimates/new">Price a deck job</Link> : null}
       </header>
       <section className="table-panel">
         <div className="table-wrap">
@@ -67,7 +67,7 @@ export default async function EstimatesPage() {
                     </td>
                     <td>{r.valid_until ?? "\u2014"}</td>
                     <td>
-                      {CONVERTIBLE.has(r.status) ? (
+                      {canManage && r.status === "accepted" ? (
                         <form action={convertEstimate}>
                           <input type="hidden" name="id" value={r.id} />
                           <button type="submit">Convert to contract</button>
@@ -79,7 +79,7 @@ export default async function EstimatesPage() {
               ) : (
                 <tr>
                   <td colSpan={6} className="muted">
-                    No estimates yet. Convert a won opportunity or create from sales.
+                    No estimates yet. Price a deck job to create the first draft.
                   </td>
                 </tr>
               )}

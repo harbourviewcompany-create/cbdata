@@ -3500,6 +3500,75 @@ export type Database = {
           },
         ]
       }
+      target_opportunity_signals: {
+        Row: {
+          id: string
+          workspace_id: string
+          organization_id: string | null
+          property_id: string | null
+          target_id: string | null
+          signal_type: string
+          title: string
+          service_fit: string[]
+          source_url: string
+          source_label: string | null
+          source_confidence: string
+          published_at: string | null
+          deadline_at: string | null
+          status: string
+          buyer_contact_name: string | null
+          buyer_contact_email: string | null
+          reference_number: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          organization_id?: string | null
+          property_id?: string | null
+          target_id?: string | null
+          signal_type: string
+          title: string
+          service_fit?: string[]
+          source_url: string
+          source_label?: string | null
+          source_confidence?: string
+          published_at?: string | null
+          deadline_at?: string | null
+          status?: string
+          buyer_contact_name?: string | null
+          buyer_contact_email?: string | null
+          reference_number?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          organization_id?: string | null
+          property_id?: string | null
+          target_id?: string | null
+          signal_type?: string
+          title?: string
+          service_fit?: string[]
+          source_url?: string
+          source_label?: string | null
+          source_confidence?: string
+          published_at?: string | null
+          deadline_at?: string | null
+          status?: string
+          buyer_contact_name?: string | null
+          buyer_contact_email?: string | null
+          reference_number?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assigned_to: string | null

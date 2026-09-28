@@ -151,6 +151,41 @@ tr:hover td{background:rgba(255,255,255,.015)}
 }
 .form-grid textarea{min-height:80px;resize:vertical}
 .form-grid button{width:max-content}
+.deck-estimate-form{display:grid;gap:16px}
+.deck-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+.deck-form-grid label{display:grid;gap:6px;font-size:13px;color:var(--muted)}
+.deck-form-grid input,.deck-form-grid select,.deck-form-grid textarea,.deck-money-input{
+  width:100%;min-height:38px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;
+  background:#090e13;color:var(--text);font:inherit
+}
+.deck-form-grid textarea{min-height:80px}
+.deck-wide{grid-column:1/-1}
+.deck-checkbox{display:flex;align-items:center;gap:10px;margin-top:18px}
+.deck-checkbox input,.deck-stage-form input[type="checkbox"]{width:18px;height:18px}
+.deck-money-input{max-width:150px;min-width:95px}
+.deck-totals{display:flex;flex-wrap:wrap;gap:14px 28px;margin:18px 0;font-size:14px}
+.deck-totals span{display:flex;gap:8px}.deck-stage-form{display:grid;justify-items:start;gap:12px;margin-top:18px}
+.deck-stage-form label{display:flex;align-items:flex-start;gap:10px;max-width:720px}
+.deck-expiry{display:grid;gap:6px;max-width:240px;margin-bottom:16px}
+.deck-expiry input,.deck-description{width:100%;padding:8px 10px;background:#090e13;color:var(--text);border:1px solid var(--line);border-radius:8px;font:inherit}
+.deck-description{min-width:280px;min-height:80px;resize:vertical}
+.deck-add-guards{margin:18px 0;padding:14px;border:1px solid var(--line);border-radius:8px}
+.deck-customer-panel{margin-bottom:16px}.deck-customer-panel summary{cursor:pointer;font-weight:700}
+.deck-customer-form{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-top:14px}
+.deck-customer-form label{display:grid;gap:6px}.deck-customer-form input{min-height:38px;padding:8px 10px;background:#090e13;color:var(--text);border:1px solid var(--line);border-radius:8px}
+.quote-actions{display:flex;gap:10px;margin-bottom:16px}
+.quote-sheet{max-width:850px;margin:auto;padding:48px;background:#fff;color:#1e2a34;border-radius:10px;line-height:1.6}
+.quote-sheet header{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #1e2a34;padding-bottom:20px}
+.quote-sheet h1{font-size:26px;margin:0}.quote-sheet h2{margin-top:34px;font-size:16px}
+.quote-sheet small{font-weight:700;letter-spacing:.15em}.quote-meta{display:grid;align-content:start;text-align:right}
+.quote-sheet table{width:100%;border-collapse:collapse;margin:16px 0 24px}
+.quote-sheet th,.quote-sheet td{text-align:left;border-bottom:1px solid #dce2e6;padding:12px 6px;vertical-align:top}
+.quote-sheet th:last-child,.quote-sheet td:last-child{text-align:right;white-space:nowrap}
+.quote-sheet dl{max-width:300px;margin-left:auto}.quote-sheet dl div{display:flex;justify-content:space-between;gap:20px;padding:6px 0}
+.quote-grand{border-top:2px solid #1e2a34;font-weight:700;font-size:17px}
+.quote-note{margin-top:28px;font-size:12px;color:#52606c}.quote-sheet footer{border-top:1px solid #dce2e6;margin-top:32px;padding-top:12px;font-size:11px;color:#52606c}
+@media print{body:has(.quote-sheet){background:#fff!important;color:#000!important}body:has(.quote-sheet) .app-shell{display:block}body:has(.quote-sheet) .sidebar,body:has(.quote-sheet) .topbar,body:has(.quote-sheet) .quote-actions{display:none!important}body:has(.quote-sheet) .content{padding:0!important;max-width:none!important}.quote-sheet{max-width:none;padding:0;border-radius:0;box-shadow:none}@page{size:letter;margin:17mm}}
+@media(max-width:700px){.deck-form-grid{grid-template-columns:1fr}.deck-money-input{min-width:90px}}
 .form-grid label{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}
 .actions{display:flex;align-items:center;gap:7px;margin:0 0 7px}
 .actions:last-child{margin-bottom:0}
