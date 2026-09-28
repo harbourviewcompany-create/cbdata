@@ -12,12 +12,13 @@ export default async function ProcurementCoveragePage(){
   const ctx=await requireWorkspace();
   const s=await createClient();
 
-  const [{data:buyers},{data:opportunities},{data:runs},{data:sources},{data:rebids}]=await Promise.all([
+  const [{data:buyers},{data:opportunities},{data:runs},{data:sources},{data:rebids},{data:pursuits}]=await Promise.all([
     (s as any).from("v_procurement_buyer_coverage").select("*").eq("workspace_id",ctx.workspaceId).order("watch_priority",{ascending:false}).limit(250),
     (s as any).from("procurement_opportunities").select("id,source_key,external_id,buyer_name,title,opportunity_type,region,published_at,closing_at,source_url,service_fit,relevance_score,classification_status,matched_target_id,promoted_tender_record_id").eq("workspace_id",ctx.workspaceId).order("relevance_score",{ascending:false,nullsFirst:false}).order("closing_at",{ascending:true,nullsFirst:false}).limit(250),
     (s as any).from("procurement_coverage_runs").select("*").eq("workspace_id",ctx.workspaceId).order("started_at",{ascending:false}).limit(12),
     (s as any).from("tender_sources").select("source_key,display_name,ingestion_mode,enabled,last_run_at,last_success_at,last_error").eq("workspace_id",ctx.workspaceId).eq("enabled",true).order("display_name"),
-    (s as any).from("v_procurement_rebid_queue").select("*").eq("workspace_id",ctx.workspaceId).order("fit_score",{ascending:false}).order("expected_publish_start",{ascending:true,nullsFirst:false}).limit(150)
+    (s as any).from("v_procurement_rebid_queue").select("*").eq("workspace_id",ctx.workspaceId).order("fit_score",{ascending:false}).order("expected_publish_start",{ascending:true,nullsFirst:false}).limit(150),
+    (s as any).from("v_procurement_pursuit_queue").select("*").eq("workspace_id",ctx.workspaceId).order("fit_score",{ascending:false}).order("next_action_at",{ascending:true,nullsFirst:false}).limit(150)
   ]);
 
   const now=Date.now();
@@ -29,6 +30,8 @@ export default async function ProcurementCoveragePage(){
   const targeted=(buyers??[]).filter((b:any)=>b.has_target).length;
   const staleSources=(sources??[]).filter((x:any)=>!x.last_success_at||(now-new Date(x.last_success_at).getTime())>48*3600000);
   const prePosition=(rebids??[]).filter((x:any)=>x.status==="pre_position");
+  const contactGaps=(pursuits??[]).filter((x:any)=>x.contact_readiness_status==="gap");
+  const vendorGaps=(pursuits??[]).filter((x:any)=>["gap","expired"].includes(x.vendor_readiness_status));
 
   return <main className="list-shell">
     <header className="list-header">
@@ -53,6 +56,8 @@ export default async function ProcurementCoveragePage(){
       <div className="metric"><span>Stale sources</span><strong>{staleSources.length}</strong></div>
       <div className="metric"><span>Rebid signals</span><strong>{(rebids??[]).length}</strong></div>
       <div className="metric"><span>Pre-position now</span><strong>{prePosition.length}</strong></div>
+      <div className="metric"><span>Contact gaps</span><strong>{contactGaps.length}</strong></div>
+      <div className="metric"><span>Vendor gaps</span><strong>{vendorGaps.length}</strong></div>
     </section>
 
     <section className="table-panel" style={{marginBottom:18}}>
@@ -81,6 +86,21 @@ export default async function ProcurementCoveragePage(){
           <div><span className="score-chip score-high">{o.relevance_score??"—"}</span></div>
           <div><span className="pill">{o.classification_status}</span></div>
           <div>{o.promoted_tender_record_id?<Link className="button" href={("/procurement/"+o.promoted_tender_record_id) as Route}>Tender</Link>:o.matched_target_id?<Link className="button" href="/targets">Target</Link>:o.source_url?<a className="button" href={o.source_url} target="_blank" rel="noreferrer">Source</a>:<span className="status-meta">archive</span>}</div>
+        </div>)}
+      </div></div>
+    </section>
+
+    <section className="table-panel" style={{marginBottom:18}}>
+      <div className="panel-head"><div><span className="eyebrow">PURSUIT READINESS</span><h3>What must happen before we can win it</h3></div><span className="muted">{contactGaps.length} contact gaps · {vendorGaps.length} vendor gaps</span></div>
+      <div className="table-wrap"><div className="targets-grid procurement-grid">
+        <div className="targets-grid-row targets-grid-head"><div>Buyer</div><div>Pursuit</div><div>Contact</div><div>Vendor</div><div>Priority</div><div>Next action</div></div>
+        {(pursuits??[]).map((r:any)=><div className="targets-grid-row" key={r.id}>
+          <div><strong>{r.buyer_name}</strong><span className="status-meta">{r.primary_source_key||"source gap"}</span></div>
+          <div><strong>{r.contract_title||r.title}</strong><span className="status-meta">{r.service_category} · {fmtDate(r.expected_publish_start)}–{fmtDate(r.expected_publish_end)}</span></div>
+          <div><span className="pill">{r.contact_readiness_status}</span><span className="status-meta">{r.known_contact_count||0} known contacts</span></div>
+          <div><span className="pill">{r.vendor_readiness_status}</span><span className="status-meta">{r.supplier_registration_status||"registration not recorded"}</span></div>
+          <div><span className="score-chip score-high">{r.fit_score}</span><span className="status-meta">{r.pursuit_priority||"watch"}</span></div>
+          <div><strong>{r.next_action||"Resolve pursuit readiness"}</strong>{r.target_id?<Link className="button" href="/targets">Open target</Link>:null}</div>
         </div>)}
       </div></div>
     </section>

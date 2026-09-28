@@ -179,11 +179,9 @@ export default async function TargetsPage({
           ← Command
         </Link>
         <span className="eyebrow">BUSINESS DEVELOPMENT</span>
-        <h1>PM Targets</h1>
+        <h1>Growth Targets</h1>
         <p className="muted" style={{ marginTop: 8, maxWidth: 640 }}>
-          Account queue for property management companies. Score ranks who to
-          call next. Log touches, advance status, convert to a lead when the
-          conversation is real.
+          Unified account queue for property managers, public buyers, institutions, condo boards, healthcare, and procurement pursuits. Score ranks who to work next; intelligence, contacts, touches, and conversion all stay on one account.
         </p>
       </header>
 
@@ -249,7 +247,7 @@ export default async function TargetsPage({
 
       <section className="table-panel">
         <div className="table-wrap">
-          <div className="targets-grid" role="table" aria-label="PM target accounts">
+          <div className="targets-grid" role="table" aria-label="Growth target accounts">
             <div className="targets-grid-row targets-grid-head" role="row">
               <div role="columnheader">Score</div><div role="columnheader">Company</div><div role="columnheader">Contact</div><div role="columnheader">Status</div><div role="columnheader">Next action</div><div role="columnheader">Actions</div>
             </div>
