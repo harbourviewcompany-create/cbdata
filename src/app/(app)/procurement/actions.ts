@@ -74,6 +74,47 @@ export async function updateTenderDeadline(formData: FormData) {
   revalidatePath(`/procurement/${tenderId}`);
 }
 
+
+export async function addTenderRequirement(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const tenderId = String(formData.get("tender_id") || "");
+  const title = String(formData.get("title") || "").trim();
+  const type = String(formData.get("requirement_type") || "other");
+  if (!tenderId || !title) throw new Error("Tender and requirement title are required");
+  const { error } = await (s as any).from("tender_requirements").insert({
+    workspace_id: ctx.workspaceId,
+    tender_record_id: tenderId,
+    requirement_type: type,
+    title,
+    mandatory: formData.get("mandatory") === "on",
+    status: "pending",
+  });
+  if (error) throw error;
+  revalidatePath(`/procurement/${tenderId}`);
+}
+
+export async function addTenderDeadline(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const tenderId = String(formData.get("tender_id") || "");
+  const title = String(formData.get("title") || "").trim();
+  const dueAt = String(formData.get("due_at") || "");
+  const type = String(formData.get("deadline_type") || "other");
+  if (!tenderId || !title || !dueAt) throw new Error("Tender, deadline title and due date are required");
+  const { error } = await (s as any).from("tender_deadlines").insert({
+    workspace_id: ctx.workspaceId,
+    tender_record_id: tenderId,
+    deadline_type: type,
+    title,
+    due_at: new Date(dueAt).toISOString(),
+    mandatory: formData.get("mandatory") === "on",
+    status: "open",
+  });
+  if (error) throw error;
+  revalidatePath(`/procurement/${tenderId}`);
+}
+
 export async function createEstimateFromTender(formData: FormData) {
   const ctx = await requireWorkspace();
   const s = await createClient();
