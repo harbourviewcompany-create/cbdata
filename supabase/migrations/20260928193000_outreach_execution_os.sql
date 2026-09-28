@@ -58,20 +58,23 @@ alter table public.outreach_replies enable row level security;
 drop policy if exists outreach_drafts_member_select on public.outreach_drafts;
 drop policy if exists outreach_drafts_member_insert on public.outreach_drafts;
 drop policy if exists outreach_drafts_member_update on public.outreach_drafts;
-create policy outreach_drafts_member_select on public.outreach_drafts for select
+create policy outreach_drafts_member_select on public.outreach_drafts for select to authenticated
   using (private.is_workspace_member(workspace_id));
-create policy outreach_drafts_member_insert on public.outreach_drafts for insert
+create policy outreach_drafts_member_insert on public.outreach_drafts for insert to authenticated
   with check (private.is_workspace_member(workspace_id));
-create policy outreach_drafts_member_update on public.outreach_drafts for update
+create policy outreach_drafts_member_update on public.outreach_drafts for update to authenticated
   using (private.is_workspace_member(workspace_id))
   with check (private.is_workspace_member(workspace_id));
 
 drop policy if exists outreach_replies_member_select on public.outreach_replies;
 drop policy if exists outreach_replies_member_insert on public.outreach_replies;
-create policy outreach_replies_member_select on public.outreach_replies for select
+create policy outreach_replies_member_select on public.outreach_replies for select to authenticated
   using (private.is_workspace_member(workspace_id));
-create policy outreach_replies_member_insert on public.outreach_replies for insert
+create policy outreach_replies_member_insert on public.outreach_replies for insert to authenticated
   with check (private.is_workspace_member(workspace_id));
+
+grant select, insert, update on public.outreach_drafts to authenticated;
+grant select, insert on public.outreach_replies to authenticated;
 
 create or replace view public.v_outreach_execution_queue
 with (security_invoker=true) as
@@ -179,7 +182,7 @@ create or replace function public.generate_outreach_draft(
 )
 returns uuid
 language plpgsql
-security definer
+security invoker
 set search_path=public
 as $$
 declare
@@ -196,6 +199,7 @@ declare
   v_body text;
   v_id uuid;
 begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
   select * into t from public.outreach_targets where id=p_target_id;
   if not found then raise exception 'target not found'; end if;
   if not private.is_workspace_member(t.workspace_id) then raise exception 'not a member of workspace'; end if;
@@ -291,11 +295,12 @@ $$;
 create or replace function public.approve_outreach_draft(p_draft_id uuid)
 returns uuid
 language plpgsql
-security definer
+security invoker
 set search_path=public
 as $$
 declare d public.outreach_drafts%rowtype;
 begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
   select * into d from public.outreach_drafts where id=p_draft_id;
   if not found then raise exception 'draft not found'; end if;
   if not private.is_workspace_member(d.workspace_id) then raise exception 'not a member of workspace'; end if;
@@ -314,11 +319,12 @@ create or replace function public.mark_outreach_draft_sent(
 )
 returns uuid
 language plpgsql
-security definer
+security invoker
 set search_path=public
 as $$
 declare d public.outreach_drafts%rowtype;
 begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
   select * into d from public.outreach_drafts where id=p_draft_id for update;
   if not found then raise exception 'draft not found'; end if;
   if not private.is_workspace_member(d.workspace_id) then raise exception 'not a member of workspace'; end if;
@@ -348,7 +354,7 @@ create or replace function public.classify_outreach_reply(
 )
 returns uuid
 language plpgsql
-security definer
+security invoker
 set search_path=public
 as $$
 declare
@@ -358,6 +364,7 @@ declare
   v_next text;
   v_due timestamptz;
 begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
   select * into t from public.outreach_targets where id=p_target_id;
   if not found then raise exception 'target not found'; end if;
   if not private.is_workspace_member(t.workspace_id) then raise exception 'not a member of workspace'; end if;
@@ -389,11 +396,60 @@ begin
 end;
 $$;
 
+create or replace function public.ensure_cb_outreach_sequence(p_workspace_id uuid)
+returns uuid
+language plpgsql
+security invoker
+set search_path=public
+as $
+declare v_id uuid;
+begin
+  if auth.uid() is null then raise exception 'Authentication required'; end if;
+  if not private.is_workspace_member(p_workspace_id) then raise exception 'not a member of workspace'; end if;
+
+  select id into v_id
+  from public.outreach_sequences
+  where workspace_id=p_workspace_id and name='CB Contracting – 7 touch'
+  limit 1;
+
+  if v_id is not null then return v_id; end if;
+
+  insert into public.outreach_sequences(workspace_id,name,description)
+  values (
+    p_workspace_id,
+    'CB Contracting – 7 touch',
+    'Evidence-led introduction, call, follow-ups, and 90-day nurture for property and facility targets.'
+  ) returning id into v_id;
+
+  insert into public.outreach_sequence_steps(
+    workspace_id,sequence_id,step_order,channel,delay_days,title,body_template
+  ) values
+    (p_workspace_id,v_id,1,'email',0,'Personalized introduction',
+      'Generate and review an evidence-aware email referencing one verified property or buying signal. Use one CTA.'),
+    (p_workspace_id,v_id,2,'call',2,'Call decision maker',
+      'Reference the introduction. Confirm vendor ownership, incumbent status, service gaps, and the next renewal/tender window.'),
+    (p_workspace_id,v_id,3,'email',3,'Short follow-up',
+      'Send a concise follow-up tied to the property/service opportunity. Do not repeat the full capability list.'),
+    (p_workspace_id,v_id,4,'task',4,'LinkedIn / second call',
+      'Use the best verified alternate channel. Goal: establish the correct buying route, not force a pitch.'),
+    (p_workspace_id,v_id,5,'email',7,'Value follow-up',
+      'Offer a site walk, benchmark quote, overflow/backup coverage, or a one-property pilot based on known evidence.'),
+    (p_workspace_id,v_id,6,'call',14,'Timing check',
+      'Ask directly about contract timing and whether CB Contracting should reconnect before the next bid or renewal.'),
+    (p_workspace_id,v_id,7,'wait',60,'Nurture',
+      'Re-enter the account at roughly day 90 unless a known renewal date creates a better trigger.');
+
+  return v_id;
+end;
+$;
+
 revoke all on function public.generate_outreach_draft(uuid,text,text) from public;
 revoke all on function public.approve_outreach_draft(uuid) from public;
 revoke all on function public.mark_outreach_draft_sent(uuid,text,text,text) from public;
 revoke all on function public.classify_outreach_reply(uuid,text,text,date,text,text,text,text) from public;
+revoke all on function public.ensure_cb_outreach_sequence(uuid) from public;
 grant execute on function public.generate_outreach_draft(uuid,text,text) to authenticated;
 grant execute on function public.approve_outreach_draft(uuid) to authenticated;
 grant execute on function public.mark_outreach_draft_sent(uuid,text,text,text) to authenticated;
 grant execute on function public.classify_outreach_reply(uuid,text,text,date,text,text,text,text) to authenticated;
+grant execute on function public.ensure_cb_outreach_sequence(uuid) to authenticated;
