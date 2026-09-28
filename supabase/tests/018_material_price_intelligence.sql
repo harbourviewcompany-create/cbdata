@@ -80,6 +80,17 @@ begin
 
   if not exists (
     select 1
+    from pg_indexes
+    where schemaname='public'
+      and tablename='material_price_plans'
+      and indexname='uq_material_price_plans_selected_request'
+      and indexdef ilike '%where is_selected%'
+  ) then
+    raise exception 'selected material plan uniqueness guard missing';
+  end if;
+
+  if not exists (
+    select 1
     from information_schema.table_constraints tc
     join information_schema.constraint_column_usage ccu
       on ccu.constraint_name=tc.constraint_name
