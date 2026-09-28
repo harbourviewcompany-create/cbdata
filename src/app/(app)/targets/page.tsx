@@ -162,6 +162,7 @@ export default async function TargetsPage({
   const intelProperties = visibleIntel.reduce((n, x) => n + x.propertyCount, 0);
   const intelSignals = visibleIntel.reduce((n, x) => n + x.highSignalCount, 0);
   const buyingSignalTargets = visibleIntel.filter((x) => x.buyingSignals.length > 0).length;
+  const namedContactCount = filtered.filter((r) => Boolean(r.contact_display_name)).length;
   const regions = Array.from(
     new Set(all.map((r) => r.region).filter(Boolean) as string[]),
   ).sort();
@@ -202,6 +203,7 @@ export default async function TargetsPage({
         <div className="metric intel-metric"><span>Linked properties</span><strong>{intelProperties}</strong></div>
         <div className="metric intel-metric"><span>High-signal sites</span><strong>{intelSignals}</strong></div>
         <div className="metric intel-metric"><span>Buying signals</span><strong>{buyingSignalTargets}</strong></div>
+        <div className="metric intel-metric"><span>Named contacts</span><strong>{namedContactCount}</strong></div>
       </section>
 
       <section className="panel" style={{ marginBottom: 18 }}>
