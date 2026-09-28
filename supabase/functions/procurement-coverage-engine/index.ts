@@ -58,7 +58,7 @@ Deno.serve(async(req)=>{
   if(runError||!run) return Response.json({error:runError?.message||"run_create_failed"},{status:500});
 
   const sourceErrors:any[]=[];
-  const scouts=["canadabuys-scout","regional-tender-scout"];
+  const scouts=["canadabuys-scout","regional-tender-scout","canadabuys-award-scout"];
   await Promise.all(scouts.map(async slug=>{
     try{
       const r=await fetch(supabaseUrl+"/functions/v1/"+slug,{method:"POST",headers:{Authorization:auth,"Content-Type":"application/json"},body:JSON.stringify({workspace_id:workspaceId})});
