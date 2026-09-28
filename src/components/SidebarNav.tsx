@@ -27,6 +27,7 @@ const NAV = [
       { href: "/procurement", label: "Tender Intelligence", roles: ["owner","administrator","sales_manager","sales_rep","operations_manager"] },
       { href: "/sales", label: "Sales", roles: ["owner","administrator","sales_manager","sales_rep"] },
       { href: "/estimates", label: "Estimates", roles: ["owner","administrator","sales_manager","sales_rep","operations_manager"] },
+      { href: "/materials", label: "Material Prices", roles: ["owner","administrator","sales_manager","sales_rep","operations_manager"] },
       { href: "/contracts", label: "Contracts", roles: ["owner","administrator","operations_manager","sales_manager"] },
     ],
   },

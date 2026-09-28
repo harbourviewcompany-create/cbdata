@@ -32,7 +32,7 @@ export default async function EstimateDetail({
 
   if (!row) notFound();
 
-  const [{ data: items }, { data: linkedContract }] = await Promise.all([
+  const [{ data: items }, { data: linkedContract }, { data: materialRequest }] = await Promise.all([
     s
       .from("estimate_items")
       .select(
@@ -46,6 +46,14 @@ export default async function EstimateDetail({
       .select("id,contract_number,status")
       .eq("workspace_id", ctx.workspaceId)
       .eq("source_estimate_id", id)
+      .maybeSingle(),
+    (s as any)
+      .from("v_material_request_summary")
+      .select("id,name,status,item_count,best_total,latest_run_status,latest_run_at")
+      .eq("workspace_id", ctx.workspaceId)
+      .eq("estimate_id", id)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle(),
   ]);
 
@@ -205,6 +213,32 @@ export default async function EstimateDetail({
             </p>
           )
         ) : null}
+      </section>
+
+      <section className="panel" style={{ marginTop: 14 }}>
+        <div className="panel-head">
+          <div>
+            <span className="eyebrow">MATERIAL SOURCING</span>
+            <h3>Material Price Intelligence</h3>
+          </div>
+          {materialRequest ? (
+            <Link className="button" href={`/materials/${materialRequest.id}` as Route}>Open sourcing</Link>
+          ) : (
+            <Link className="button" href={`/materials?estimate_id=${id}` as Route}>Price materials</Link>
+          )}
+        </div>
+        {materialRequest ? (
+          <div className="deck-audit-grid" style={{ marginTop: 14 }}>
+            <div><span>Request</span><strong>{materialRequest.name}</strong></div>
+            <div><span>Takeoff</span><strong>{materialRequest.item_count ?? 0} items</strong></div>
+            <div><span>Best buy plan</span><strong>{money(materialRequest.best_total)}</strong></div>
+            <div><span>Status</span><strong>{materialRequest.status}</strong></div>
+          </div>
+        ) : (
+          <p className="muted" style={{ marginTop: 12 }}>
+            Build the lumber takeoff, compare Ottawa suppliers, preserve source evidence, and select the lowest-cost buy plan before finalizing direct costs.
+          </p>
+        )}
       </section>
 
       <section className="table-panel" style={{ marginTop: 14 }}>
