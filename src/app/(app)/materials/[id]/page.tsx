@@ -261,13 +261,20 @@ export default async function MaterialRequestDetail({ params }: { params: Promis
                   : p.supplier_id
                     ? String((supplierById.get(p.supplier_id) as any)?.name ?? "Supplier")
                     : "Split suppliers";
+                const deliveryUnverified =
+                  request.delivery_mode === "delivery"
+                  && Array.isArray(p.suppliers)
+                  && p.suppliers.some((x: any) => x.delivery_verified === false);
                 return (
                   <tr key={p.id}>
                     <td><strong>{index === 0 ? "Lowest total" : p.plan_type.replaceAll("_", " ")}</strong>{p.is_selected ? <div className="badge">Selected</div> : null}</td>
                     <td style={{ whiteSpace: "normal" }}>{supplierNames}</td>
                     <td>{money(p.material_subtotal)}</td>
-                    <td>{money(p.delivery_total)}</td>
-                    <td><strong>{money(p.total)}</strong></td>
+                    <td>{deliveryUnverified ? <span className="muted">Verify quote</span> : money(p.delivery_total)}</td>
+                    <td>
+                      <strong>{money(p.total)}</strong>
+                      {deliveryUnverified ? <div className="muted">materials + known delivery only</div> : null}
+                    </td>
                     <td>{money(p.savings_vs_baseline)}</td>
                     <td>
                       {p.is_selected ? "Approved" : (
