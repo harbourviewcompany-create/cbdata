@@ -1,6 +1,5 @@
 -- CanadaBuys prospecting layer for CBData.
--- Stores structured procurement response requirements and run history while
--- retaining the existing tender_records/lead model.
+-- Stores structured procurement response requirements and run history.
 
 alter table public.tender_records
   add column if not exists response_mode text,
