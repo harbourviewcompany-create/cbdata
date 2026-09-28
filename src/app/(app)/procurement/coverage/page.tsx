@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
+import type { Route } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { requireWorkspace } from "@/lib/workspace";
 import { runProcurementCoverageEngine } from "../actions";
@@ -75,7 +76,7 @@ export default async function ProcurementCoveragePage(){
           <div><strong>{o.buyer_name||"—"}</strong><span className="status-meta">{o.source_key} · {o.region||"NCR"}</span></div>
           <div><span className="score-chip score-high">{o.relevance_score??"—"}</span></div>
           <div><span className="pill">{o.classification_status}</span></div>
-          <div>{o.promoted_tender_record_id?<Link className="button" href={"/procurement/"+o.promoted_tender_record_id}>Tender</Link>:o.matched_target_id?<Link className="button" href="/targets">Target</Link>:o.source_url?<a className="button" href={o.source_url} target="_blank" rel="noreferrer">Source</a>:<span className="status-meta">archive</span>}</div>
+          <div>{o.promoted_tender_record_id?<Link className="button" href={("/procurement/"+o.promoted_tender_record_id) as Route}>Tender</Link>:o.matched_target_id?<Link className="button" href="/targets">Target</Link>:o.source_url?<a className="button" href={o.source_url} target="_blank" rel="noreferrer">Source</a>:<span className="status-meta">archive</span>}</div>
         </div>)}
       </div></div>
     </section>
