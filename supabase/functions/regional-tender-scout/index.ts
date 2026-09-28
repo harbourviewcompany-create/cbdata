@@ -96,7 +96,7 @@ Deno.serve(async(req)=>{
  const workspaceId=membership.workspace_id;
  await admin.from("tender_sources").upsert(
    SOURCES.map(source=>({workspace_id:workspaceId,source_key:source.key,display_name:source.name,source_url:source.url,ingestion_mode:"live",enabled:true,updated_at:new Date().toISOString()})),
-   {onConflict:"workspace_id,source_key"}
+   {onConflict:"workspace_id,source_key",ignoreDuplicates:true}
  );
  const {data:sourceRows}=await admin.from("tender_sources").select("source_key,enabled").eq("workspace_id",workspaceId),enabled=new Map((sourceRows||[]).map((x:any)=>[x.source_key,x.enabled]));const {data:orgRows}=await admin.from("organizations").select("id,legal_name,operating_name").eq("workspace_id",workspaceId),orgs:any[]=orgRows||[],summary:any[]=[];
  for(const source of SOURCES){if(enabled.get(source.key)===false)continue;const {data:run}=await admin.from("tender_scout_runs").insert({workspace_id:workspaceId,source_key:source.key,source_name:source.name}).select("id").single();let fetched=0,qualifying=0,inserted=0,updated=0,leads=0,errors=0;
