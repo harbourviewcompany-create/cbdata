@@ -22,16 +22,28 @@ create unique index target_opportunity_signals_source_ref_uidx
   );
 
 alter table public.target_opportunity_signals
+  drop constraint if exists target_opportunity_signals_workspace_id_fkey;
+
+alter table public.target_opportunity_signals
   add constraint target_opportunity_signals_workspace_id_fkey
   foreign key (workspace_id) references public.workspaces(id) on delete cascade;
+
+alter table public.target_opportunity_signals
+  drop constraint if exists target_opportunity_signals_organization_id_fkey;
 
 alter table public.target_opportunity_signals
   add constraint target_opportunity_signals_organization_id_fkey
   foreign key (organization_id) references public.organizations(id) on delete set null;
 
 alter table public.target_opportunity_signals
+  drop constraint if exists target_opportunity_signals_property_id_fkey;
+
+alter table public.target_opportunity_signals
   add constraint target_opportunity_signals_property_id_fkey
   foreign key (property_id) references public.properties(id) on delete set null;
+
+alter table public.target_opportunity_signals
+  drop constraint if exists target_opportunity_signals_target_id_fkey;
 
 alter table public.target_opportunity_signals
   add constraint target_opportunity_signals_target_id_fkey
