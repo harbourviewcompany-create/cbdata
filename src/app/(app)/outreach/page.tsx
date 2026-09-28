@@ -34,7 +34,8 @@ export default async function OutreachPage({
     .order("outreach_readiness_score",{ascending:false})
     .order("score",{ascending:false,nullsFirst:false})
     .limit(150);
-  if(action) query=query.eq("recommended_action",action);
+  if(action==="research") query=query.in("recommended_action",["research","verify_contact"]);
+  else if(action) query=query.eq("recommended_action",action);
   const {data,error}=await query;
   const rows=(data ?? []) as QueueRow[];
   const ready=rows.filter(r=>r.outreach_readiness_score>=80).length;
@@ -129,7 +130,7 @@ export default async function OutreachPage({
                 <input type="hidden" name="draft_id" value={r.latest_draft_id}/>
                 <button className="primary" type="submit">Approve</button>
               </form> : null}
-              {r.latest_draft_id && r.latest_draft_state==="approved" && emailLink ? <a className="primary" href={emailLink}>Open email</a> : null}
+              {r.latest_draft_id && r.latest_draft_state==="approved" && r.latest_draft_channel==="email" && emailLink ? <a className="primary" href={emailLink}>Open email</a> : null}
               {r.latest_draft_id && r.latest_draft_state==="approved" ? <form action={markSent}>
                 <input type="hidden" name="target_id" value={r.id}/>
                 <input type="hidden" name="draft_id" value={r.latest_draft_id}/>
