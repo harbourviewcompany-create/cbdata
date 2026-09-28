@@ -50,7 +50,8 @@ export default async function ProcurementPage(){
       <Link className="back" href="/dashboard">← Command</Link>
       <span className="eyebrow">GROWTH / PROCUREMENT</span>
       <h1>Tender Intelligence</h1>
-      <p className="muted tender-intro">One operating queue for public and institutional opportunities: discovery, fit, buyer/property intelligence, bid/no-bid, compliance, pricing, submission and award follow-up.</p>\n      <div style={{marginTop:12}}><Link className="button" href="/procurement/coverage">Regional Coverage Engine</Link></div>
+      <p className="muted tender-intro">One operating queue for public and institutional opportunities: discovery, fit, buyer/property intelligence, bid/no-bid, compliance, pricing, submission and award follow-up.</p>
+      <div style={{marginTop:12}}><Link className="button" href="/procurement/coverage">Regional Coverage Engine</Link></div>
     </header>
 
     <section className="metrics" style={{marginBottom:18}}>
