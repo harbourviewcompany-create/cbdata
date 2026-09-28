@@ -67,14 +67,16 @@ Deno.serve(async(req)=>{
   }));
 
   try{
-    const [{data:buyers},{data:sources},{data:tenders},{data:listRows}]=await Promise.all([
+    const [{data:buyers},{data:sources},{data:tenders},{data:listRows},{data:organizationRows}]=await Promise.all([
       admin.from("procurement_buyers").select("*").eq("workspace_id",workspaceId),
       admin.from("tender_sources").select("source_key,display_name").eq("workspace_id",workspaceId),
       admin.from("tender_records").select("id,source,external_id,title,buyer_name,category,region,published_date,closing_date,estimated_value,source_url,raw_payload,matched_organization_id,fit_score").eq("workspace_id",workspaceId),
-      admin.from("outreach_lists").select("id").eq("workspace_id",workspaceId).eq("name","Regional Procurement Buyers").limit(1)
+      admin.from("outreach_lists").select("id").eq("workspace_id",workspaceId).eq("name","Regional Procurement Buyers").limit(1),
+      admin.from("organizations").select("id,legal_name,operating_name").eq("workspace_id",workspaceId)
     ]);
     const sourceKeyByName=new Map((sources||[]).map((s:any)=>[norm(s.display_name),s.source_key]));
     const buyerRows:any[]=buyers||[];
+    const organizations:any[]=organizationRows||[];
 
     // Backfill every already-known tender into the raw regional opportunity universe.
     for(const t of tenders||[]){
@@ -119,7 +121,8 @@ Deno.serve(async(req)=>{
 
       let organizationId=o.matched_organization_id||buyer?.organization_id||null;
       if(!organizationId&&o.buyer_name){
-        const {data:org}=await admin.from("organizations").select("id").eq("workspace_id",workspaceId).or("legal_name.ilike."+o.buyer_name+",operating_name.ilike."+o.buyer_name).limit(1).maybeSingle();
+        const buyerName=norm(o.buyer_name);
+        const org=organizations.find((x:any)=>norm(x.legal_name)===buyerName||norm(x.operating_name)===buyerName);
         organizationId=org?.id||null;
       }
 
