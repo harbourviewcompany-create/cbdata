@@ -7,19 +7,19 @@ const REGION_TERMS = ["ottawa","gatineau","hull","national capital","ncr","capit
 const BUYER_REGION_TERMS = ["national capital commission","commission de la capitale nationale","national research council","conseil national de recherches","ville de gatineau"];
 const SERVICE_TERMS: Array<[string,string]> = [["snow","snow"],["déneigement","snow"],["landscap","landscaping"],["grounds","grounds"],["entretien paysager","landscaping"],["janitorial","janitorial"],["cleaning","cleaning"],["nettoyage","cleaning"],["concierger","janitorial"],["facility","facility"],["property maintenance","property maintenance"],["maintenance","maintenance"],["caretaking","caretaking"],["entretien","maintenance"]];
 
-function cleanHtml(value:string):string { return value.replace(/<script[\\s\\S]*?<\\/script>/gi," ").replace(/<style[\\s\\S]*?<\\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;/gi,'"').replace(/&#39;/gi,"'").replace(/&apos;/gi,"'").replace(/\\s+/g," ").trim(); }
-function decode(value:string):string { return cleanHtml(value).replace(/&#(\\d+);/g,(_,n)=>String.fromCharCode(Number(n))); }
-function dateValue(value:string|null):string|null { if(!value) return null; const m=value.match(/(20\\d{2})[\\/\\-](\\d{2})[\\/\\-](\\d{2})/); return m ? m[1]+"-"+m[2]+"-"+m[3] : null; }
-function normalize(value:string|null):string { return (value||"").toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim(); }
+function cleanHtml(value:string):string { return value.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;/gi,'"').replace(/&#39;/gi,"'").replace(/&apos;/gi,"'").replace(/\s+/g," ").trim(); }
+function decode(value:string):string { return cleanHtml(value).replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(Number(n))); }
+function dateValue(value:string|null):string|null { if(!value) return null; const m=value.match(/(20\d{2})[\/\-](\d{2})[\/\-](\d{2})/); return m ? m[1]+"-"+m[2]+"-"+m[3] : null; }
+function normalize(value:string|null):string { return (value||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim(); }
 function regionMatch(text:string):boolean { const n=normalize(text); return REGION_TERMS.some(t=>n.includes(normalize(t))) || BUYER_REGION_TERMS.some(t=>n.includes(normalize(t))); }
 function serviceMatches(text:string):string[] { const n=normalize(text); return Array.from(new Set(SERVICE_TERMS.filter(([needle])=>n.includes(normalize(needle))).map(([,value])=>value))); }
 function isOpen(closingDate:string|null):boolean { return !!closingDate && new Date(closingDate+"T23:59:59Z").getTime() >= Date.now(); }
 function parseRows(html:string) {
- const rows:Array<any>=[]; const rowMatches=html.match(/<tr[\\s\\S]*?<\\/tr>/gi)||[];
+ const rows:Array<any>=[]; const rowMatches=html.match(/<tr[\s\S]*?<\/tr>/gi)||[];
  for(const row of rowMatches){
-  const link=row.match(/href=["\']([^"\']*tender-opportunities\\/tender-notice\\/[^"\']+)["\'][^>]*>([\\s\\S]*?)<\\/a>/i); if(!link) continue;
+  const link=row.match(/href=["\']([^"\']*tender-opportunities\/tender-notice\/[^"\']+)["\'][^>]*>([\s\S]*?)<\/a>/i); if(!link) continue;
   const href=link[1].startsWith("http")?link[1]:BASE+link[1]; const externalId=decode(href.split("/").pop()||"").split("?")[0]; if(!externalId) continue;
-  const cells=(row.match(/<t[dh][^>]*>[\\s\\S]*?<\\/t[dh]>/gi)||[]).map(decode); const title=decode(link[2]); const text=cells.join(" | "); const dates=text.match(/20\\d{2}[\\/\\-]\\d{2}[\\/\\-]\\d{2}/g)||[];
+  const cells=(row.match(/<t[dh][^>]*>[\s\S]*?<\/t[dh]>/gi)||[]).map(decode); const title=decode(link[2]); const text=cells.join(" | "); const dates=text.match(/20\d{2}[\/\-]\d{2}[\/\-]\d{2}/g)||[];
   rows.push({title,category:cells[1]||null,openDate:dates[0]||null,closingDate:dates[1]||null,buyer:cells.length?cells[cells.length-1]||null:null,url:href,externalId});
  } return rows;
 }
