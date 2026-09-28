@@ -17,7 +17,7 @@ export default async function ProcurementPage(){
 
   const {data:tenders}=await (s as any).from("tender_records")
     .select("id,external_id,title,buyer_name,category,region,published_date,closing_date,source,source_url,status,matched_organization_id,lead_id,response_mode,registration_required,fit_score,fit_note,last_verified_at,action_state,next_action,next_action_due_at")
-    .eq("workspace_id",ctx.workspaceId).order("closing_date",{ascending:true}).limit(150);
+    .eq("workspace_id",ctx.workspaceId).gte("closing_date",new Date().toISOString().slice(0,10)).order("closing_date",{ascending:true}).limit(150);
 
   const leadIds=(tenders??[]).map((t:any)=>t.lead_id).filter(Boolean);
   const {data:leadRows}=await (s as any).from("leads").select("id,contact_id,property_id").eq("workspace_id",ctx.workspaceId).in("id",leadIds.length?leadIds:["00000000-0000-0000-0000-000000000000"]);
@@ -34,6 +34,7 @@ export default async function ProcurementPage(){
   for(const row of tenderProperties??[]){ const p=propertyById.get(row.property_id); if(p) propertiesByTender.set(row.tender_record_id,[...(propertiesByTender.get(row.tender_record_id)??[]),{...p,...row}]); }
 
   const {data:runs}=await (s as any).from("canadabuys_runs").select("id,started_at,finished_at,status,fetched_count,qualifying_count,inserted_count,updated_count,lead_created_count,error_count,error_message").eq("workspace_id",ctx.workspaceId).order("started_at",{ascending:false}).limit(8);
+  const {data:sources}=await (s as any).from("tender_sources").select("source_key,display_name,source_url,ingestion_mode,last_run_at,last_success_at,last_error").eq("workspace_id",ctx.workspaceId).eq("enabled",true).order("display_name");
 
   const open=(tenders??[]).filter((t:any)=>t.closing_date && new Date(t.closing_date+"T23:59:59Z")>=new Date());
   const urgent=open.filter((t:any)=>{const d=daysLeft(t.closing_date); return d!==null && d<=7;}).length;
@@ -57,10 +58,12 @@ export default async function ProcurementPage(){
     </section>
 
     <section className="source-strip">
-      <div><strong>CanadaBuys</strong><span>{sourceCounts.get("CanadaBuys")||0} open · live scout</span></div>
-      <div><strong>City / MERX</strong><span>source connector next</span></div>
-      <div><strong>NCC</strong><span>captured through CanadaBuys + buyer intelligence</span></div>
-      <div><strong>Boards / institutions</strong><span>source connector next</span></div>
+      {(sources??[]).map((source:any)=><div key={source.source_key}>
+        <strong>{source.display_name}</strong>
+        <span>{source.ingestion_mode.replace("_"," ")}{source.source_key==="canadabuys" ? ` · ${sourceCounts.get("CanadaBuys")||0} open` : ""}</span>
+        {source.last_success_at?<span>last success {fmtDate(source.last_success_at)}</span>:null}
+        {source.last_error?<span>{source.last_error}</span>:null}
+      </div>)}
       <form action={runCanadaBuysScout}><button className="primary" type="submit">Run CanadaBuys scout</button></form>
     </section>
 
@@ -88,7 +91,8 @@ export default async function ProcurementPage(){
               <select name="stage" defaultValue={t.action_state||"new"} aria-label="Bid stage">{STAGES.map(stage=><option value={stage} key={stage}>{stage.replace("_"," ")}</option>)}</select>
               <button className="button" type="submit">Update</button>
             </form>
-            <a className="button" href={t.source_url} target="_blank" rel="noreferrer">Open notice</a>
+            <Link className="button" href={`/procurement/${t.id}`}>Review bid</Link>
+            {t.source_url?<a className="button" href={t.source_url} target="_blank" rel="noreferrer">Source</a>:null}
             {t.lead_id?<Link className="button" href="/sales">Lead</Link>:null}
           </div>
         </div>)}
