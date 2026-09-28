@@ -62,6 +62,8 @@ declare
   v_subtotal numeric := 0;
   v_direct numeric := 0;
 begin
+  perform set_config('app.estimate_internal_update','totals',true);
+
   select
     coalesce(sum(i.line_total),0),
     coalesce(sum(
@@ -109,6 +111,74 @@ end;
 $$;
 
 revoke all on function private.sync_estimate_totals() from public, anon, authenticated;
+
+create or replace function private.guard_estimate_update()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $
+declare
+  v_mode text := coalesce(current_setting('app.estimate_internal_update',true),'');
+begin
+  if old.workspace_id is distinct from new.workspace_id
+     or old.estimate_number is distinct from new.estimate_number
+     or old.organization_id is distinct from new.organization_id
+     or old.created_by is distinct from new.created_by
+     or old.created_at is distinct from new.created_at
+     or old.estimate_kind is distinct from new.estimate_kind then
+    raise exception 'Immutable estimate identity fields cannot be changed';
+  end if;
+
+  if (
+    old.subtotal is distinct from new.subtotal
+    or old.tax is distinct from new.tax
+    or old.total is distinct from new.total
+    or old.estimated_direct_cost is distinct from new.estimated_direct_cost
+    or old.estimated_gross_profit is distinct from new.estimated_gross_profit
+    or old.estimated_margin is distinct from new.estimated_margin
+  ) and v_mode <> 'totals' then
+    raise exception 'Estimate totals are calculated from line items';
+  end if;
+
+  if old.status is distinct from new.status then
+    if v_mode <> 'transition:' || new.status::text then
+      raise exception 'Estimate status changes must use advance_estimate';
+    end if;
+    if old.status='draft' and new.status='sent' then
+      if new.site_verified_at is null or new.site_verified_by is distinct from auth.uid()
+         or new.sent_at is null then
+        raise exception 'Sending requires persisted site verification';
+      end if;
+    elsif old.status='sent' and new.status='accepted' then
+      if old.site_verified_at is null or new.accepted_at is null then
+        raise exception 'Acceptance requires a verified sent estimate';
+      end if;
+    elsif old.status='sent' and new.status='rejected' then
+      if new.rejected_at is null then raise exception 'Rejection timestamp required'; end if;
+    else
+      raise exception 'Invalid estimate status transition';
+    end if;
+  end if;
+
+  if (
+    old.site_verified_at is distinct from new.site_verified_at
+    or old.site_verified_by is distinct from new.site_verified_by
+    or old.site_verification_notes is distinct from new.site_verification_notes
+  ) and v_mode not in ('revision','transition:sent') then
+    raise exception 'Site verification fields are workflow managed';
+  end if;
+
+  return new;
+end;
+$;
+
+revoke all on function private.guard_estimate_update() from public, anon, authenticated;
+
+drop trigger if exists guard_estimate_update on public.estimates;
+create trigger guard_estimate_update
+before update on public.estimates
+for each row execute function private.guard_estimate_update();
 
 drop trigger if exists sync_estimate_totals on public.estimate_items;
 create trigger sync_estimate_totals
@@ -409,6 +479,8 @@ begin
     raise exception 'Estimate total must be positive';
   end if;
 
+  perform set_config('app.estimate_internal_update','revision',true);
+
   update public.estimates
   set property_id=p_property_id,
       valid_until=p_valid_until,
@@ -462,6 +534,8 @@ begin
     if not p_site_confirmed then raise exception 'Site verification is required'; end if;
     if v_estimate.subtotal<=0 then raise exception 'Estimate total must be positive'; end if;
 
+    perform set_config('app.estimate_internal_update','transition:sent',true);
+
     update public.estimates
     set status='sent',
         site_verified_at=now(),
@@ -478,12 +552,16 @@ begin
       raise exception 'Expired estimates must be revised before acceptance';
     end if;
 
+    perform set_config('app.estimate_internal_update','transition:accepted',true);
+
     update public.estimates
     set status='accepted', accepted_at=now(), updated_at=now()
     where id=p_estimate_id;
 
   elsif p_action='rejected' then
     if v_estimate.status<>'sent' then raise exception 'Only a sent estimate can be rejected'; end if;
+
+    perform set_config('app.estimate_internal_update','transition:rejected',true);
 
     update public.estimates
     set status='rejected', rejected_at=now(), updated_at=now()
