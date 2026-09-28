@@ -401,7 +401,7 @@ returns uuid
 language plpgsql
 security invoker
 set search_path=public
-as $
+as $cbseq$
 declare v_id uuid;
 begin
   if auth.uid() is null then raise exception 'Authentication required'; end if;
@@ -441,7 +441,7 @@ begin
 
   return v_id;
 end;
-$;
+$cbseq$;
 
 revoke all on function public.generate_outreach_draft(uuid,text,text) from public;
 revoke all on function public.approve_outreach_draft(uuid) from public;
