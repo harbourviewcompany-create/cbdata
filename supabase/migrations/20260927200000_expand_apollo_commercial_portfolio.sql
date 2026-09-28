@@ -1,6 +1,6 @@
 -- Expand Apollo's Ottawa commercial portfolio with official portfolio evidence.
 -- Source: https://apollomgt.com/portfolio/
--- Safe to rerun: property, intelligence, evidence and target-property rows resolve by canonical names/IDs.
+-- Safe on a fresh database: production workspace/organization IDs are resolved only when present.
 
 create temporary table tmp_apollo_commercial(
   name text,address text,city text,postal text,sqft integer,score integer,summary text
@@ -45,15 +45,14 @@ insert into public.properties(
   owner_organization_id,management_organization_id
 )
 select
-  '431aa13d-3e7c-41e3-9686-e840b8ea5b7c'::uuid,
-  s.name,s.address,s.city,'ON','Canada','commercial','prospect'::property_status,
+  ws.id,s.name,s.address,s.city,'ON','Canada','commercial','prospect'::property_status,
   case when exists (select 1 from public.organizations o where o.id='044a899b-e5ba-4ca7-a7f9-1c78f11ec3e7'::uuid) then '044a899b-e5ba-4ca7-a7f9-1c78f11ec3e7'::uuid end,
   case when exists (select 1 from public.organizations o where o.id='044a899b-e5ba-4ca7-a7f9-1c78f11ec3e7'::uuid) then '044a899b-e5ba-4ca7-a7f9-1c78f11ec3e7'::uuid end
-from tmp_apollo_commercial s
+from public.workspaces ws
+cross join tmp_apollo_commercial s
 where not exists (
   select 1 from public.properties p
-  where p.workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c'
-    and p.name=s.name
+  where p.workspace_id=ws.id and p.name=s.name
 );
 
 insert into public.property_intelligence(
@@ -78,8 +77,7 @@ select
   'high',now()
 from public.properties p
 join tmp_apollo_commercial s on s.name=p.name
-where p.workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c'
-  and not exists(select 1 from public.property_intelligence pi where pi.property_id=p.id);
+where not exists(select 1 from public.property_intelligence pi where pi.property_id=p.id);
 
 insert into public.property_intelligence_sources(
   workspace_id,property_id,source_type,source_url,source_title,summary,confidence
@@ -91,11 +89,10 @@ select
   s.summary,'high'
 from public.properties p
 join tmp_apollo_commercial s on s.name=p.name
-where p.workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c'
-  and not exists(
-    select 1 from public.property_intelligence_sources x
-    where x.property_id=p.id and x.source_url='https://apollomgt.com/portfolio/'
-  );
+where not exists(
+  select 1 from public.property_intelligence_sources x
+  where x.property_id=p.id and x.source_url='https://apollomgt.com/portfolio/'
+);
 
 insert into public.outreach_target_properties(
   workspace_id,outreach_target_id,property_id,relationship_type,is_primary
@@ -105,8 +102,8 @@ select
   'c645cd3f-1d90-4439-a016-b8b5c601a762'::uuid,
   p.id,'management_site',false
 from public.properties p
-where p.workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c'
-  and p.name like 'Apollo — %'
+where p.name like 'Apollo — %'
+  and exists(select 1 from public.outreach_targets ot where ot.id='c645cd3f-1d90-4439-a016-b8b5c601a762'::uuid)
   and not exists(
     select 1 from public.outreach_target_properties x
     where x.outreach_target_id='c645cd3f-1d90-4439-a016-b8b5c601a762'::uuid
