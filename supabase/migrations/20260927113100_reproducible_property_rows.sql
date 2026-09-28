@@ -14,7 +14,7 @@ select '431aa13d-3e7c-41e3-9686-e840b8ea5b7c'::uuid,s.name,s.address_line_1,s.ci
 (select o.id from public.organizations o where o.workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c' and coalesce(o.operating_name,o.legal_name)=s.owner_name limit 1),
 (select o.id from public.organizations o where o.workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c' and coalesce(o.operating_name,o.legal_name)=s.customer_name limit 1),
 (select o.id from public.organizations o where o.workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c' and coalesce(o.operating_name,o.legal_name)=s.manager_name limit 1)
-from seed s where not exists(select 1 from public.properties p where p.workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c' and p.name=s.name and p.address_line_1=s.address_line_1)
+from seed s cross join public.workspaces ws where ws.id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c'::uuid and not exists(select 1 from public.properties p where p.workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c' and p.name=s.name and p.address_line_1=s.address_line_1)
 returning id
 )
 insert into public.property_intelligence(workspace_id,property_id,building_count,estimated_sqft,lot_area_sqft,parking_spaces,property_class,ownership_type,grounds_scope,snow_scope,janitorial_scope,capital_projects_signal,vendor_signal,procurement_signal,seasonal_priority,access_complexity,liability_signal,intelligence_score,intelligence_summary,primary_source_url,primary_source_label,data_confidence,verified_at)
