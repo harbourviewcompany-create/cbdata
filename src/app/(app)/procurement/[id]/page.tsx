@@ -7,7 +7,11 @@ import { requireWorkspace } from "@/lib/workspace";
 import {
   addTenderDeadline,
   addTenderRequirement,
+  confirmTenderSubmission,
   createEstimateFromTender,
+  markAddendaChecked,
+  saveNoBidReason,
+  saveTenderScorecard,
   updateTenderDeadline,
   updateTenderRequirement,
   updateTenderStage,
@@ -46,6 +50,18 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
   const incomplete=mandatory.filter((r:any)=>!["complete","not_applicable"].includes(r.status));
   const openDeadlines=(deadlines??[]).filter((d:any)=>d.status==="open");
   const nextDeadline=openDeadlines[0];
+  const score=tender.fit_breakdown??{};
+  const scoreFields=[
+    ["capability","Capability fit",20],
+    ["geography","Geographic fit",10],
+    ["contract_size","Contract size",15],
+    ["experience","Relevant experience",15],
+    ["equipment","Equipment availability",10],
+    ["labor_capacity","Labour capacity",10],
+    ["compliance","Compliance readiness",10],
+    ["competitive_position","Competitive position",5],
+    ["margin_potential","Margin potential",5],
+  ] as const;
 
   return <main className="list-shell">
     <header className="list-header">
@@ -66,6 +82,47 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
       <strong>Submission blocked</strong>
       <span>{incomplete.length} mandatory requirement{incomplete.length===1?" is":"s are"} incomplete.</span>
     </section>:null}
+
+    <section className="tender-detail-grid">
+      <div className="panel">
+        <div className="panel-head"><div><span className="eyebrow">BID / NO-BID</span><h3>Structured fit score</h3></div><strong>{tender.fit_score??0}/100</strong></div>
+        <form action={saveTenderScorecard}>
+          <input type="hidden" name="tender_id" value={id}/>
+          <div className="scorecard-grid">
+            {scoreFields.map(([key,label,max])=><label key={key}><span>{label} <small>/ {max}</small></span><input type="number" name={key} min="0" max={max} step="1" defaultValue={Number(score[key]??0)}/></label>)}
+          </div>
+          <label className="stacked-field"><span>Fit rationale</span><textarea name="fit_note" defaultValue={tender.fit_note||""} placeholder="Why this opportunity fits CB, major risks, relationship position, and assumptions."/></label>
+          <button className="primary" type="submit">Save scorecard</button>
+        </form>
+      </div>
+      <div className="panel">
+        <div className="panel-head"><div><span className="eyebrow">DECISION CONTROL</span><h3>No-bid / submission evidence</h3></div></div>
+        <form action={saveNoBidReason} className="stacked-form">
+          <input type="hidden" name="tender_id" value={id}/>
+          <label className="stacked-field"><span>No-bid reason</span><textarea name="no_bid_reason" defaultValue={tender.no_bid_reason||""} placeholder="Required before moving the tender to No Bid."/></label>
+          <button className="button" type="submit">Save no-bid reason</button>
+        </form>
+        <hr className="panel-rule"/>
+        <form action={confirmTenderSubmission} className="stacked-form">
+          <input type="hidden" name="tender_id" value={id}/>
+          <label className="stacked-field"><span>Submission method</span><input name="submission_method" defaultValue={tender.submission_method||""} placeholder="MERX, SAP Business Network, email, portal"/></label>
+          <label className="stacked-field"><span>Receipt / confirmation #</span><input name="submission_reference" defaultValue={tender.submission_reference||""} placeholder="Required"/></label>
+          <label className="stacked-field"><span>Receipt URL</span><input name="submission_receipt_url" defaultValue={tender.submission_receipt_url||""} placeholder="https://..."/></label>
+          <button className="primary" type="submit" disabled={incomplete.length>0||!estimate}>Confirm submitted</button>
+          {tender.submission_confirmed_at?<span className="status-meta">Confirmed {fmt(tender.submission_confirmed_at)}</span>:null}
+        </form>
+      </div>
+    </section>
+
+    <section className="panel" style={{marginBottom:18}}>
+      <div className="panel-head"><div><span className="eyebrow">ADDENDA CONTROL</span><h3>Last-minute requirement changes</h3></div></div>
+      <form action={markAddendaChecked} className="inline-form">
+        <input type="hidden" name="tender_id" value={id}/>
+        <label>Addenda count <input name="addenda_count" type="number" min="0" defaultValue={Number(tender.addenda_count||0)}/></label>
+        <button className="button" type="submit">Mark addenda checked now</button>
+        <span className="status-meta">Last checked {fmt(tender.last_addenda_checked_at)}</span>
+      </form>
+    </section>
 
     <section className="tender-detail-grid">
       <div className="panel">

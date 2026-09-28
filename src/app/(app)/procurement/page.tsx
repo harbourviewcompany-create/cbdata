@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { requireWorkspace } from "@/lib/workspace";
-import { runCanadaBuysScout, updateTenderStage } from "./actions";
+import { runCanadaBuysScout, updateSupplierRegistration, updateTenderStage } from "./actions";
 import "./procurement.css";
 
 function fmtDate(value:string|null){ if(!value) return "—"; return new Date(value).toLocaleDateString("en-CA",{year:"numeric",month:"short",day:"numeric"}); }
@@ -36,6 +36,7 @@ export default async function ProcurementPage(){
 
   const {data:runs}=await (s as any).from("canadabuys_runs").select("id,started_at,finished_at,status,fetched_count,qualifying_count,inserted_count,updated_count,lead_created_count,error_count,error_message").eq("workspace_id",ctx.workspaceId).order("started_at",{ascending:false}).limit(8);
   const {data:sources}=await (s as any).from("tender_sources").select("source_key,display_name,source_url,ingestion_mode,last_run_at,last_success_at,last_error").eq("workspace_id",ctx.workspaceId).eq("enabled",true).order("display_name");
+  const {data:registrations}=await (s as any).from("supplier_registrations").select("id,source_key,registration_name,status,account_reference,expires_on,evidence_url,notes,updated_at").eq("workspace_id",ctx.workspaceId).order("registration_name");
 
   const open=(tenders??[]).filter((t:any)=>t.closing_date && new Date(t.closing_date+"T23:59:59Z")>=new Date());
   const urgent=open.filter((t:any)=>{const d=daysLeft(t.closing_date); return d!==null && d<=7;}).length;
@@ -66,6 +67,23 @@ export default async function ProcurementPage(){
         {source.last_error?<span>{source.last_error}</span>:null}
       </div>)}
       <form action={runCanadaBuysScout}><button className="primary" type="submit">Run CanadaBuys scout</button></form>
+    </section>
+
+    <section className="table-panel" style={{marginBottom:18}}>
+      <div className="panel-head"><div><span className="eyebrow">SUPPLIER READINESS</span><h3>Registrations and prequalification</h3></div><span className="muted">{(registrations??[]).filter((r:any)=>r.status==="active"||r.status==="not_required").length}/{(registrations??[]).length} ready</span></div>
+      <div className="tender-list">
+        {(registrations??[]).map((r:any)=><div className="tender-list-row" key={r.id}>
+          <div><strong>{r.registration_name}</strong><span className="status-meta">{r.source_key} · {r.status.replace("_"," ")}</span>{r.notes?<span className="status-meta wrap">{r.notes}</span>:null}</div>
+          <form action={updateSupplierRegistration} className="supplier-registration-form">
+            <input type="hidden" name="registration_id" value={r.id}/>
+            <select name="status" defaultValue={r.status}>{["unknown","not_required","required","in_progress","active","expired","blocked"].map(x=><option key={x} value={x}>{x.replace("_"," ")}</option>)}</select>
+            <input name="account_reference" defaultValue={r.account_reference||""} placeholder="Account / vendor #"/>
+            <input name="evidence_url" defaultValue={r.evidence_url||""} placeholder="Evidence URL"/>
+            <input name="notes" defaultValue={r.notes||""} placeholder="Notes"/>
+            <button className="button" type="submit">Save</button>
+          </form>
+        </div>)}
+      </div>
     </section>
 
     <section className="panel bid-process">

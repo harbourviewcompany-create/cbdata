@@ -25,8 +25,25 @@ export async function updateTenderStage(formData: FormData) {
   if (!tenderId || !STAGES[stage]) throw new Error("Invalid tender stage");
 
   const { data: current, error: currentError } = await (s as any)
-    .from("tender_records").select("action_state").eq("workspace_id", ctx.workspaceId).eq("id", tenderId).single();
+    .from("tender_records").select("action_state,estimate_id,no_bid_reason").eq("workspace_id", ctx.workspaceId).eq("id", tenderId).single();
   if (currentError) throw currentError;
+
+  if (stage === "submitted") {
+    const { data: blockers, error: blockersError } = await (s as any)
+      .from("tender_requirements")
+      .select("id")
+      .eq("workspace_id", ctx.workspaceId)
+      .eq("tender_record_id", tenderId)
+      .eq("mandatory", true)
+      .not("status", "in", '("complete","not_applicable")');
+    if (blockersError) throw blockersError;
+    if ((blockers ?? []).length) throw new Error("Submission blocked: complete every mandatory tender requirement first");
+    if (!current?.estimate_id) throw new Error("Submission blocked: link and complete an estimate before submitting");
+  }
+
+  if (stage === "no_bid" && !current?.no_bid_reason) {
+    throw new Error("Record a no-bid reason before moving this tender to No Bid");
+  }
 
   const { data: userData } = await s.auth.getUser();
   const { error } = await (s as any)
@@ -172,6 +189,131 @@ export async function createEstimateFromTender(formData: FormData) {
   revalidatePath("/procurement");
   revalidatePath(`/procurement/${tenderId}`);
   redirect(`/estimates/${estimate.id}`);
+}
+
+
+export async function saveTenderScorecard(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const tenderId = String(formData.get("tender_id") || "");
+  if (!tenderId) throw new Error("Tender is required");
+
+  const fields: Record<string, number> = {
+    capability: 20,
+    geography: 10,
+    contract_size: 15,
+    experience: 15,
+    equipment: 10,
+    labor_capacity: 10,
+    compliance: 10,
+    competitive_position: 5,
+    margin_potential: 5,
+  };
+
+  const breakdown: Record<string, number> = {};
+  let score = 0;
+  for (const [key, max] of Object.entries(fields)) {
+    const raw = Number(formData.get(key) || 0);
+    const value = Math.max(0, Math.min(max, Number.isFinite(raw) ? raw : 0));
+    breakdown[key] = value;
+    score += value;
+  }
+
+  const fitNote = String(formData.get("fit_note") || "").trim() || null;
+  const { error } = await (s as any).from("tender_records").update({
+    fit_score: score,
+    fit_breakdown: breakdown,
+    fit_note: fitNote,
+  }).eq("workspace_id", ctx.workspaceId).eq("id", tenderId);
+  if (error) throw error;
+
+  revalidatePath("/procurement");
+  revalidatePath(`/procurement/${tenderId}`);
+}
+
+export async function saveNoBidReason(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const tenderId = String(formData.get("tender_id") || "");
+  const reason = String(formData.get("no_bid_reason") || "").trim();
+  if (!tenderId || !reason) throw new Error("A no-bid reason is required");
+  const { data: userData } = await s.auth.getUser();
+  const { error } = await (s as any).from("tender_records").update({
+    no_bid_reason: reason,
+    bid_decision_at: new Date().toISOString(),
+    bid_decision_by: userData.user?.id ?? null,
+  }).eq("workspace_id",ctx.workspaceId).eq("id",tenderId);
+  if (error) throw error;
+  revalidatePath(`/procurement/${tenderId}`);
+  revalidatePath("/procurement");
+}
+
+export async function confirmTenderSubmission(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const tenderId = String(formData.get("tender_id") || "");
+  const reference = String(formData.get("submission_reference") || "").trim();
+  const receiptUrl = String(formData.get("submission_receipt_url") || "").trim();
+  const method = String(formData.get("submission_method") || "").trim();
+  if (!tenderId || !reference) throw new Error("Submission reference/receipt number is required");
+
+  const { data: blockers, error: blockersError } = await (s as any)
+    .from("tender_requirements").select("id")
+    .eq("workspace_id",ctx.workspaceId).eq("tender_record_id",tenderId)
+    .eq("mandatory",true).not("status","in",'("complete","not_applicable")');
+  if (blockersError) throw blockersError;
+  if ((blockers ?? []).length) throw new Error("Submission cannot be confirmed while mandatory requirements are incomplete");
+
+  const { data: tender, error: tenderError } = await (s as any)
+    .from("tender_records").select("estimate_id,action_state")
+    .eq("workspace_id",ctx.workspaceId).eq("id",tenderId).single();
+  if (tenderError) throw tenderError;
+  if (!tender.estimate_id) throw new Error("Submission cannot be confirmed without a linked estimate");
+
+  const { error } = await (s as any).from("tender_records").update({
+    submission_reference: reference,
+    submission_receipt_url: receiptUrl || null,
+    submission_method: method || null,
+    submission_confirmed_at: new Date().toISOString(),
+    action_state: "submitted",
+    next_action: "Confirm receipt and monitor award",
+  }).eq("workspace_id",ctx.workspaceId).eq("id",tenderId);
+  if (error) throw error;
+
+  revalidatePath("/procurement");
+  revalidatePath(`/procurement/${tenderId}`);
+}
+
+export async function markAddendaChecked(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const tenderId = String(formData.get("tender_id") || "");
+  const count = Math.max(0, Number(formData.get("addenda_count") || 0));
+  if (!tenderId) throw new Error("Tender is required");
+  const { error } = await (s as any).from("tender_records").update({
+    addenda_count: Number.isFinite(count) ? count : 0,
+    last_addenda_checked_at: new Date().toISOString(),
+  }).eq("workspace_id",ctx.workspaceId).eq("id",tenderId);
+  if (error) throw error;
+  revalidatePath(`/procurement/${tenderId}`);
+}
+
+export async function updateSupplierRegistration(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const id = String(formData.get("registration_id") || "");
+  const status = String(formData.get("status") || "");
+  const allowed = ["unknown","not_required","required","in_progress","active","expired","blocked"];
+  if (!id || !allowed.includes(status)) throw new Error("Invalid supplier registration status");
+  const { error } = await (s as any).from("supplier_registrations").update({
+    status,
+    account_reference: String(formData.get("account_reference") || "").trim() || null,
+    evidence_url: String(formData.get("evidence_url") || "").trim() || null,
+    notes: String(formData.get("notes") || "").trim() || null,
+    updated_at: new Date().toISOString(),
+  }).eq("workspace_id",ctx.workspaceId).eq("id",id);
+  if (error) throw error;
+  revalidatePath("/procurement");
 }
 
 export async function runCanadaBuysScout() {
