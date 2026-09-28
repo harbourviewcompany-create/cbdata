@@ -237,7 +237,7 @@ Deno.serve(async (req) => {
           price_each: round2(found.price),
           currency: "CAD",
           stock_status: "verify_store",
-          store_label: requestRow.region,
+          store_label: "Web price — verify Ottawa store",
           bulk_min_qty: product.bulk_min_qty,
           bulk_discount_pct: product.bulk_discount_pct,
           evidence_url: found.evidenceUrl,
@@ -274,9 +274,24 @@ Deno.serve(async (req) => {
   if (observationsError) return json({ error: observationsError.message }, 500);
 
   const latest = new Map<string, AnyRow>();
+  const observationPriority = (observation: AnyRow) => {
+    const ageDays = (Date.now() - new Date(observation.observed_at).getTime()) / 86_400_000;
+    if (observation.source_type === "manual_quote" && ageDays <= 30) return 4;
+    if (observation.source_type === "live_page" && ageDays <= 7) return 3;
+    if (observation.source_type === "manual_quote") return 2;
+    return 1;
+  };
   for (const observation of observations || []) {
     const key = `${observation.material_item_id}:${observation.supplier_id}`;
-    if (!latest.has(key)) latest.set(key, observation);
+    const current = latest.get(key);
+    if (
+      !current
+      || observationPriority(observation) > observationPriority(current)
+      || (
+        observationPriority(observation) === observationPriority(current)
+        && new Date(observation.observed_at).getTime() > new Date(current.observed_at).getTime()
+      )
+    ) latest.set(key, observation);
   }
 
   const productByPair = new Map<string, AnyRow>();
