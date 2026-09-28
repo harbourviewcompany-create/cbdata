@@ -7,7 +7,12 @@ begin
   select count(*) into n from public.outreach_targets
   where workspace_id=v_workspace and organization_name in ('District Realty','Regional Group','Merkburn Holdings')
     and priority='high' and score>=95;
-  if n <> 3 then raise exception 'Expected 3 new Tier-1 portfolio targets, found %', n; end if;
+  if n <> 3 then raise exception 'Expected 3 initial Tier-1 portfolio targets, found %', n; end if;
+
+  select count(*) into n from public.outreach_targets
+  where workspace_id=v_workspace and organization_name in ('Colonnade BridgePort','Taggart Realty Management','CLV Group','Minto Commercial','Osgoode Properties')
+    and priority='high' and score>=90;
+  if n <> 5 then raise exception 'Expected 5 additional Tier-1 Ottawa portfolio targets, found %', n; end if;
 
   select count(*) into n from public.contacts
   where workspace_id=v_workspace and email='michaelmorin@districtrealty.com'
