@@ -158,7 +158,7 @@ begin
   set score=s.effective_score,
       priority=case
         when s.effective_score >= 85 then 'high'::work_priority
-        when s.effective_score >= 65 then 'medium'::work_priority
+        when s.effective_score >= 65 then 'normal'::work_priority
         else t.priority
       end,
       updated_at=now()
