@@ -662,6 +662,7 @@ export type Database = {
           proposal_id: string | null
           renewal_type: string | null
           signed_document_id: string | null
+          source_estimate_id: string | null
           start_date: string
           status: Database["public"]["Enums"]["contract_status"]
           terminated_at: string | null
@@ -682,6 +683,7 @@ export type Database = {
           proposal_id?: string | null
           renewal_type?: string | null
           signed_document_id?: string | null
+          source_estimate_id?: string | null
           start_date: string
           status?: Database["public"]["Enums"]["contract_status"]
           terminated_at?: string | null
@@ -702,6 +704,7 @@ export type Database = {
           proposal_id?: string | null
           renewal_type?: string | null
           signed_document_id?: string | null
+          source_estimate_id?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["contract_status"]
           terminated_at?: string | null
@@ -756,6 +759,13 @@ export type Database = {
             columns: ["signed_document_id"]
             isOneToOne: false
             referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_source_estimate_id_fkey"
+            columns: ["source_estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
             referencedColumns: ["id"]
           },
           {
@@ -1101,6 +1111,7 @@ export type Database = {
           accepted_at: string | null
           created_at: string
           created_by: string | null
+          estimate_kind: string
           estimate_number: string
           estimated_direct_cost: number
           estimated_gross_profit: number
@@ -1112,6 +1123,9 @@ export type Database = {
           property_id: string | null
           rejected_at: string | null
           sent_at: string | null
+          site_verification_notes: string | null
+          site_verified_at: string | null
+          site_verified_by: string | null
           status: Database["public"]["Enums"]["estimate_status"]
           subtotal: number
           tax: number
@@ -1124,6 +1138,7 @@ export type Database = {
           accepted_at?: string | null
           created_at?: string
           created_by?: string | null
+          estimate_kind?: string
           estimate_number: string
           estimated_direct_cost?: number
           estimated_gross_profit?: number
@@ -1135,6 +1150,9 @@ export type Database = {
           property_id?: string | null
           rejected_at?: string | null
           sent_at?: string | null
+          site_verification_notes?: string | null
+          site_verified_at?: string | null
+          site_verified_by?: string | null
           status?: Database["public"]["Enums"]["estimate_status"]
           subtotal?: number
           tax?: number
@@ -1147,6 +1165,7 @@ export type Database = {
           accepted_at?: string | null
           created_at?: string
           created_by?: string | null
+          estimate_kind?: string
           estimate_number?: string
           estimated_direct_cost?: number
           estimated_gross_profit?: number
@@ -1158,6 +1177,9 @@ export type Database = {
           property_id?: string | null
           rejected_at?: string | null
           sent_at?: string | null
+          site_verification_notes?: string | null
+          site_verified_at?: string | null
+          site_verified_by?: string | null
           status?: Database["public"]["Enums"]["estimate_status"]
           subtotal?: number
           tax?: number
@@ -4020,7 +4042,57 @@ export type Database = {
           updated_at?: string
           workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "target_opportunity_signals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "target_opportunity_signals_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "target_opportunity_signals_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "property_360"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "target_opportunity_signals_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "v_property_intelligence"
+            referencedColumns: ["property_id"]
+          },
+          {
+            foreignKeyName: "target_opportunity_signals_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "target_opportunity_signals_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_target_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "target_opportunity_signals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tasks: {
         Row: {
@@ -4187,6 +4259,120 @@ export type Database = {
           },
         ]
       }
+      tender_deadlines: {
+        Row: {
+          created_at: string
+          deadline_type: string
+          due_at: string
+          id: string
+          mandatory: boolean
+          notes: string | null
+          status: string
+          tender_record_id: string
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          deadline_type?: string
+          due_at: string
+          id?: string
+          mandatory?: boolean
+          notes?: string | null
+          status?: string
+          tender_record_id: string
+          title: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          deadline_type?: string
+          due_at?: string
+          id?: string
+          mandatory?: boolean
+          notes?: string | null
+          status?: string
+          tender_record_id?: string
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_deadlines_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_deadlines_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_documents: {
+        Row: {
+          created_at: string
+          document_type: string
+          id: string
+          is_current: boolean
+          published_at: string | null
+          source_url: string | null
+          storage_path: string | null
+          tender_record_id: string
+          title: string
+          version: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_type?: string
+          id?: string
+          is_current?: boolean
+          published_at?: string | null
+          source_url?: string | null
+          storage_path?: string | null
+          tender_record_id: string
+          title: string
+          version?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          id?: string
+          is_current?: boolean
+          published_at?: string | null
+          source_url?: string | null
+          storage_path?: string | null
+          tender_record_id?: string
+          title?: string
+          version?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_documents_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_documents_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tender_properties: {
         Row: {
           created_at: string
@@ -4265,23 +4451,35 @@ export type Database = {
       tender_records: {
         Row: {
           action_state: string
+          addenda_count: number
           buyer_name: string | null
           category: string | null
           closing_date: string | null
+          contract_end_date: string | null
+          contract_start_date: string | null
           created_at: string
           currency: string
+          estimate_id: string | null
           estimated_value: number | null
+          expected_rebid_date: string | null
           external_id: string
+          fit_breakdown: Json
           fit_note: string | null
           fit_score: number | null
           id: string
+          incumbent_name: string | null
+          last_addenda_checked_at: string | null
           last_verified_at: string | null
           lead_id: string | null
           lead_source_id: string | null
           matched_organization_id: string | null
           next_action: string | null
           next_action_due_at: string | null
+          no_bid_reason: string | null
           notes: string | null
+          opportunity_id: string | null
+          owner_user_id: string | null
+          previous_award_value: number | null
           published_date: string | null
           raw_payload: Json | null
           region: string | null
@@ -4290,30 +4488,45 @@ export type Database = {
           source: string
           source_url: string | null
           status: Database["public"]["Enums"]["tender_record_status"]
+          submission_confirmed_at: string | null
+          submission_receipt_url: string | null
           title: string
           updated_at: string
+          vendor_prerequisite_status: string | null
           watch_query: string | null
           workspace_id: string
         }
         Insert: {
           action_state?: string
+          addenda_count?: number
           buyer_name?: string | null
           category?: string | null
           closing_date?: string | null
+          contract_end_date?: string | null
+          contract_start_date?: string | null
           created_at?: string
           currency?: string
+          estimate_id?: string | null
           estimated_value?: number | null
+          expected_rebid_date?: string | null
           external_id: string
+          fit_breakdown?: Json
           fit_note?: string | null
           fit_score?: number | null
           id?: string
+          incumbent_name?: string | null
+          last_addenda_checked_at?: string | null
           last_verified_at?: string | null
           lead_id?: string | null
           lead_source_id?: string | null
           matched_organization_id?: string | null
           next_action?: string | null
           next_action_due_at?: string | null
+          no_bid_reason?: string | null
           notes?: string | null
+          opportunity_id?: string | null
+          owner_user_id?: string | null
+          previous_award_value?: number | null
           published_date?: string | null
           raw_payload?: Json | null
           region?: string | null
@@ -4322,30 +4535,45 @@ export type Database = {
           source: string
           source_url?: string | null
           status?: Database["public"]["Enums"]["tender_record_status"]
+          submission_confirmed_at?: string | null
+          submission_receipt_url?: string | null
           title: string
           updated_at?: string
+          vendor_prerequisite_status?: string | null
           watch_query?: string | null
           workspace_id: string
         }
         Update: {
           action_state?: string
+          addenda_count?: number
           buyer_name?: string | null
           category?: string | null
           closing_date?: string | null
+          contract_end_date?: string | null
+          contract_start_date?: string | null
           created_at?: string
           currency?: string
+          estimate_id?: string | null
           estimated_value?: number | null
+          expected_rebid_date?: string | null
           external_id?: string
+          fit_breakdown?: Json
           fit_note?: string | null
           fit_score?: number | null
           id?: string
+          incumbent_name?: string | null
+          last_addenda_checked_at?: string | null
           last_verified_at?: string | null
           lead_id?: string | null
           lead_source_id?: string | null
           matched_organization_id?: string | null
           next_action?: string | null
           next_action_due_at?: string | null
+          no_bid_reason?: string | null
           notes?: string | null
+          opportunity_id?: string | null
+          owner_user_id?: string | null
+          previous_award_value?: number | null
           published_date?: string | null
           raw_payload?: Json | null
           region?: string | null
@@ -4354,12 +4582,22 @@ export type Database = {
           source?: string
           source_url?: string | null
           status?: Database["public"]["Enums"]["tender_record_status"]
+          submission_confirmed_at?: string | null
+          submission_receipt_url?: string | null
           title?: string
           updated_at?: string
+          vendor_prerequisite_status?: string | null
           watch_query?: string | null
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tender_records_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tender_records_lead_id_fkey"
             columns: ["lead_id"]
@@ -4382,7 +4620,181 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tender_records_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tender_records_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_requirements: {
+        Row: {
+          created_at: string
+          description: string | null
+          due_at: string | null
+          evidence_url: string | null
+          id: string
+          mandatory: boolean
+          notes: string | null
+          owner_user_id: string | null
+          requirement_type: string
+          status: string
+          tender_record_id: string
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          due_at?: string | null
+          evidence_url?: string | null
+          id?: string
+          mandatory?: boolean
+          notes?: string | null
+          owner_user_id?: string | null
+          requirement_type?: string
+          status?: string
+          tender_record_id: string
+          title: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          due_at?: string | null
+          evidence_url?: string | null
+          id?: string
+          mandatory?: boolean
+          notes?: string | null
+          owner_user_id?: string | null
+          requirement_type?: string
+          status?: string
+          tender_record_id?: string
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_requirements_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_requirements_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_sources: {
+        Row: {
+          created_at: string
+          display_name: string
+          enabled: boolean
+          id: string
+          ingestion_mode: string
+          last_error: string | null
+          last_run_at: string | null
+          last_success_at: string | null
+          source_key: string
+          source_url: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          enabled?: boolean
+          id?: string
+          ingestion_mode?: string
+          last_error?: string | null
+          last_run_at?: string | null
+          last_success_at?: string | null
+          source_key: string
+          source_url?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          enabled?: boolean
+          id?: string
+          ingestion_mode?: string
+          last_error?: string | null
+          last_run_at?: string | null
+          last_success_at?: string | null
+          source_key?: string
+          source_url?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_sources_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_stage_history: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          from_stage: string | null
+          id: string
+          note: string | null
+          tender_record_id: string
+          to_stage: string
+          workspace_id: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          from_stage?: string | null
+          id?: string
+          note?: string | null
+          tender_record_id: string
+          to_stage: string
+          workspace_id: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          from_stage?: string | null
+          id?: string
+          note?: string | null
+          tender_record_id?: string
+          to_stage?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_stage_history_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_stage_history_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -5503,6 +5915,15 @@ export type Database = {
       }
     }
     Functions: {
+      advance_estimate: {
+        Args: {
+          p_action: string
+          p_estimate_id: string
+          p_site_confirmed?: boolean
+          p_site_notes?: string
+        }
+        Returns: undefined
+      }
       claim_outreach_target: { Args: { p_target_id: string }; Returns: string }
       complete_work_order_with_invoice: {
         Args: { p_notes?: string; p_work_order_id: string }
@@ -5519,8 +5940,22 @@ export type Database = {
         }
         Returns: number
       }
+      convert_estimate_to_contract: {
+        Args: { p_estimate_id: string }
+        Returns: string
+      }
       convert_outreach_target_to_lead: {
         Args: { p_target_id: string }
+        Returns: string
+      }
+      create_deck_estimate_draft: {
+        Args: {
+          p_items: Json
+          p_organization_id: string
+          p_property_id: string
+          p_valid_until: string
+          p_workspace_id: string
+        }
         Returns: string
       }
       create_notification: {
@@ -5621,6 +6056,15 @@ export type Database = {
       }
       storage_workspace_id: { Args: { object_name: string }; Returns: string }
       target_is_reachable: { Args: { p_target_id: string }; Returns: boolean }
+      update_deck_estimate_draft: {
+        Args: {
+          p_estimate_id: string
+          p_items: Json
+          p_property_id: string
+          p_valid_until: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       activity_status: "planned" | "completed" | "cancelled"
