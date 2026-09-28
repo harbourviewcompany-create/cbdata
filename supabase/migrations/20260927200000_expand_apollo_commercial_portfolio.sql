@@ -47,8 +47,8 @@ insert into public.properties(
 select
   '431aa13d-3e7c-41e3-9686-e840b8ea5b7c'::uuid,
   s.name,s.address,s.city,'ON','Canada','commercial','prospect'::property_status,
-  '044a899b-e5ba-4ca7-a7f9-1c78f11ec3e7'::uuid,
-  '044a899b-e5ba-4ca7-a7f9-1c78f11ec3e7'::uuid
+  case when exists (select 1 from public.organizations o where o.id='044a899b-e5ba-4ca7-a7f9-1c78f11ec3e7'::uuid) then '044a899b-e5ba-4ca7-a7f9-1c78f11ec3e7'::uuid end,
+  case when exists (select 1 from public.organizations o where o.id='044a899b-e5ba-4ca7-a7f9-1c78f11ec3e7'::uuid) then '044a899b-e5ba-4ca7-a7f9-1c78f11ec3e7'::uuid end
 from tmp_apollo_commercial s
 where not exists (
   select 1 from public.properties p
