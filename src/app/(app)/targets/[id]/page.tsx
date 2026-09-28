@@ -16,7 +16,7 @@ type PropertyContactRow = {
   is_primary: boolean;
   emergency_contact: boolean;
   notes: string | null;
-  contacts: { id: string; first_name: string; last_name: string; job_title: string | null; email: string | null; phone: string | null; mobile: string | null } | { id: string; first_name: string; last_name: string; job_title: string | null; email: string | null; phone: string | null; mobile: string | null }[] | null;
+  contacts: { id: string; first_name: string; last_name: string; job_title: string | null; email: string | null; phone: string | null; mobile: string | null; source_url?: string | null; source_label?: string | null; source_confidence?: string | null; source_verified_at?: string | null } | { id: string; first_name: string; last_name: string; job_title: string | null; email: string | null; phone: string | null; mobile: string | null; source_url?: string | null; source_label?: string | null; source_confidence?: string | null; source_verified_at?: string | null }[] | null;
 };
 
 type PropertyEvidenceRow = {
@@ -81,7 +81,7 @@ export default async function TargetDetail({
     row.organization_id
       ? s
           .from("organization_contacts")
-          .select("id,contact_id,relationship_type,is_primary,contacts(id,first_name,last_name,job_title,email,phone,mobile)")
+          .select("id,contact_id,relationship_type,is_primary,contacts(id,first_name,last_name,job_title,email,phone,mobile,source_url,source_label,source_confidence,source_verified_at)")
           .eq("organization_id", row.organization_id)
           .eq("workspace_id", ctx.workspaceId)
       : Promise.resolve({ data: [] }),
@@ -247,6 +247,10 @@ export default async function TargetDetail({
                   email?: string | null;
                   phone?: string | null;
                   mobile?: string | null;
+                  source_url?: string | null;
+                  source_label?: string | null;
+                  source_confidence?: string | null;
+                  source_verified_at?: string | null;
                 } | null;
                 if (!c) return null;
                 return (
@@ -262,6 +266,15 @@ export default async function TargetDetail({
                     <span className="muted">
                       {c.phone || c.mobile || "no phone"} · {c.email || "no email"}
                     </span>
+                    {c.source_url ? (
+                      <span className="muted" style={{fontSize:11}}>
+                        verified {c.source_confidence ?? "source-backed"} · {freshness(c.source_verified_at)}
+                        {" · "}
+                        <a href={c.source_url} target="_blank" rel="noreferrer">{c.source_label ?? "source"}</a>
+                      </span>
+                    ) : (
+                      <span className="muted" style={{fontSize:11}}>No source record attached</span>
+                    )}
                     {!link.is_primary ? (
                       <form action={setPrimaryTargetContact}>
                         <input type="hidden" name="target_id" value={row.id} />
