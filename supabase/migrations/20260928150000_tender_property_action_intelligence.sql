@@ -34,11 +34,17 @@ create policy tender_properties_update on public.tender_properties for update to
 
 do $$
 declare
-  w uuid := '431aa13d-3e7c-41e3-9686-e840b8ea5b7c';
-  nrc uuid := '0feb6b39-499b-4435-ae0f-b7ae93b3f8d5';
+  w uuid;
+  nrc uuid;
+
   prop_id uuid;
   tender_id uuid;
 begin
+  select id into w from public.workspaces where slug='cb-contracting' limit 1;
+  if w is null then return; end if;
+  select id into nrc from public.organizations where workspace_id=w and (lower(legal_name)='national research council of canada' or lower(operating_name)='nrc') limit 1;
+  if nrc is null then return; end if;
+
   insert into public.properties(workspace_id,name,address_line_1,city,province,postal_code,country,property_type,status,owner_organization_id,site_notes)
   select w,'NRC Ottawa — Montreal Road Campus','1200 Montreal Road','Ottawa','ON','K1A 0R6','Canada','government_facility','prospect',nrc,
     'NRC headquarters/campus. Official NRC location page identifies the site; NRC building inventory documents numerous Crown-owned buildings at this address.'
