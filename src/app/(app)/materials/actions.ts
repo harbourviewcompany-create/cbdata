@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireWorkspace } from "@/lib/workspace";
 import { requireWorkspaceRole } from "@/lib/authz";
 
-const MATERIAL_ROLES = ["owner", "administrator", "operations_manager", "sales_manager", "sales_rep"];
+const MATERIAL_ROLES = ["owner", "administrator", "operations_manager", "sales_manager", "sales_rep"] as const;
 
 function textValue(f: FormData, key: string) {
   return String(f.get(key) ?? "").trim();
