@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { generateDraft, approveDraft, markSent, classifyReply } from "./actions";
+import { generateDraft, approveDraft, markSent, classifyReply, enrollDefaultSequence, runDueSequences } from "./actions";
 
 type QueueRow = {
   id:string; organization_display_name:string|null; contact_display_name:string|null;
@@ -69,6 +69,7 @@ export default async function OutreachPage({
         <Link className="button" href={"/outreach?action=send" as Route}>Send</Link>
         <Link className="button" href={"/outreach?action=follow_up" as Route}>Follow up</Link>
         <Link className="button" href={"/outreach?action=research" as Route}>Research</Link>
+        <form action={runDueSequences}><button className="primary" type="submit">Run due sequence steps</button></form>
       </div>
     </section>
 
@@ -115,9 +116,12 @@ export default async function OutreachPage({
             </details> : null}
 
             <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-              {!r.latest_draft_id || r.recommended_action==="generate_draft" ? <form action={generateDraft}>
+              {!r.latest_draft_id || r.recommended_action==="generate_draft" ? <form action={generateDraft} style={{display:"flex",gap:6}}>
                 <input type="hidden" name="target_id" value={r.id}/>
-                <input type="hidden" name="channel" value="email"/>
+                <select name="channel" defaultValue="email" aria-label="Draft channel">
+                  <option value="email">Email</option><option value="linkedin">LinkedIn</option>
+                  <option value="call">Call opener</option><option value="voicemail">Voicemail</option><option value="sms">SMS</option>
+                </select>
                 <button className="primary" type="submit">Generate draft</button>
               </form> : null}
               {r.latest_draft_id && r.latest_draft_state==="draft" ? <form action={approveDraft}>
@@ -132,6 +136,10 @@ export default async function OutreachPage({
                 <input type="hidden" name="provider" value="manual"/>
                 <button className="button" type="submit">Mark sent + schedule follow-up</button>
               </form> : null}
+              <form action={enrollDefaultSequence}>
+                <input type="hidden" name="target_id" value={r.id}/>
+                <button className="button" type="submit">Enroll 7-touch</button>
+              </form>
               <details>
                 <summary className="button" style={{cursor:"pointer"}}>Log reply</summary>
                 <form action={classifyReply} style={{display:"grid",gap:8,minWidth:320,marginTop:8}}>
