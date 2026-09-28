@@ -153,6 +153,20 @@ export default async function TargetDetail({
 
   const companyName = org?.operating_name || org?.legal_name || row.organization_name || "Target";
 
+  const whyNowByProperty = new Map<string, string[]>();
+  for (const p of propertyRows) {
+    const reasons: string[] = [];
+    if ((p.recent_permit_count ?? 0) > 0) reasons.push(`${p.recent_permit_count} recent permit${p.recent_permit_count === 1 ? "" : "s"}${p.recent_permit_value ? ` · ${Number(p.recent_permit_value).toLocaleString()} value` : ""}`);
+    if (p.capital_projects_signal) reasons.push(`capital: ${p.capital_projects_signal}`);
+    if (p.procurement_signal) reasons.push(`procurement: ${p.procurement_signal}`);
+    if (p.vendor_signal) reasons.push(`vendor: ${p.vendor_signal}`);
+    if (p.seasonal_priority) reasons.push(`season: ${p.seasonal_priority}`);
+    if (p.grounds_scope) reasons.push(`grounds: ${p.grounds_scope}`);
+    if (p.snow_scope) reasons.push(`snow: ${p.snow_scope}`);
+    if (p.janitorial_scope) reasons.push(`janitorial: ${p.janitorial_scope}`);
+    if (reasons.length) whyNowByProperty.set(p.property_id, reasons.slice(0, 4));
+  }
+
   return (
     <>
       <header className="page-intro">
@@ -363,6 +377,14 @@ export default async function TargetDetail({
                     <div className="muted" style={{fontSize:12}}>
                       {p.access_complexity ? `access: ${p.access_complexity} · ` : ""}{p.liability_signal ? `liability: ${p.liability_signal}` : ""}
                     </div>
+                    {whyNowByProperty.get(p.property_id)?.length ? (
+                      <div className="why-now">
+                        <strong>Why now</strong>
+                        <span>{whyNowByProperty.get(p.property_id)!.join(" · ")}</span>
+                      </div>
+                    ) : (
+                      <div className="muted" style={{fontSize:11,marginTop:5}}>No current buying trigger identified.</div>
+                    )}
                   </td>
                   <td>
                     {(() => {
