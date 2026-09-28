@@ -71,3 +71,50 @@ export async function classifyReply(formData: FormData) {
   if (error) throw new Error(error.message);
   refresh(targetId);
 }
+
+
+export async function enrollDefaultSequence(formData: FormData) {
+  const s = await client();
+  const targetId = String(formData.get("target_id") ?? "");
+  const { data: target, error: targetError } = await (s as any)
+    .from("outreach_targets")
+    .select("workspace_id,status")
+    .eq("id", targetId)
+    .single();
+  if (targetError || !target) throw new Error("Target not found");
+  if (!["queued","contacted","responded"].includes(target.status)) throw new Error("Target is closed");
+
+  const { data: sequenceId, error: sequenceError } = await s.rpc("ensure_cb_outreach_sequence" as never, {
+    p_workspace_id: target.workspace_id,
+  } as never);
+  if (sequenceError || !sequenceId) throw new Error(sequenceError?.message ?? "Could not ensure sequence");
+
+  const { error } = await s.rpc("enroll_outreach_target" as never, {
+    p_target_id: targetId,
+    p_sequence_id: sequenceId,
+  } as never);
+  if (error) throw new Error(error.message);
+  refresh(targetId);
+}
+
+export async function runDueSequences() {
+  const s = await client();
+  const { data: { user } } = await s.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  const { data: memberships } = await s
+    .from("workspace_memberships")
+    .select("workspace_id")
+    .eq("user_id", user.id)
+    .limit(1);
+  const workspaceId = memberships?.[0]?.workspace_id;
+  if (!workspaceId) throw new Error("No workspace");
+
+  const { error } = await s.rpc("process_due_sequence_steps" as never, {
+    p_workspace_id: workspaceId,
+    p_limit: 50,
+  } as never);
+  if (error) throw new Error(error.message);
+  revalidatePath("/outreach");
+  revalidatePath("/targets");
+  revalidatePath("/dashboard");
+}
