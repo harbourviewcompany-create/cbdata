@@ -17,6 +17,21 @@ function publicHttpUrl(value:string){
   return u.toString();
 }
 
+async function fetchPublic(value:string){
+  let current=publicHttpUrl(value);
+  for(let i=0;i<4;i++){
+    const r=await fetch(current,{headers:{"User-Agent":"CBData-Tender-Document-Intelligence/1.0"},redirect:"manual"});
+    if(r.status>=300&&r.status<400){
+      const location=r.headers.get("location");
+      if(!location)throw new Error("document_redirect_without_location");
+      current=publicHttpUrl(new URL(location,current).toString());
+      continue;
+    }
+    return r;
+  }
+  throw new Error("too_many_document_redirects");
+}
+
 async function readTextLimited(r:Response,maxBytes=1_000_000){
   const length=Number(r.headers.get("content-length")||0);
   if(length>maxBytes)throw new Error("document_too_large");
@@ -84,11 +99,8 @@ Deno.serve(async(req)=>{
     try{
       let text=String(d.extracted_text||"");
       if(!text&&d.source_url){
-        const safeUrl=publicHttpUrl(d.source_url);
-        const r=await fetch(safeUrl,{headers:{"User-Agent":"CBData-Tender-Document-Intelligence/1.0"},redirect:"follow"});
+        const r=await fetchPublic(d.source_url);
         if(!r.ok)throw new Error("document_fetch_"+r.status);
-        const finalUrl=publicHttpUrl(r.url);
-        if(finalUrl!==r.url)throw new Error("blocked_document_redirect");
         const ct=(r.headers.get("content-type")||"").toLowerCase();
         if(ct.includes("text/")||ct.includes("html")||ct.includes("json")){
           text=cleanHtml(await readTextLimited(r)).slice(0,100000);
