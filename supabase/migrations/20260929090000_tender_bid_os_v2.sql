@@ -443,6 +443,7 @@ select
   coalesce(cl.blocking_clarifications,0) as blocking_clarifications,
   coalesce(q.supplier_quotes_received,0) as supplier_quotes_received,
   coalesce(q.accepted_supplier_quotes,0) as accepted_supplier_quotes,
+  coalesce(li.line_item_gaps,0) as line_item_gaps,
   coalesce(risk.high_open_risks,0) as high_open_risks,
   coalesce(cm.commercial_model_approved,false) as commercial_model_approved,
   coalesce(ap.compliance_approved,false) as compliance_approved,
@@ -454,6 +455,7 @@ select
     and coalesce(req.evidence_gaps,0)=0
     and coalesce(am.unacknowledged_amendments,0)=0
     and coalesce(cl.blocking_clarifications,0)=0
+    and coalesce(li.line_item_gaps,0)=0
     and coalesce(risk.high_open_risks,0)=0
     and t.estimate_id is not null
     and (not t.commercial_model_required or coalesce(cm.commercial_model_approved,false))
@@ -489,6 +491,13 @@ left join lateral (
   from public.tender_supplier_quotes q
   where q.tender_record_id=t.id and q.workspace_id=t.workspace_id
 ) q on true
+left join lateral (
+  select count(*) filter (
+    where li.mandatory and li.status not in ('complete','not_applicable')
+  )::integer as line_item_gaps
+  from public.tender_line_items li
+  where li.tender_record_id=t.id and li.workspace_id=t.workspace_id
+) li on true
 left join lateral (
   select bool_or(cm.status='approved') as commercial_model_approved
   from public.tender_cost_models cm
