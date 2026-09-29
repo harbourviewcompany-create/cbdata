@@ -138,7 +138,7 @@ Deno.serve(async(req)=>{
       geographic_fit:scored.geography,timing:scored.timing,competition:scored.competition,
       strategic_value:scored.strategic,subtrade_potential:scored.subtrade,overall_score:scored.overall,
       rationale:scored.rationale,next_best_action:scored.nextBestAction,
-      evidence:{source:t.source,external_id:t.external_id,discovery_fit:t.fit_score,source_key:sourceKey,engine_version:"3.2"},
+      evidence:{source:t.source,external_id:t.external_id,discovery_fit:t.fit_score,source_key:sourceKey,engine_version:"3.3"},
       calculated_at:new Date().toISOString(),updated_at:new Date().toISOString()
     },{onConflict:"tender_record_id"});
     if(!piError)intelligence++;
@@ -156,7 +156,7 @@ Deno.serve(async(req)=>{
     if(t.incumbent_name||t.previous_award_value||t.contract_start_date||t.contract_end_date||t.expected_rebid_date){
       const serviceCategory=String(t.watch_query||t.raw_payload?.services?.[0]||t.category||"procurement services").slice(0,160);
       const rebid=t.expected_rebid_date||(t.contract_end_date?addDays(t.contract_end_date,-180):null);
-      const {data:cycle,error:cycleError}=await admin.from("procurement_contract_cycles").upsert({
+      const cyclePayload={
         workspace_id:workspaceId,organization_id:t.matched_organization_id,source_tender_id:t.id,
         buyer_name:t.buyer_name||"Unknown buyer",contract_title:t.title,service_category:serviceCategory,
         incumbent_name:t.incumbent_name,award_value:t.previous_award_value,currency:t.currency||"CAD",
@@ -164,23 +164,39 @@ Deno.serve(async(req)=>{
         confidence:rebid?"high":"medium",evidence_url:t.source_url,source:t.source,
         notes:"Tender-derived contract cycle.",status:rebid&&rebid<=addDays(new Date().toISOString().slice(0,10),180)?"recompete_expected":"active",
         last_verified_at:new Date().toISOString(),updated_at:new Date().toISOString()
-      },{onConflict:"workspace_id,source_tender_id,service_category"}).select("id").single();
+      };
+      const {data:existingCycle,error:cycleLookupError}=await admin.from("procurement_contract_cycles")
+        .select("id").eq("workspace_id",workspaceId).eq("source_tender_id",t.id).eq("service_category",serviceCategory).maybeSingle();
+      let cycle:any=null,cycleError:any=cycleLookupError;
+      if(!cycleLookupError){
+        const write=existingCycle
+          ? await admin.from("procurement_contract_cycles").update(cyclePayload).eq("id",existingCycle.id).select("id").single()
+          : await admin.from("procurement_contract_cycles").insert(cyclePayload).select("id").single();
+        cycle=write.data;cycleError=write.error;
+      }
       if(!cycleError&&cycle){
         cycles++;
         if(rebid){
           const fit=clamp(Math.max(Number(t.fit_score||0),scored.scope));
           const nextActionAt=addDays(rebid,-120);
-          const {error:fError}=await admin.from("procurement_future_opportunities").upsert({
+          const futurePayload={
             workspace_id:workspaceId,contract_cycle_id:cycle.id,organization_id:t.matched_organization_id,
             buyer_name:t.buyer_name||"Unknown buyer",title:"Prepare for rebid — "+t.title,service_category:serviceCategory,
             signal_type:"award_rebid",expected_publish_start:addDays(rebid,-60),expected_publish_end:addDays(rebid,60),
             fit_score:fit,confidence:t.expected_rebid_date?"high":"medium",
             status:nextActionAt<=new Date().toISOString().slice(0,10)?"pre_position":"watch",source_url:t.source_url,
-            evidence:{source_tender_id:t.id,external_id:t.external_id,incumbent_name:t.incumbent_name,engine_version:"3.2"},
+            evidence:{source_tender_id:t.id,external_id:t.external_id,incumbent_name:t.incumbent_name,engine_version:"3.3"},
             next_action:"Verify incumbent and option years; contact procurement/facilities before the expected rebid window.",
             next_action_at:new Date(nextActionAt+"T13:00:00Z").toISOString(),linked_tender_id:t.id,updated_at:new Date().toISOString()
-          },{onConflict:"workspace_id,contract_cycle_id"});
-          if(!fError)future++;
+          };
+          const {data:existingFuture,error:futureLookupError}=await admin.from("procurement_future_opportunities")
+            .select("id").eq("workspace_id",workspaceId).eq("contract_cycle_id",cycle.id).maybeSingle();
+          if(!futureLookupError){
+            const futureWrite=existingFuture
+              ? await admin.from("procurement_future_opportunities").update(futurePayload).eq("id",existingFuture.id)
+              : await admin.from("procurement_future_opportunities").insert(futurePayload);
+            if(!futureWrite.error)future++;
+          }
         }
       }
     }
