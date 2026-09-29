@@ -8,7 +8,9 @@ const SEARCH_TERMS = [
 "landscaping","grounds maintenance","snow removal","winter maintenance","janitorial services","cleaning services",
 "facility maintenance","building maintenance","property maintenance","roofing","roof replacement","hvac","mechanical contractor",
 "ventilation","sheet metal","ductwork","building envelope","renovation","general contractor","paving","asphalt","concrete",
-"fencing","site work","déneigement","entretien paysager","nettoyage","conciergerie","entretien bâtiment"
+"fencing","site work","déneigement","entretien paysager","nettoyage","conciergerie","entretien bâtiment",
+"CHEO","Children's Hospital of Eastern Ontario","The Ottawa Hospital","Royal Ottawa","Hôpital Montfort","Bruyère",
+"University of Ottawa","Carleton University","Algonquin College","La Cité","CECCE","CEPEO","Ottawa Community Housing","Hydro Ottawa"
 ];
 const REGION_TERMS = [
 "ottawa","gatineau","hull","national capital","ncr","capitale nationale","outaouais",
