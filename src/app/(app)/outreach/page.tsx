@@ -40,6 +40,7 @@ export default async function OutreachPage({
   const rows=(data ?? []) as QueueRow[];
   const targetIds=rows.map(r=>r.id);
   const {data:coverageRows}=await (s as any).from("v_outreach_contact_coverage").select("*").in("outreach_target_id",targetIds.length?targetIds:["00000000-0000-0000-0000-000000000000"]);
+  const {data:gapRows}=await (s as any).from("v_contact_enrichment_queue").select("*").order("priority_score",{ascending:false}).limit(50);
   const coverageByTarget=new Map<string,any>((coverageRows??[]).map((x:any)=>[x.outreach_target_id,x]));
   const ready=rows.filter(r=>r.outreach_readiness_score>=80).length;
   const drafts=rows.filter(r=>r.recommended_action==="review_draft").length;
@@ -64,6 +65,15 @@ export default async function OutreachPage({
       <div className="metric"><span>Follow-ups due</span><strong>{followups}</strong></div>
       <div className="metric"><span>Needs enrichment</span><strong>{research}</strong></div>
     </section>
+
+    {(gapRows?.length??0)>0?<section className="panel" style={{marginBottom:18}}>
+      <div className="panel-head"><div><span className="eyebrow">CONTACT EXPANSION</span><h3>Buying-committee gaps</h3></div><span className="muted">{gapRows?.length??0} prioritized research tasks</span></div>
+      <div style={{display:"grid",gap:8}}>
+        {(gapRows??[]).slice(0,8).map((g:any)=><div key={g.id} style={{display:"grid",gridTemplateColumns:"minmax(180px,1fr) 140px 80px minmax(240px,1.4fr)",gap:12,alignItems:"center",padding:"8px 0",borderBottom:"1px solid var(--line)"}}>
+          <strong>{g.organization_name}</strong><span className="pill">{g.missing_role.replaceAll("_"," ")}</span><strong>{g.priority_score}</strong><span className="muted" style={{fontSize:11}}>{g.research_query}</span>
+        </div>)}
+      </div>
+    </section>:null}
 
     <section className="panel" style={{marginBottom:18}}>
       <div className="hero-cta" style={{display:"flex",gap:8,flexWrap:"wrap"}}>
