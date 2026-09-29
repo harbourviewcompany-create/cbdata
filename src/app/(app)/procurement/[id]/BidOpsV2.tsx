@@ -4,11 +4,16 @@ import {
   addSupplierVaultDocument,
   addTenderCallup,
   addTenderClarification,
+  addTenderLineItem,
   addTenderRisk,
   addTenderSupplierQuote,
   approveTenderGate,
   saveTenderCostModel,
+  saveTenderDebrief,
+  saveTenderPortalSnapshot,
+  saveTenderPriceYear,
   updateTenderClarification,
+  updateTenderLineItem,
   updateTenderRisk,
   updateTenderSupplierQuote,
 } from "../actions";
@@ -27,9 +32,9 @@ function dateOnly(value:string|null){
 }
 
 export default function BidOpsV2({
-  tender,readiness,amendments,clarifications,quotes,costModels,risks,approvals,vaultDocs,awards,callups,
+  tender,readiness,amendments,clarifications,quotes,costModels,risks,approvals,vaultDocs,awards,callups,portalSnapshots,lineItems,priceYears,debrief,
 }:{
-  tender:any;readiness:any;amendments:any[];clarifications:any[];quotes:any[];costModels:any[];risks:any[];approvals:any[];vaultDocs:any[];awards:any[];callups:any[];
+  tender:any;readiness:any;amendments:any[];clarifications:any[];quotes:any[];costModels:any[];risks:any[];approvals:any[];vaultDocs:any[];awards:any[];callups:any[];portalSnapshots:any[];lineItems:any[];priceYears:any[];debrief:any;
 }){
   const approved=new Set((approvals??[]).filter((a:any)=>a.status==="approved").map((a:any)=>a.approval_type));
   const activeModel=(costModels??[]).find((m:any)=>m.status==="approved") ?? (costModels??[])[0];
@@ -51,6 +56,7 @@ export default function BidOpsV2({
     ["Evidence",readiness?.evidence_gaps],
     ["Amendments",readiness?.unacknowledged_amendments],
     ["Clarifications",readiness?.blocking_clarifications],
+    ["Line items",readiness?.line_item_gaps],
     ["High risks",readiness?.high_open_risks],
   ];
 
@@ -102,14 +108,38 @@ export default function BidOpsV2({
     </section>
 
     <section className="table-panel" style={{marginBottom:18}}>
+      <div className="panel-head"><div><span className="eyebrow">AUTHENTICATED PORTAL CAPTURE</span><h3>SAP / buyer response workspace</h3></div><span className="muted">{portalSnapshots?.length||0} snapshots · {lineItems?.length||0} line items</span></div>
+      <div className="tender-list">
+        {(portalSnapshots??[]).map((p:any)=><div className="tender-list-row" key={p.id}><div><strong>{p.portal_name}</strong><span className="status-meta">{p.capture_method} · captured {fmt(p.captured_at)}</span>{p.response_deadline_at?<span className="status-meta">response deadline {fmt(p.response_deadline_at)}</span>:null}</div>{p.source_url?<a className="button" href={p.source_url} target="_blank" rel="noreferrer">Portal</a>:null}</div>)}
+      </div>
+      <form action={saveTenderPortalSnapshot} className="compact-form-grid pad">
+        <input type="hidden" name="tender_id" value={tender.id}/>
+        <input name="portal_name" defaultValue={tender.source==="CanadaBuys"?"SAP Business Network":tender.source||""} placeholder="Portal" required/>
+        <select name="capture_method" defaultValue="authenticated_manual"><option value="authenticated_manual">authenticated manual</option><option value="authenticated_automation">authenticated automation</option><option value="public">public</option><option value="import">import</option></select>
+        <input name="response_status" placeholder="Response status"/><input name="response_deadline_at" type="datetime-local"/><input name="source_url" defaultValue={tender.source_url||""} placeholder="Portal URL"/>
+        <textarea name="raw_payload" placeholder="Paste structured JSON or captured response text"/>
+        <input name="notes" placeholder="Capture notes"/><button className="button" type="submit">Save portal snapshot</button>
+      </form>
+      <div className="quote-grid line-item-grid quote-head"><div>Item</div><div>Qty</div><div>Unit</div><div>Price</div><div>Extended</div><div>Response / status</div></div>
+      {(lineItems??[]).map((li:any)=><div className="quote-grid line-item-grid" key={li.id}>
+        <div><strong>{li.item_number} · {li.description}</strong><span className="status-meta wrap">{li.specification||li.source_reference||"specification pending"}</span></div>
+        <div>{li.quantity??"—"}</div><div>{li.unit||"—"}</div><div>{money(li.unit_price,tender.currency)}</div><div>{money(li.extended_price,tender.currency)}</div>
+        <form action={updateTenderLineItem} className="inline-form"><input type="hidden" name="tender_id" value={tender.id}/><input type="hidden" name="line_item_id" value={li.id}/><input name="response_value" defaultValue={li.response_value||""} placeholder="Response"/><input name="unit_price" type="number" min="0" step="0.01" defaultValue={li.unit_price??""} placeholder="Unit price"/><select name="status" defaultValue={li.status}>{["pending","priced","complete","not_applicable"].map(x=><option value={x} key={x}>{x}</option>)}</select><button className="button" type="submit">Save</button></form>
+      </div>)}
+      <form action={addTenderLineItem} className="quote-form">
+        <input type="hidden" name="tender_id" value={tender.id}/><input name="item_number" placeholder="Item #" required/><input name="description" placeholder="Description" required/><input name="specification" placeholder="Specification"/><input name="quantity" type="number" min="0" step="0.01" placeholder="Quantity"/><input name="unit" placeholder="Unit"/><input name="source_reference" placeholder="Source / clause"/><input name="response_value" placeholder="Response"/><input name="unit_price" type="number" min="0" step="0.01" placeholder="Unit price"/><select name="status" defaultValue="pending">{["pending","priced","complete","not_applicable"].map(x=><option value={x} key={x}>{x}</option>)}</select><label><input type="checkbox" name="mandatory" defaultChecked/> Mandatory</label><button className="primary" type="submit">Add line item</button>
+      </form>
+    </section>
+
+    <section className="table-panel" style={{marginBottom:18}}>
       <div className="panel-head"><div><span className="eyebrow">SUPPLIER RFQ ENGINE</span><h3>Delivered supplier economics</h3></div><span className="muted">{quotes?.length||0} quotes · best {bestQuote?money(bestQuote.landed_cost,bestQuote.currency):"—"}</span></div>
       <div className="quote-grid quote-head"><div>Supplier</div><div>Product</div><div>Freight + extras</div><div>Landed</div><div>Delivery</div><div>Status</div></div>
       {(quotes??[]).map((q:any)=><div className="quote-grid" key={q.id}>
         <div><strong>{q.supplier_name}</strong><span className="status-meta">{q.supplier_contact_name||q.supplier_email||"contact pending"}</span></div>
         <div>{money(q.product_cost,q.currency)}</div>
         <div>{money(Number(q.freight_cost||0)+Number(q.deposits_cost||0)+Number(q.handling_cost||0)+Number(q.financing_cost||0)+Number(q.contingency_cost||0),q.currency)}</div>
-        <div><strong>{money(q.landed_cost,q.currency)}</strong></div>
-        <div>{q.delivery_verified?"verified":"unverified"}{q.valid_until?<span className="status-meta">valid to {dateOnly(q.valid_until)}</span>:null}</div>
+        <div><strong>{money(q.landed_cost,q.currency)}</strong><span className="status-meta">{q.local_fulfillment_score!==null&&q.local_fulfillment_score!==undefined?"local score "+q.local_fulfillment_score+"/100":""}</span></div>
+        <div>{q.delivery_verified?"verified":"unverified"}{q.service_region?<span className="status-meta">{q.service_region}{q.distance_km?" · "+q.distance_km+" km":""}</span>:null}{q.valid_until?<span className="status-meta">valid to {dateOnly(q.valid_until)}</span>:null}</div>
         <form action={updateTenderSupplierQuote} className="inline-form">
           <input type="hidden" name="tender_id" value={tender.id}/><input type="hidden" name="quote_id" value={q.id}/>
           <select name="status" defaultValue={q.status}>{["invited","sent","received","shortlisted","accepted","rejected"].map(x=><option value={x} key={x}>{x}</option>)}</select>
@@ -122,6 +152,7 @@ export default function BidOpsV2({
         <input name="supplier_name" placeholder="Supplier" required/><input name="supplier_contact_name" placeholder="Contact"/><input name="supplier_email" type="email" placeholder="Email"/>
         <input name="product_cost" type="number" min="0" step="0.01" placeholder="Product cost"/><input name="freight_cost" type="number" min="0" step="0.01" placeholder="Freight"/><input name="deposits_cost" type="number" min="0" step="0.01" placeholder="Deposits"/>
         <input name="handling_cost" type="number" min="0" step="0.01" placeholder="Handling"/><input name="financing_cost" type="number" min="0" step="0.01" placeholder="Financing"/><input name="contingency_cost" type="number" min="0" step="0.01" placeholder="Contingency"/>
+        <input name="service_region" placeholder="Service region"/><input name="distance_km" type="number" min="0" step="0.1" placeholder="Distance km"/><input name="capacity_score" type="number" min="1" max="5" placeholder="Capacity 1–5"/><input name="reliability_score" type="number" min="1" max="5" placeholder="Reliability 1–5"/><input name="emergency_score" type="number" min="1" max="5" placeholder="Emergency 1–5"/>
         <input name="valid_until" type="date"/><input name="quote_reference" placeholder="Quote #"/><input name="evidence_url" placeholder="Evidence URL"/>
         <select name="status" defaultValue="received">{["invited","sent","received","shortlisted","accepted"].map(x=><option value={x} key={x}>{x}</option>)}</select>
         <label><input type="checkbox" name="delivery_verified"/> Delivery verified</label>
@@ -150,6 +181,17 @@ export default function BidOpsV2({
           <label><input type="checkbox" name="approve"/> Approve this commercial model</label>
           <button className="primary" type="submit">Save model</button>
         </form>
+      </div>
+
+      <div className="panel">
+        <div className="panel-head"><div><span className="eyebrow">4-YEAR PRICE SCHEDULE</span><h3>Escalation and margin by contract year</h3></div><span className="muted">{priceYears?.length||0} years modeled</span></div>
+        {activeModel?<>
+          <div className="tender-list">{(priceYears??[]).map((y:any)=><div className="history-row" key={y.id}><div><strong>Year {y.year_number}</strong><span className="status-meta">cost {money(y.projected_cost)} · escalation {Number(y.escalation_rate||0).toLocaleString("en-CA",{style:"percent",maximumFractionDigits:1})}</span></div><div><strong>{money(y.bid_price)}</strong><span className="status-meta">margin {y.projected_margin===null?"—":Number(y.projected_margin).toLocaleString("en-CA",{style:"percent",maximumFractionDigits:1})}</span></div></div>)}</div>
+          <form action={saveTenderPriceYear} className="compact-form-grid">
+            <input type="hidden" name="tender_id" value={tender.id}/><input type="hidden" name="cost_model_id" value={activeModel.id}/>
+            <input name="year_number" type="number" min="1" max="10" defaultValue={Math.min(10,(priceYears?.length||0)+1)} placeholder="Year" required/><input name="projected_cost" type="number" min="0" step="0.01" placeholder="Projected cost" required/><input name="escalation_rate" type="number" step="0.1" placeholder="Escalation %"/><input name="bid_price" type="number" min="0" step="0.01" placeholder="Bid price" required/><input name="notes" placeholder="Year assumptions"/><button className="button" type="submit">Save year</button>
+          </form>
+        </>:<p className="muted">Create a commercial model first, then build the multi-year schedule.</p>}
       </div>
 
       <div className="panel">
@@ -188,6 +230,16 @@ export default function BidOpsV2({
           </form>)}
         </div>
       </div>
+    </section>
+
+    <section className="table-panel" style={{marginBottom:18}}>
+      <div className="panel-head"><div><span className="eyebrow">AWARD / DEBRIEF LEARNING</span><h3>Close the loop for the next bid</h3></div></div>
+      <form action={saveTenderDebrief} className="compact-form-grid pad">
+        <input type="hidden" name="tender_id" value={tender.id}/>
+        <select name="outcome" defaultValue={tender.action_state==="won"||tender.action_state==="lost"?tender.action_state:""}><option value="">Outcome pending</option><option value="won">Won</option><option value="lost">Lost</option></select>
+        <input name="winning_supplier" defaultValue={debrief?.winning_supplier||tender.award_supplier_name||""} placeholder="Winning supplier"/><input name="winning_value" type="number" min="0" step="0.01" defaultValue={debrief?.winning_value||tender.award_value||""} placeholder="Winning value"/><input name="next_rebid_date" type="date" defaultValue={debrief?.next_rebid_date||tender.expected_rebid_date||""}/>
+        <input name="source_url" defaultValue={debrief?.source_url||""} placeholder="Award / debrief evidence URL"/><input name="result_summary" defaultValue={debrief?.result_summary||""} placeholder="Result summary"/><input name="strengths" defaultValue={debrief?.strengths||""} placeholder="What worked"/><input name="gaps" defaultValue={debrief?.gaps||""} placeholder="Why we lost / gaps"/><input name="lessons_learned" defaultValue={debrief?.lessons_learned||""} placeholder="Lessons for next bid"/><label><input type="checkbox" name="requested" defaultChecked={Boolean(debrief?.requested_at)}/> Debrief requested</label><label><input type="checkbox" name="received" defaultChecked={Boolean(debrief?.received_at)}/> Debrief received</label><button className="primary" type="submit">Save outcome / debrief</button>
+      </form>
     </section>
 
     <section className="tender-detail-grid">
