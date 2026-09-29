@@ -322,6 +322,34 @@ create index if not exists idx_tender_price_years_model on public.tender_price_y
 create index if not exists idx_tender_debriefs_rebid on public.tender_debriefs(workspace_id, next_rebid_date);
 create index if not exists idx_tender_bid_packs_tender on public.tender_bid_packs(tender_record_id, version desc, status);
 
+-- Every new foreign-key path gets a left-prefix covering index. The repository's
+-- integrity suite treats unindexed FKs as a deployment blocker.
+create index if not exists idx_tender_amendments_workspace on public.tender_amendments(workspace_id);
+create index if not exists idx_tender_amendments_ack_by on public.tender_amendments(acknowledged_by) where acknowledged_by is not null;
+create index if not exists idx_tender_clarifications_workspace on public.tender_clarifications(workspace_id);
+create index if not exists idx_tender_clarifications_owner on public.tender_clarifications(owner_user_id) where owner_user_id is not null;
+create index if not exists idx_tender_supplier_quotes_workspace on public.tender_supplier_quotes(workspace_id);
+create index if not exists idx_tender_quote_lines_workspace on public.tender_supplier_quote_lines(workspace_id);
+create index if not exists idx_tender_quote_lines_tender on public.tender_supplier_quote_lines(tender_record_id);
+create index if not exists idx_tender_cost_models_workspace on public.tender_cost_models(workspace_id);
+create index if not exists idx_tender_cost_models_approved_by on public.tender_cost_models(approved_by) where approved_by is not null;
+create index if not exists idx_tender_risks_workspace on public.tender_risks(workspace_id);
+create index if not exists idx_tender_risks_owner on public.tender_risks(owner_user_id) where owner_user_id is not null;
+create index if not exists idx_tender_approvals_workspace on public.tender_approvals(workspace_id);
+create index if not exists idx_tender_approvals_approved_by on public.tender_approvals(approved_by) where approved_by is not null;
+create index if not exists idx_supplier_document_vault_owner on public.supplier_document_vault(owner_user_id) where owner_user_id is not null;
+create index if not exists idx_tender_callups_workspace on public.tender_callups(workspace_id);
+create index if not exists idx_tender_portal_snapshots_workspace on public.tender_portal_snapshots(workspace_id);
+create index if not exists idx_tender_portal_snapshots_captured_by on public.tender_portal_snapshots(captured_by) where captured_by is not null;
+create index if not exists idx_tender_line_items_workspace on public.tender_line_items(workspace_id);
+create index if not exists idx_tender_line_items_portal_snapshot on public.tender_line_items(portal_snapshot_id) where portal_snapshot_id is not null;
+create index if not exists idx_tender_price_years_workspace on public.tender_price_years(workspace_id);
+create index if not exists idx_tender_price_years_tender on public.tender_price_years(tender_record_id);
+create index if not exists idx_tender_debriefs_created_by on public.tender_debriefs(created_by) where created_by is not null;
+create index if not exists idx_tender_bid_packs_workspace on public.tender_bid_packs(workspace_id);
+create index if not exists idx_tender_bid_packs_generated_by on public.tender_bid_packs(generated_by) where generated_by is not null;
+
+
 
 
 do $$
