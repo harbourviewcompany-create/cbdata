@@ -85,6 +85,19 @@ begin
     raise exception 'Deck spec invalidation trigger must cover insert and update';
   end if;
 
+  if not exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='private'
+      and p.proname='invalidate_material_request_pricing_from_spec'
+      and pg_get_functiondef(p.oid) ilike '%set_config%'
+      and pg_get_functiondef(p.oid) ilike '%app.material_request_transition%'
+      and pg_get_functiondef(p.oid) ilike '%invalidate%'
+  ) then
+    raise exception 'Deck spec invalidation must authorize the draft transition';
+  end if;
+
   if has_function_privilege('authenticated','private.guard_deck_estimate_spec()','EXECUTE')
      or has_function_privilege('anon','private.guard_deck_estimate_spec()','EXECUTE')
      or has_function_privilege('authenticated','private.invalidate_material_request_pricing_from_spec()','EXECUTE')
