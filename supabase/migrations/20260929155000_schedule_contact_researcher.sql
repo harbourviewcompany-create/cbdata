@@ -9,4 +9,6 @@ select cron.schedule(
    (select decrypted_secret from vault.decrypted_secrets where name='cbdata_procurement_scout_cron_token')),
   body := '{"workspace_id":"431aa13d-3e7c-41e3-9686-e840b8ea5b7c","limit":10}'::jsonb,
   timeout_milliseconds := 180000
- ));
+  );
+ $job$
+);
