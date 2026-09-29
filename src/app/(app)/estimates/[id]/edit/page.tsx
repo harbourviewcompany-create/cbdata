@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { updateDeckEstimate } from "../../actions";
 import { GUARD_LINE } from "../../deck-pricing";
+import { parseLegacyDeckSpec } from "../../deck-takeoff";
 
 export default async function EditDeckEstimate({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -24,7 +25,7 @@ export default async function EditDeckEstimate({ params }: { params: Promise<{ i
     notFound();
   }
 
-  const [{ data: items }, { data: properties }] = await Promise.all([
+  const [{ data: items }, { data: properties }, { data: spec }] = await Promise.all([
     s.from("estimate_items")
       .select("id,description,unit_price,estimated_material_cost,estimated_labor_cost")
       .eq("estimate_id", id)
@@ -35,6 +36,12 @@ export default async function EditDeckEstimate({ params }: { params: Promise<{ i
       .eq("workspace_id", ctx.workspaceId)
       .order("name")
       .limit(500),
+    (s as any)
+      .from("deck_estimate_specs")
+      .select("*")
+      .eq("workspace_id", ctx.workspaceId)
+      .eq("estimate_id", id)
+      .maybeSingle(),
   ]);
   if (!items?.length) notFound();
 
@@ -42,6 +49,20 @@ export default async function EditDeckEstimate({ params }: { params: Promise<{ i
     (p) => !p.primary_customer_organization_id || p.primary_customer_organization_id === estimate.organization_id,
   );
   const hasGuards = items.some((item) => item.description.startsWith(GUARD_LINE.label));
+  const legacySpec = parseLegacyDeckSpec(items[0]?.description ?? "");
+  const deckSpec = spec ?? legacySpec ?? {
+    width_ft: 12,
+    depth_ft: 12,
+    stair_width_ft: 4,
+    steps: 4,
+    footings: 4,
+    height_in: null,
+    include_guards: hasGuards,
+    site_reference: "",
+    landing: "",
+    site_notes: "",
+    joist_spacing_in: 16,
+  };
 
   return (
     <>
@@ -73,6 +94,26 @@ export default async function EditDeckEstimate({ params }: { params: Promise<{ i
             <input name="valid_until" type="date" required defaultValue={estimate.valid_until ?? ""} />
           </label>
         </div>
+
+        <section className="panel" style={{ marginBottom: 18 }}>
+          <div className="panel-head">
+            <div><span className="eyebrow">STRUCTURED SCOPE</span><h3>Deck measurements for material takeoff</h3></div>
+            <span className="muted">These values drive the generated lumber BOM.</span>
+          </div>
+          <div className="deck-form-grid" style={{ marginTop: 14 }}>
+            <label>Deck width (ft)<input name="width_ft" type="number" min="4" max="80" step="0.5" required defaultValue={deckSpec.width_ft} /></label>
+            <label>Deck depth (ft)<input name="depth_ft" type="number" min="4" max="80" step="0.5" required defaultValue={deckSpec.depth_ft} /></label>
+            <label>Joist spacing (in O.C.)<input name="joist_spacing_in" type="number" min="8" max="24" step="1" required defaultValue={deckSpec.joist_spacing_in ?? 16} /></label>
+            <label>Stair width (ft)<input name="stair_width_ft" type="number" min="2" max="16" step="0.5" required defaultValue={deckSpec.stair_width_ft} /></label>
+            <label>Estimated steps<input name="steps" type="number" min="0" max="30" step="1" required defaultValue={deckSpec.steps} /></label>
+            <label>Estimated footings<input name="footings" type="number" min="1" max="40" step="1" required defaultValue={deckSpec.footings} /></label>
+            <label>Deck height (in)<input name="height_in" type="number" min="0" max="180" step="0.5" defaultValue={deckSpec.height_in ?? ""} /></label>
+            <label>Landing<input name="landing" maxLength={80} defaultValue={deckSpec.landing ?? ""} /></label>
+            <label className="deck-wide">Site reference<input name="site_reference" maxLength={180} defaultValue={deckSpec.site_reference ?? ""} /></label>
+            <label className="deck-wide">Site notes<textarea name="site_notes" maxLength={600} defaultValue={deckSpec.site_notes ?? ""} /></label>
+          </div>
+          {hasGuards ? <input type="hidden" name="include_guards" value="on" /> : null}
+        </section>
 
         <div className="table-wrap">
           <table>
