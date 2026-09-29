@@ -14,6 +14,16 @@ begin
   end if;
 
   if not exists (
+    select 1
+    from pg_constraint
+    where conrelid='public.material_price_observations'::regclass
+      and conname='material_price_observations_valid_until_check'
+      and pg_get_constraintdef(oid) ilike '%America/Toronto%'
+  ) then
+    raise exception 'material quote expiry constraint must use Ottawa local date';
+  end if;
+
+  if not exists (
     select 1 from information_schema.tables
     where table_schema='public' and table_name='material_request_supplier_terms'
   ) then
