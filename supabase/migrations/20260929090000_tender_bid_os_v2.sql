@@ -268,6 +268,16 @@ begin
     changes := changes || jsonb_build_object('source_url',jsonb_build_object('from',old.source_url,'to',new.source_url));
     summary_parts := array_append(summary_parts,'source URL');
   end if;
+  if (old.raw_payload->>'detail_excerpt') is distinct from (new.raw_payload->>'detail_excerpt') then
+    changes := changes || jsonb_build_object(
+      'source_detail',
+      jsonb_build_object(
+        'from_fingerprint',md5(coalesce(old.raw_payload->>'detail_excerpt','')),
+        'to_fingerprint',md5(coalesce(new.raw_payload->>'detail_excerpt',''))
+      )
+    );
+    summary_parts := array_append(summary_parts,'source detail');
+  end if;
 
   if changes = '{}'::jsonb then
     return new;
@@ -294,7 +304,7 @@ $$;
 
 drop trigger if exists tender_records_capture_amendment on public.tender_records;
 create trigger tender_records_capture_amendment
-after update of title,closing_date,published_date,category,response_mode,registration_required,source_url
+after update of title,closing_date,published_date,category,response_mode,registration_required,source_url,raw_payload
 on public.tender_records
 for each row
 execute function private.capture_tender_amendment();
