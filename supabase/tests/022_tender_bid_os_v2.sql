@@ -22,7 +22,8 @@ begin
     ('tender_portal_snapshots'),
     ('tender_line_items'),
     ('tender_price_years'),
-    ('tender_debriefs')
+    ('tender_debriefs'),
+    ('tender_bid_packs')
   ) as x(name)
   where to_regclass('public.'||x.name) is null;
 
@@ -34,7 +35,8 @@ begin
     'tender_amendments','tender_clarifications','tender_supplier_quotes',
     'tender_supplier_quote_lines','tender_cost_models','tender_risks',
     'tender_approvals','supplier_document_vault','tender_callups',
-    'tender_portal_snapshots','tender_line_items','tender_price_years','tender_debriefs'
+    'tender_portal_snapshots','tender_line_items','tender_price_years','tender_debriefs',
+    'tender_bid_packs'
   ]
   loop
     select c.relrowsecurity and c.relforcerowsecurity into rls_ok
@@ -85,6 +87,14 @@ begin
       and column_name='line_item_gaps'
   ) then
     raise exception 'Tender readiness view missing line_item_gaps';
+  end if;
+
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='v_tender_bid_readiness'
+      and column_name='bid_pack_ready'
+  ) then
+    raise exception 'Tender readiness view missing bid_pack_ready';
   end if;
 
   select exists (
