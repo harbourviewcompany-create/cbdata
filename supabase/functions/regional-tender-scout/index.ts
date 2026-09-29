@@ -23,6 +23,12 @@ const FACILITY_CONTEXT=["building","facility","facilities","property","school","
 const SOURCES=[
 {key:"city_ottawa_merx",name:"City of Ottawa / MERX",kind:"merx",url:"https://www.merx.com/cityofottawa/solicitations/open-bids",buyer:"City of Ottawa",region:"Ottawa, Ontario"},
 {key:"och_merx",name:"Ottawa Community Housing / MERX",kind:"merx",url:"https://www.merx.com/ottawacommunityhousing/solicitations/open-bids",buyer:"Ottawa Community Housing",region:"Ottawa, Ontario"},
+{key:"uottawa_merx",name:"University of Ottawa / MERX",kind:"merx",url:"https://www.merx.com/oupma/uottawa/solicitations/open-bids",buyer:"University of Ottawa",region:"Ottawa, Ontario"},
+{key:"carleton_merx",name:"Carleton University / MERX",kind:"merx",url:"https://www.merx.com/oupma/carleton/solicitations/open-bids",buyer:"Carleton University",region:"Ottawa, Ontario"},
+{key:"algonquin_merx",name:"Algonquin College / MERX",kind:"merx",url:"https://www.merx.com/algonquincollege/solicitations/open-bids",buyer:"Algonquin College",region:"Ottawa, Ontario"},
+{key:"montfort_merx",name:"Hôpital Montfort / MERX",kind:"merx",url:"https://www.merx.com/hopitalmontfort/solicitations/open-bids",buyer:"Hôpital Montfort",region:"Ottawa, Ontario"},
+{key:"lacite_merx",name:"La Cité / MERX",kind:"merx",url:"https://www.merx.com/lacitecollegiale/solicitations/open-bids",buyer:"La Cité",region:"Ottawa, Ontario"},
+{key:"bruyere_merx",name:"Bruyère / MERX",kind:"merx",url:"https://www.merx.com/bruyerecontinuingcare/solicitations/open-bids",buyer:"Bruyère Health",region:"Ottawa, Ontario"},
 {key:"ocdsb_bids_tenders",name:"OCDSB Bids & Tenders",kind:"bids_tenders",url:"https://ocdsb.bidsandtenders.ca/",buyer:"Ottawa-Carleton District School Board",region:"Ottawa, Ontario"},
 {key:"ocsb_bids_tenders",name:"OCSB Bids & Tenders",kind:"bids_tenders",url:"https://ocsb.bidsandtenders.ca/",buyer:"Ottawa Catholic School Board",region:"Ottawa, Ontario"},
 {key:"clarence_rockland_bids_tenders",name:"Clarence-Rockland Bids & Tenders",kind:"bids_tenders",url:"https://clarence-rockland.bidsandtenders.ca/",buyer:"City of Clarence-Rockland",region:"Prescott-Russell, Ontario"},
@@ -68,8 +74,8 @@ function pick(row:Record<string,string>,aliases:string[]){for(const a of aliases
 
 function parseMerx(html:string,source:Source):Candidate[]{
  const plain=cleanHtml(html),out:Candidate[]=[];
- const re=/([A-Z0-9][A-Z0-9._\/-]{3,})\s+(.{4,220}?)\s+Ottawa,\s*ON,\s*CAN\s+Calendar\s+Published\s+(20\d{2}[\/-]\d{2}[\/-]\d{2})\s+Clock\s+Closing\s+(20\d{2}[\/-]\d{2}[\/-]\d{2})/gi;
- for(const m of plain.matchAll(re))out.push({externalId:m[1],title:m[2].trim(),buyer:source.buyer,publishedDate:isoDate(m[3]),closingDate:isoDate(m[4]),url:source.url,region:source.region,raw:{parser:"merx_text"}});
+ const re=/([A-Z0-9][A-Z0-9._\/-]{3,})\s+(.{4,220}?)\s+([A-Za-zÀ-ÿ0-9 .,'’\-]{2,80}),\s*(ON|QC),\s*CAN\s+Calendar\s+Published\s+(20\d{2}[\/-]\d{2}[\/-]\d{2})\s+Clock\s+Closing\s+(20\d{2}[\/-]\d{2}[\/-]\d{2})/gi;
+ for(const m of plain.matchAll(re))out.push({externalId:m[1],title:m[2].trim(),buyer:source.buyer,publishedDate:isoDate(m[5]),closingDate:isoDate(m[6]),url:source.url,region:source.region,raw:{parser:"merx_text",listed_city:m[3].trim(),listed_province:m[4]}});
  return out;
 }
 
