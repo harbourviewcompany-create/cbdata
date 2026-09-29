@@ -20,6 +20,10 @@ export default async function ProcurementPage(){
     .select("id,external_id,title,buyer_name,category,region,published_date,closing_date,source,source_url,status,matched_organization_id,lead_id,response_mode,registration_required,fit_score,fit_note,last_verified_at,action_state,next_action,next_action_due_at")
     .eq("workspace_id",ctx.workspaceId).gte("closing_date",new Date().toISOString().slice(0,10)).order("closing_date",{ascending:true}).limit(150);
 
+  const tenderIdsForReadiness=(tenders??[]).map((t:any)=>t.id);
+  const {data:readinessRows}=await (s as any).from("v_tender_bid_readiness").select("*").eq("workspace_id",ctx.workspaceId).in("tender_record_id",tenderIdsForReadiness.length?tenderIdsForReadiness:["00000000-0000-0000-0000-000000000000"]);
+  const readinessByTender=new Map<string,any>((readinessRows??[]).map((r:any)=>[r.tender_record_id,r]));
+
   const leadIds=(tenders??[]).map((t:any)=>t.lead_id).filter(Boolean);
   const {data:leadRows}=await (s as any).from("leads").select("id,contact_id,property_id").eq("workspace_id",ctx.workspaceId).in("id",leadIds.length?leadIds:["00000000-0000-0000-0000-000000000000"]);
   const contactIds=(leadRows??[]).map((x:any)=>x.contact_id).filter(Boolean);
@@ -59,6 +63,7 @@ export default async function ProcurementPage(){
       <div className="metric"><span>High fit ≥75</span><strong>{highFit}</strong></div>
       <div className="metric"><span>Closing ≤7 days</span><strong>{urgent}</strong></div>
       <div className="metric"><span>Active pursuits</span><strong>{pursuing}</strong></div>
+      <div className="metric"><span>Submission ready</span><strong>{open.filter((t:any)=>readinessByTender.get(t.id)?.ready_to_submit).length}</strong></div>
     </section>
 
     <section className="source-strip">
@@ -107,6 +112,7 @@ export default async function ProcurementPage(){
           <div><span className="score-chip score-high">{t.fit_score??"—"}</span><span className="status-meta">{t.fit_note||"Fit note pending"}</span></div>
           <div>{(propertiesByTender.get(t.id)??[]).length?<>{(propertiesByTender.get(t.id)??[]).map((p:any)=><span className="status-meta" key={p.property_id}>{p.name}</span>)}</>:<span className="status-meta">property mapping gap</span>}</div>
           <div className="bid-control">
+            <span className="status-meta">{readinessByTender.get(t.id)?.ready_to_submit?"submission ready":"gates open"}{readinessByTender.get(t.id)?(" · "+Number(readinessByTender.get(t.id).mandatory_requirement_gaps||0)+" req · "+Number(readinessByTender.get(t.id).unacknowledged_amendments||0)+" amend · "+Number(readinessByTender.get(t.id).high_open_risks||0)+" risk"):""}</span>
             <form action={updateTenderStage}>
               <input type="hidden" name="tender_id" value={t.id}/>
               <select name="stage" defaultValue={t.action_state||"new"} aria-label="Bid stage">{STAGES.map(stage=><option value={stage} key={stage}>{stage.replace("_"," ")}</option>)}</select>
