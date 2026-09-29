@@ -343,7 +343,30 @@ export async function runCanadaBuysScout() {
     last_error: null,
   }).eq("workspace_id",ctx.workspaceId).eq("source_key","canadabuys");
 
+  const coverage = await fetch(base + "/functions/v1/procurement-coverage-engine", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+    body: JSON.stringify({ workspace_id: ctx.workspaceId, skip_scouts: true }),
+    cache: "no-store",
+  });
+  if (!coverage.ok) {
+    const coveragePayload = await coverage.json().catch(() => ({}));
+    throw new Error(coveragePayload.error || "CanadaBuys scan succeeded but coverage routing failed");
+  }
+
+  const intelligence = await fetch(base + "/functions/v1/tender-intelligence-engine", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+    body: JSON.stringify({ workspace_id: ctx.workspaceId }),
+    cache: "no-store",
+  });
+  if (!intelligence.ok) {
+    const intelligencePayload = await intelligence.json().catch(() => ({}));
+    throw new Error(intelligencePayload.error || "CanadaBuys routing succeeded but pursuit intelligence failed");
+  }
+
   revalidatePath("/procurement");
+  revalidatePath("/procurement/coverage");
   revalidatePath("/targets");
   revalidatePath("/dashboard");
 }
@@ -356,43 +379,31 @@ export async function runRegionalTenderScout() {
   const { data: sessionData } = await s.auth.getSession();
   const accessToken = sessionData.session?.access_token;
   if (!accessToken) throw new Error("No active session");
-
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!base) throw new Error("Supabase URL is not configured");
 
-  const calls = [
-    fetch(base + "/functions/v1/canadabuys-scout", {
-      method: "POST",
-      headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
-      body: JSON.stringify({ workspace_id: ctx.workspaceId }),
-      cache: "no-store",
-    }),
-    fetch(base + "/functions/v1/regional-tender-scout", {
-      method: "POST",
-      headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
-      body: JSON.stringify({ workspace_id: ctx.workspaceId }),
-      cache: "no-store",
-    }),
-  ];
+  const coverage = await fetch(base + "/functions/v1/procurement-coverage-engine", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+    body: JSON.stringify({ workspace_id: ctx.workspaceId }),
+    cache: "no-store",
+  });
+  const coveragePayload = await coverage.json().catch(() => ({}));
+  if (!coverage.ok) throw new Error(coveragePayload.error || "Regional procurement scan failed");
 
-  const responses = await Promise.allSettled(calls);
-  const failures: string[] = [];
-  for (const result of responses) {
-    if (result.status === "rejected") {
-      failures.push(result.reason instanceof Error ? result.reason.message : "Scout request failed");
-      continue;
-    }
-    if (!result.value.ok) {
-      const payload = await result.value.json().catch(() => ({}));
-      failures.push(payload.error || ("Scout failed with " + result.value.status));
-    }
-  }
+  const intelligence = await fetch(base + "/functions/v1/tender-intelligence-engine", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+    body: JSON.stringify({ workspace_id: ctx.workspaceId }),
+    cache: "no-store",
+  });
+  const intelligencePayload = await intelligence.json().catch(() => ({}));
+  if (!intelligence.ok) throw new Error(intelligencePayload.error || "Discovery succeeded but pursuit intelligence failed");
 
   revalidatePath("/procurement");
+  revalidatePath("/procurement/coverage");
   revalidatePath("/targets");
   revalidatePath("/dashboard");
-
-  if (failures.length === responses.length) throw new Error(failures.join("; "));
 }
 
 
@@ -417,8 +428,126 @@ export async function runProcurementCoverageEngine() {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error || "Procurement coverage engine failed");
 
+  const intelligence = await fetch(base + "/functions/v1/tender-intelligence-engine", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+    body: JSON.stringify({ workspace_id: ctx.workspaceId }),
+    cache: "no-store",
+  });
+  const intelligencePayload = await intelligence.json().catch(() => ({}));
+  if (!intelligence.ok) throw new Error(intelligencePayload.error || "Coverage refresh succeeded but pursuit intelligence failed");
+
   revalidatePath("/procurement");
   revalidatePath("/procurement/coverage");
   revalidatePath("/targets");
   revalidatePath("/dashboard");
+}
+
+
+export async function runTenderIntelligence(formData?: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+
+  const { data: sessionData } = await s.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) throw new Error("No active session");
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!base) throw new Error("Supabase URL is not configured");
+
+  const tenderId = formData ? String(formData.get("tender_id") || "") : "";
+  const response = await fetch(base + "/functions/v1/tender-intelligence-engine", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+    body: JSON.stringify({ workspace_id: ctx.workspaceId, tender_id: tenderId || undefined }),
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "Tender intelligence refresh failed");
+
+  revalidatePath("/procurement");
+  revalidatePath("/procurement/coverage");
+  if (tenderId) revalidatePath(`/procurement/${tenderId}`);
+  revalidatePath("/dashboard");
+}
+
+export async function runTenderDocumentIntelligence(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const tenderId = String(formData.get("tender_id") || "");
+  if (!tenderId) throw new Error("Tender is required");
+
+  const { data: sessionData } = await s.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) throw new Error("No active session");
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!base) throw new Error("Supabase URL is not configured");
+
+  const response = await fetch(base + "/functions/v1/tender-document-intelligence", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+    body: JSON.stringify({ workspace_id: ctx.workspaceId, tender_id: tenderId }),
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "Tender document intelligence failed");
+
+  revalidatePath(`/procurement/${tenderId}`);
+  revalidatePath("/procurement");
+}
+
+export async function saveTenderContractCycle(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const tenderId = String(formData.get("tender_id") || "");
+  if (!tenderId) throw new Error("Tender is required");
+
+  const amountRaw = String(formData.get("previous_award_value") || "").trim();
+  const amount = amountRaw ? Number(amountRaw) : null;
+  if (amountRaw && !Number.isFinite(amount)) throw new Error("Previous award value must be numeric");
+
+  const { error } = await (s as any).from("tender_records").update({
+    incumbent_name: String(formData.get("incumbent_name") || "").trim() || null,
+    previous_award_value: amount,
+    contract_start_date: String(formData.get("contract_start_date") || "") || null,
+    contract_end_date: String(formData.get("contract_end_date") || "") || null,
+    expected_rebid_date: String(formData.get("expected_rebid_date") || "") || null,
+    updated_at: new Date().toISOString(),
+  }).eq("workspace_id",ctx.workspaceId).eq("id",tenderId);
+  if (error) throw error;
+
+  const fd = new FormData();
+  fd.set("tender_id",tenderId);
+  await runTenderIntelligence(fd);
+}
+
+export async function updateSubtradeStatus(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const id = String(formData.get("subtrade_id") || "");
+  const tenderId = String(formData.get("tender_id") || "");
+  const status = String(formData.get("status") || "");
+  const allowed = ["identified","researching_primes","outreach","pricing","submitted","won","lost","not_pursuing"];
+  if (!id || !tenderId || !allowed.includes(status)) throw new Error("Invalid subtrade status");
+
+  const { error } = await (s as any).from("tender_subtrade_opportunities").update({
+    pursuit_status:status,updated_at:new Date().toISOString(),
+  }).eq("workspace_id",ctx.workspaceId).eq("id",id).eq("tender_record_id",tenderId);
+  if (error) throw error;
+  revalidatePath(`/procurement/${tenderId}`);
+  revalidatePath("/procurement");
+}
+
+export async function updateFutureOpportunityStatus(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const id = String(formData.get("future_id") || "");
+  const status = String(formData.get("status") || "");
+  const allowed = ["watch","research","pre_position","published","converted","closed"];
+  if (!id || !allowed.includes(status)) throw new Error("Invalid future opportunity status");
+
+  const { error } = await (s as any).from("procurement_future_opportunities").update({
+    status,updated_at:new Date().toISOString(),
+  }).eq("workspace_id",ctx.workspaceId).eq("id",id);
+  if (error) throw error;
+  revalidatePath("/procurement");
 }
