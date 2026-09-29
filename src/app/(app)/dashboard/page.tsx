@@ -35,6 +35,8 @@ export default async function DashboardPage() {
     convertedTargetsRes,
     totalTargetsRes,
     openOpportunitiesRes,
+    growthTargetsRes,
+    procurementRes,
   ] = await Promise.all([
     supabase
       .from("workspace_ops_snapshots")
@@ -75,9 +77,17 @@ export default async function DashboardPage() {
       .eq("workspace_id", workspaceId),
     supabase
       .from("opportunities")
-      .select("estimated_value")
+      .select("estimated_value, probability")
       .eq("workspace_id", workspaceId)
       .eq("status", "open"),
+    supabase
+      .from("outreach_targets")
+      .select("status, score, contact_name, email, phone, company_email, company_phone, company_website, property_address, next_action, next_action_due_at")
+      .eq("workspace_id", workspaceId),
+    supabase
+      .from("procurement_opportunities")
+      .select("id, relevance_score, estimated_value, closing_at, classification_status")
+      .eq("workspace_id", workspaceId),
   ]);
 
   const queryFailures = [
@@ -89,6 +99,8 @@ export default async function DashboardPage() {
     ["converted targets", convertedTargetsRes.error],
     ["target total", totalTargetsRes.error],
     ["open opportunities", openOpportunitiesRes.error],
+    ["growth targets", growthTargetsRes.error],
+    ["procurement opportunities", procurementRes.error],
   ].filter((entry): entry is [string, NonNullable<(typeof snapshotRes)["error"]>] => Boolean(entry[1]));
 
   if (queryFailures.length) {
@@ -125,6 +137,33 @@ export default async function DashboardPage() {
   const totalTargets = totalTargetsRes.count ?? 0;
   const opportunities = openOpportunitiesRes.data ?? [];
   const pipelineValue = opportunities.reduce((sum, r) => sum + Number(r.estimated_value ?? 0), 0);
+  const weightedPipeline = opportunities.reduce(
+    (sum, r) => sum + Number(r.estimated_value ?? 0) * Number(r.probability ?? 0) / 100,
+    0,
+  );
+  const missingProbability = opportunities.filter((r) => r.probability == null).length;
+  const growthTargets = growthTargetsRes.data ?? [];
+  const activeGrowthTargets = growthTargets.filter((r) =>
+    OPEN_TARGET_STATUSES.includes(r.status as (typeof OPEN_TARGET_STATUSES)[number])
+  );
+  const overdueFollowups = activeGrowthTargets.filter(
+    (r) => r.next_action_due_at && new Date(r.next_action_due_at).getTime() < Date.now(),
+  ).length;
+  const highScoreTargets = activeGrowthTargets.filter((r) => Number(r.score ?? 0) >= 70).length;
+  const scheduledFollowups = activeGrowthTargets.filter((r) => r.next_action_due_at).length;
+  const namedContacts = growthTargets.filter((r) => Boolean(r.contact_name?.trim())).length;
+  const emailCoverage = growthTargets.filter((r) => Boolean(r.email?.trim() || r.company_email?.trim())).length;
+  const phoneCoverage = growthTargets.filter((r) => Boolean(r.phone?.trim() || r.company_phone?.trim())).length;
+  const propertyCoverage = growthTargets.filter((r) => Boolean(r.property_address?.trim())).length;
+  const procurement = procurementRes.data ?? [];
+  const actionableProcurement = procurement.filter((r) =>
+    Number(r.relevance_score ?? 0) >= 70 &&
+    (!r.closing_at || new Date(r.closing_at).getTime() >= Date.now())
+  );
+  const procurementValue = actionableProcurement.reduce(
+    (sum, r) => sum + Number(r.estimated_value ?? 0),
+    0,
+  );
   const isEmpty =
     metrics.property_count === 0 &&
     metrics.open_work_count === 0 &&
@@ -158,7 +197,7 @@ export default async function DashboardPage() {
           <Link className="primary" href={(isEmpty ? "/properties" : "/work-orders") as Route}>
             {isEmpty ? "Add your first property" : "Open work board"}
           </Link>
-          <Link className="button" href={"/targets" as Route}>PM targets</Link>
+          <Link className="button" href={"/targets" as Route}>Targets</Link>
         </div>
       </section>
 
@@ -188,19 +227,33 @@ export default async function DashboardPage() {
         </div>
         <div className="growth-grid">
           <Link className="growth-card" href={"/targets" as Route}>
-            <span className="muted">PM targets in queue</span>
+            <span className="muted">Active targets</span>
             <strong>{openTargets}</strong>
-            <small>{convertedTargets} converted · {totalTargets} total targets</small>
+            <small>{highScoreTargets} high-score · {convertedTargets} converted · {totalTargets} total</small>
           </Link>
           <Link className="growth-card" href={"/sales" as Route}>
             <span className="muted">Open opportunities</span>
             <strong>{opportunities.length}</strong>
-            <small>${pipelineValue.toLocaleString("en-CA", { maximumFractionDigits: 0 })} estimated pipeline</small>
+            <small>
+              {missingProbability
+                ? `${pipelineValue.toLocaleString("en-CA", { maximumFractionDigits: 0 })} pipeline · ${missingProbability} missing probability`
+                : `${weightedPipeline.toLocaleString("en-CA", { maximumFractionDigits: 0 })} weighted pipeline`}
+            </small>
           </Link>
           <Link className="growth-card growth-card-action" href={"/targets" as Route}>
-            <strong>Work the target list</strong>
-            <span>Score, contact, follow up, and convert PM accounts.</span>
+            <strong>Follow-up coverage</strong>
+            <span>{overdueFollowups} overdue · {scheduledFollowups}/{activeGrowthTargets.length} active targets scheduled</span>
           </Link>
+        </div>
+        <div className="checks" style={{ marginTop: 12, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+          <div>Named contacts <strong>{namedContacts}/{totalTargets}</strong></div>
+          <div>Email coverage <strong>{emailCoverage}/{totalTargets}</strong></div>
+          <div>Phone coverage <strong>{phoneCoverage}/{totalTargets}</strong></div>
+          <div>Property evidence <strong>{propertyCoverage}/{totalTargets}</strong></div>
+        </div>
+        <div className="checks" style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+          <div>Procurement matches <strong>{actionableProcurement.length}</strong></div>
+          <div>Matched procurement value <strong>${procurementValue.toLocaleString("en-CA", { maximumFractionDigits: 0 })}</strong></div>
         </div>
       </section>
       <section className="panel" style={{ marginBottom: 14 }}>
@@ -227,7 +280,7 @@ export default async function DashboardPage() {
           </ul>
         ) : (
           <p className="muted empty-queue">
-            No urgent actions. Assignment gaps, critical issues, renewals, PM follow-ups, and open tasks appear here automatically.
+            No urgent actions. Assignment gaps, critical issues, renewals, target follow-ups, and open tasks appear here automatically.
           </p>
         )}
       </section>
@@ -250,7 +303,7 @@ export default async function DashboardPage() {
               <Link className="button" href={"/work-orders" as Route}>Open work orders</Link>
             </li>
             <li>
-              <div><strong>Build your PM target list</strong><p className="muted">Find property managers, log outreach, and convert conversations to leads.</p></div>
+              <div><strong>Build your target list</strong><p className="muted">Research accounts, enrich contacts and properties, schedule outreach, and convert conversations to leads.</p></div>
               <Link className="button" href={"/targets" as Route}>Open targets</Link>
             </li>
           </ol>
@@ -309,7 +362,7 @@ export default async function DashboardPage() {
           <Link className="quick-card" href={"/properties" as Route}><strong>Properties</strong><span>Coverage and site notes</span></Link>
           <Link className="quick-card" href={"/work-orders" as Route}><strong>Work orders</strong><span>Schedule and complete jobs</span></Link>
           <Link className="quick-card" href={"/dispatch" as Route}><strong>Dispatch</strong><span>Who is where today</span></Link>
-          <Link className="quick-card" href={"/targets" as Route}><strong>PM targets</strong><span>Outreach and pipeline</span></Link>
+          <Link className="quick-card" href={"/targets" as Route}><strong>Targets</strong><span>Intelligence, outreach, and pipeline</span></Link>
           <Link className="quick-card" href={"/sales" as Route}><strong>Sales</strong><span>Opportunities</span></Link>
           <Link className="quick-card" href={"/contracts" as Route}><strong>Contracts</strong><span>Active and renewals</span></Link>
         </div>
