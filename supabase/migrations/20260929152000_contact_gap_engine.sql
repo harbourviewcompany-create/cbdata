@@ -22,6 +22,8 @@ create table if not exists public.contact_enrichment_tasks(
  unique(workspace_id,outreach_target_id,missing_role)
 );
 create index if not exists contact_enrichment_tasks_queue_idx on public.contact_enrichment_tasks(workspace_id,status,priority_score desc);
+create index if not exists contact_enrichment_tasks_target_idx on public.contact_enrichment_tasks(outreach_target_id);
+create index if not exists contact_enrichment_tasks_organization_idx on public.contact_enrichment_tasks(organization_id) where organization_id is not null;
 alter table public.contact_enrichment_tasks enable row level security;
 create policy contact_enrichment_tasks_member_select on public.contact_enrichment_tasks for select to authenticated using(private.is_workspace_member(workspace_id));
 create policy contact_enrichment_tasks_member_update on public.contact_enrichment_tasks for update to authenticated using(private.is_workspace_member(workspace_id)) with check(private.is_workspace_member(workspace_id));
