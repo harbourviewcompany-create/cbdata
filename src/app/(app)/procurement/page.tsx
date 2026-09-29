@@ -43,7 +43,7 @@ export default async function ProcurementPage(){
   const {data:regionalRuns}=await (s as any).from("tender_scout_runs").select("id,source_key,source_name,started_at,finished_at,status,fetched_count,qualifying_count,inserted_count,updated_count,lead_created_count,error_count,error_message").eq("workspace_id",ctx.workspaceId).order("started_at",{ascending:false}).limit(20);
   const {data:sources}=await (s as any).from("tender_sources").select("source_key,display_name,source_url,ingestion_mode,coverage_tier,adapter_status,buyer_scope,last_run_at,last_success_at,last_error,last_verified_at").eq("workspace_id",ctx.workspaceId).eq("enabled",true).order("display_name");
   const {data:sourceHealth}=await (s as any).from("v_procurement_source_health").select("*").eq("workspace_id",ctx.workspaceId).order("display_name");
-  const {data:inboxRows}=await (s as any).from("v_procurement_inbox").select("id,title,buyer_name,source_key,closing_at,bid_score,bid_recommendation,bid_score_breakdown,inbox_bucket,promoted_tender_record_id,source_url").eq("workspace_id",ctx.workspaceId).in("inbox_bucket",["deadline","best_new","needs_review","watching"]).order("bid_score",{ascending:false}).limit(60);
+  const {data:inboxRows}=await (s as any).from("v_procurement_inbox").select("id,title,buyer_name,source_key,closing_at,bid_score,bid_recommendation,bid_score_breakdown,inbox_bucket,promoted_tender_record_id,source_url,qualification_gap_count,submission_gap_count,hard_blocker_count,auto_next_action,auto_next_action_due_at,duplicate_count").eq("workspace_id",ctx.workspaceId).in("inbox_bucket",["deadline","qualification_gap","best_new","needs_review","watching"]).order("bid_score",{ascending:false}).limit(60);
   const {data:registrations}=await (s as any).from("supplier_registrations").select("id,source_key,registration_name,status,account_reference,expires_on,evidence_url,notes,updated_at").eq("workspace_id",ctx.workspaceId).order("registration_name");
   const [{data:intelligenceRows},{data:subtradeRows},{data:futureRows},{data:cycleRows}]=await Promise.all([
     (s as any).from("tender_pursuit_intelligence").select("tender_record_id,pursuit_mode,scope_fit,eligibility,commercial_attractiveness,geographic_fit,timing,competition,strategic_value,subtrade_potential,overall_score,rationale,next_best_action").eq("workspace_id",ctx.workspaceId),
@@ -67,7 +67,9 @@ export default async function ProcurementPage(){
 
   const inbox=inboxRows??[];
   const health=sourceHealth??[];
-  const unhealthy=health.filter((x:any)=>x.health_status!=="healthy");
+  const sourceIssues=health.filter((x:any)=>["failing","stale","never_scanned"].includes(x.health_status));
+  const manualSources=health.filter((x:any)=>x.health_status==="manual_only");
+  const secondaryCoverage=health.filter((x:any)=>x.health_status==="secondary_coverage");
   const inboxCounts=new Map<string,number>(); for(const x of inbox) inboxCounts.set(x.inbox_bucket,(inboxCounts.get(x.inbox_bucket)||0)+1);
 
   return <main className="list-shell">
@@ -80,22 +82,32 @@ export default async function ProcurementPage(){
     </header>
 
     <section className="panel" style={{marginBottom:18}}>
-      <div className="panel-head"><div><span className="eyebrow">PROCUREMENT INBOX</span><h3>What needs attention now</h3></div><span className="muted">{unhealthy.length} source issues · {inbox.length} prioritized opportunities</span></div>
+      <div className="panel-head"><div><span className="eyebrow">PROCUREMENT INBOX</span><h3>What needs attention now</h3></div><span className="muted">{sourceIssues.length} source issues · {manualSources.length} manual · {secondaryCoverage.length} secondary · {inbox.length} prioritized opportunities</span></div>
       <div className="metrics" style={{marginBottom:14}}>
         <div className="metric"><span>Deadline</span><strong>{inboxCounts.get("deadline")||0}</strong></div>
+        <div className="metric"><span>Qualification gaps</span><strong>{inboxCounts.get("qualification_gap")||0}</strong></div>
         <div className="metric"><span>Best new</span><strong>{inboxCounts.get("best_new")||0}</strong></div>
         <div className="metric"><span>Needs review</span><strong>{inboxCounts.get("needs_review")||0}</strong></div>
         <div className="metric"><span>Watching</span><strong>{inboxCounts.get("watching")||0}</strong></div>
-        <div className="metric"><span>Source issues</span><strong>{unhealthy.length}</strong></div>
+        <div className="metric"><span>Source issues</span><strong>{sourceIssues.length}</strong></div>
       </div>
       <div className="tender-list">
         {inbox.slice(0,12).map((o:any)=><div className="tender-list-row" key={o.id}>
-          <div><strong>{o.title}</strong><span className="status-meta">{o.buyer_name||"Unknown buyer"} · {o.inbox_bucket.replaceAll("_"," ")}</span><span className="status-meta">{o.closing_at ? "closes "+fmtDate(o.closing_at) : "deadline not published"}</span></div>
-          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><span className="score-chip score-high">{Math.round(Number(o.bid_score||0))}</span><span className="pill">{o.bid_recommendation}</span>{o.promoted_tender_record_id?<Link className="button" href={("/procurement/"+o.promoted_tender_record_id) as Route}>Open pursuit</Link>:o.source_url?<a className="button" href={o.source_url} target="_blank" rel="noreferrer">Review source</a>:null}</div>
+          <div>
+            <strong>{o.title}</strong>
+            <span className="status-meta">{o.buyer_name||"Unknown buyer"} · {o.inbox_bucket.replaceAll("_"," ")}{Number(o.duplicate_count||0)>1?" · "+o.duplicate_count+" sources":""}</span>
+            <span className="status-meta">{o.closing_at ? "closes "+fmtDate(o.closing_at) : "deadline not published"}{Number(o.qualification_gap_count||0)>0?" · "+o.qualification_gap_count+" qualification gap"+(Number(o.qualification_gap_count)===1?"":"s"):""}{Number(o.submission_gap_count||0)>0?" · "+o.submission_gap_count+" submission gap"+(Number(o.submission_gap_count)===1?"":"s"):""}</span>
+            {o.auto_next_action?<span className="status-meta wrap"><strong>Next:</strong> {o.auto_next_action}{o.auto_next_action_due_at?" · due "+fmtDate(o.auto_next_action_due_at):""}</span>:null}
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><span className="score-chip score-high">{Math.round(Number(o.bid_score||0))}</span><span className="pill">{o.bid_recommendation}</span>{Number(o.hard_blocker_count||0)>0?<span className="pill">blocked</span>:null}{o.promoted_tender_record_id?<Link className="button" href={("/procurement/"+o.promoted_tender_record_id) as Route}>Open pursuit</Link>:o.source_url?<a className="button" href={o.source_url} target="_blank" rel="noreferrer">Review source</a>:null}</div>
         </div>)}
         {inbox.length===0?<div className="muted">No prioritized procurement items currently require attention.</div>:null}
       </div>
-      {unhealthy.length?<div style={{marginTop:12}}><strong>Source health</strong><p className="muted">{unhealthy.slice(0,6).map((x:any)=>x.display_name+": "+x.health_status).join(" · ")}</p></div>:null}
+      {sourceIssues.length||manualSources.length||secondaryCoverage.length?<div style={{marginTop:12}}>
+        <strong>Source health</strong>
+        <p className="muted">{sourceIssues.slice(0,6).map((x:any)=>x.display_name+": "+x.health_status).join(" · ")}{secondaryCoverage.length?(sourceIssues.length?" · ":"")+secondaryCoverage.length+" secondary coverage route"+(secondaryCoverage.length===1?"":"s"):""}{manualSources.length?((sourceIssues.length||secondaryCoverage.length)?" · ":"")+manualSources.length+" manual-only source"+(manualSources.length===1?"":"s"):""}</p>
+        {manualSources.length?<p className="muted"><strong>Manual portal gaps:</strong> {manualSources.map((x:any)=>x.display_name).join(" · ")}</p>:null}
+      </div>:null}
     </section>
 
     <section className="panel" style={{marginBottom:18}}>
