@@ -9,6 +9,7 @@ const PATHS=["","/team","/our-team","/about","/about-us","/leadership","/staff",
 function clean(s:string){return s.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/&nbsp;|&#160;/g," ").replace(/&amp;/g,"&").replace(/\s+/g," ").trim();}
 function absolute(base:string,path:string){try{return new URL(path,base).toString()}catch{return null}}
 function sameHost(a:string,b:string){try{return new URL(a).hostname.replace(/^www\./,"")===new URL(b).hostname.replace(/^www\./,"")}catch{return false}}
+const INVALID_NAME=/^(first name|last name|full name|your name|contact us|learn more|read more|property management|facility management|vice president|executive director|privacy policy|terms conditions)$/i;
 function candidateFromPage(html:string,url:string,role:string){
  const text=clean(html); const terms=ROLE_TERMS[role]||[]; const lower=text.toLowerCase();
  for(const term of terms){
@@ -18,9 +19,9 @@ function candidateFromPage(html:string,url:string,role:string){
    const email=snippet.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]||null;
    const phone=snippet.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/)?.[0]||null;
    const names=[...snippet.matchAll(/\b([A-Z][a-zÀ-ÿ'’-]{1,30})\s+([A-Z][a-zÀ-ÿ'’-]{1,30})\b/g)]
-    .map(m=>m[0]).filter(n=>!/(Contact Us|Learn More|Read More|Property Management|Facility Management|Vice President|Executive Director)/i.test(n));
+     .map(m=>m[0]).filter(n=>!INVALID_NAME.test(n.trim()) && !/^(First|Last|Full|Your|Contact|Learn|Read|Property|Facility|Privacy|Terms)\b/i.test(n));
    const name=names.length?names[names.length-1]:null;
-   if(name && (email||phone)) return {name,title:term,email,phone,url,snippet:snippet.slice(0,320)};
+   if(name && email) return {name,title:term,email,phone,url,snippet:snippet.slice(0,320)};
    at=lower.indexOf(term,at+term.length);
   }
  }
