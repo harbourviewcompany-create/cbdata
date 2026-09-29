@@ -89,3 +89,8 @@
 .line-item-grid{grid-template-columns:minmax(260px,1.8fr) 80px 90px 110px 120px minmax(330px,1.8fr)}
 @media(max-width:1150px){.manual-tender-form{grid-template-columns:repeat(2,minmax(150px,1fr))}.line-item-grid{min-width:1050px}}
 @media(max-width:700px){.manual-tender-form{grid-template-columns:1fr}}
+
+.callup-row{display:grid;grid-template-columns:minmax(180px,.8fr) minmax(500px,2fr);gap:12px;align-items:center;padding:10px 14px;border-top:1px solid var(--border)}
+.callup-row:first-child{border-top:0}
+.callup-row>div{min-width:0}
+@media(max-width:950px){.callup-row{grid-template-columns:1fr}.callup-row .inline-form{align-items:flex-start}}
