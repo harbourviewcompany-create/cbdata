@@ -16,6 +16,10 @@ const FIT_RULES:FitRule[]=[
 {label:"painting & finishes",weight:16,terms:["painting","flooring","carpet","tile replacement","millwork","carpentry","drywall"]},
 {label:"plumbing",weight:10,terms:["plumbing","plumber","domestic water","sanitary piping"]},
 {label:"electrical",weight:8,terms:["electrical contractor","electrical upgrade","lighting replacement","fire alarm replacement"]},
+{label:"metals & fabrication",weight:30,core:true,terms:["structural steel","steel fabrication","metal fabrication","welding","miscellaneous metals","architectural metals","pre-engineered metal","metal stairs","metal railing"]},
+{label:"roof sheet metal",weight:30,core:true,terms:["metal roofing","roof flashing","sheet metal flashing","soffit","fascia","coping","roof curb"]},
+{label:"mechanical accessories",weight:26,core:true,terms:["fire damper","smoke damper","volume damper","roof curb","exhaust hood","mechanical insulation","duct insulation","air balancing"]},
+{label:"standing offers & prequalification",weight:18,terms:["standing offer","request for standing offer","rfso","source list","prequalification","pre-qualification","contractor prequalification","vendor of record"]},
 {label:"construction",weight:10,terms:["construction","building addition","capital renewal","school renewal"]}
 ];
 const EXCLUSION_TERMS=["software maintenance","software management","document management software","logiciel","gestion documentaire","informatique","it maintenance","network maintenance","vehicle maintenance","fleet maintenance","vehicle upfitting","vehicle modification","aircraft maintenance","marine maintenance","medical equipment","laboratory equipment","training services","consulting services","professional services","project delivery services","architecture and engineering","engineering services only","architectural services only","survey services","data subscription","database subscription","economic data","macroeconomic data","application program interface","application programming interface","analytics subscription","office supplies","food services"];
@@ -221,7 +225,7 @@ Deno.serve(async(req)=>{
    await admin.from("tender_scout_runs").update({finished_at:new Date().toISOString(),status:errors?"partial":"completed",fetched_count:fetched,qualifying_count:qualifying,inserted_count:inserted,updated_count:updated,lead_created_count:leads,error_count:errors}).eq("id",run?.id);await admin.from("tender_sources").update({last_run_at:new Date().toISOString(),...(errors?{last_error:`${errors} procurement writes failed`}:{last_success_at:new Date().toISOString(),last_error:null}),updated_at:new Date().toISOString()}).eq("workspace_id",workspaceId).eq("source_key",source.key);summary.push({source:source.key,fetched,qualifying,inserted,updated,leads,errors});
   }catch(e){const message=e instanceof Error?e.message:"unknown_error";errors++;await admin.from("tender_scout_runs").update({finished_at:new Date().toISOString(),status:"error",fetched_count:fetched,qualifying_count:qualifying,inserted_count:inserted,updated_count:updated,lead_created_count:leads,error_count:errors,error_message:message}).eq("id",run?.id);await admin.from("tender_sources").update({last_run_at:new Date().toISOString(),last_error:message,updated_at:new Date().toISOString()}).eq("workspace_id",workspaceId).eq("source_key",source.key);summary.push({source:source.key,error:message});}
  }
- const {error:decisionError}=await admin.rpc("refresh_procurement_sales_engine",{p_workspace:workspaceId});
- if(decisionError)summary.push({source:"decision_engine",error:decisionError.message});
- return Response.json({ok:summary.every(source=>!source.error&&!source.errors),sources:summary});
+ const {data:routing,error:routingError}=await admin.rpc("route_procurement_pursuits",{p_workspace:workspaceId});
+ if(routingError)summary.push({source:"pursuit_router",error:routingError.message});
+ return Response.json({ok:summary.every(source=>!source.error&&!source.errors)&&!routingError,sources:summary,routing:routing||null,routing_error:routingError?.message||null});
 });
