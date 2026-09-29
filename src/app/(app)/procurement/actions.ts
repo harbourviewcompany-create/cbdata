@@ -360,6 +360,11 @@ export async function confirmTenderSubmission(formData: FormData) {
   }).eq("workspace_id",ctx.workspaceId).eq("id",tenderId);
   if (error) throw error;
 
+  await (s as any).from("tender_bid_packs").update({
+    status: "submitted",
+    submitted_at: new Date().toISOString(),
+  }).eq("workspace_id",ctx.workspaceId).eq("tender_record_id",tenderId).eq("status","ready");
+
   revalidatePath("/procurement");
   revalidatePath(`/procurement/${tenderId}`);
 }
@@ -778,6 +783,8 @@ export async function saveTenderPortalSnapshot(formData: FormData) {
   const tenderId = String(formData.get("tender_id") || "");
   const portalName = String(formData.get("portal_name") || "").trim();
   if (!tenderId || !portalName) throw new Error("Tender and portal name are required");
+  const captureMethod = String(formData.get("capture_method") || "authenticated_manual");
+  if (!["authenticated_manual","authenticated_automation","public","import"].includes(captureMethod)) throw new Error("Invalid portal capture method");
   const rawText = String(formData.get("raw_payload") || "").trim();
   let rawPayload: Record<string, unknown> = {};
   if (rawText) {
@@ -795,7 +802,7 @@ export async function saveTenderPortalSnapshot(formData: FormData) {
     workspace_id: ctx.workspaceId,
     tender_record_id: tenderId,
     portal_name: portalName,
-    capture_method: String(formData.get("capture_method") || "authenticated_manual"),
+    capture_method: captureMethod,
     response_status: String(formData.get("response_status") || "").trim() || null,
     response_deadline_at: deadline ? new Date(deadline).toISOString() : null,
     source_url: sourceUrl,
@@ -816,6 +823,8 @@ export async function addTenderLineItem(formData: FormData) {
   const itemNumber = String(formData.get("item_number") || "").trim();
   const description = String(formData.get("description") || "").trim();
   if (!tenderId || !itemNumber || !description) throw new Error("Tender, item number and description are required");
+  const status = String(formData.get("status") || "pending");
+  if (!["pending","priced","complete","not_applicable"].includes(status)) throw new Error("Invalid line-item status");
   const { error } = await (s as any).from("tender_line_items").upsert({
     workspace_id: ctx.workspaceId,
     tender_record_id: tenderId,
@@ -828,7 +837,7 @@ export async function addTenderLineItem(formData: FormData) {
     source_reference: String(formData.get("source_reference") || "").trim() || null,
     response_value: String(formData.get("response_value") || "").trim() || null,
     unit_price: numberField(formData,"unit_price") || null,
-    status: String(formData.get("status") || "pending"),
+    status,
     updated_at: new Date().toISOString(),
   },{onConflict:"tender_record_id,item_number"});
   if (error) throw error;
@@ -920,4 +929,110 @@ export async function saveTenderDebrief(formData: FormData) {
   if (tenderError) throw tenderError;
   revalidatePath(`/procurement/${tenderId}`);
   revalidatePath("/procurement");
+}
+
+
+export async function generateTenderBidPack(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const tenderId = String(formData.get("tender_id") || "");
+  if (!tenderId) throw new Error("Tender is required");
+
+  const [
+    { data: tender, error: tenderError },
+    { data: requirements },
+    { data: amendments },
+    { data: clarifications },
+    { data: quotes },
+    { data: costModels },
+    { data: priceYears },
+    { data: lineItems },
+    { data: risks },
+    { data: approvals },
+    { data: vaultDocs },
+  ] = await Promise.all([
+    (s as any).from("tender_records").select("*").eq("workspace_id",ctx.workspaceId).eq("id",tenderId).single(),
+    (s as any).from("tender_requirements").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",tenderId).order("mandatory",{ascending:false}),
+    (s as any).from("tender_amendments").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",tenderId).order("amendment_number"),
+    (s as any).from("tender_clarifications").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",tenderId),
+    (s as any).from("tender_supplier_quotes").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",tenderId),
+    (s as any).from("tender_cost_models").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",tenderId),
+    (s as any).from("tender_price_years").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",tenderId).order("year_number"),
+    (s as any).from("tender_line_items").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",tenderId).order("item_number"),
+    (s as any).from("tender_risks").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",tenderId),
+    (s as any).from("tender_approvals").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",tenderId),
+    (s as any).from("supplier_document_vault").select("*").eq("workspace_id",ctx.workspaceId).eq("status","active"),
+  ]);
+  if (tenderError) throw tenderError;
+
+  const mandatoryGaps=(requirements??[]).filter((r:any)=>r.mandatory && !["complete","not_applicable"].includes(r.status));
+  const evidenceGaps=(requirements??[]).filter((r:any)=>r.mandatory && r.evidence_required && r.status==="complete" && !r.evidence_url);
+  const amendmentGaps=(amendments??[]).filter((a:any)=>a.amendment_number>0 && !a.acknowledged_at);
+  const clarificationGaps=(clarifications??[]).filter((q:any)=>q.blocking && !["answered","closed"].includes(q.status));
+  const lineItemGaps=(lineItems??[]).filter((li:any)=>li.mandatory && !["complete","not_applicable"].includes(li.status));
+  const highRisks=(risks??[]).filter((r:any)=>r.status==="open" && Number(r.probability)*Number(r.impact)>=15);
+  const commercial=(costModels??[]).find((m:any)=>m.status==="approved");
+  if (mandatoryGaps.length || evidenceGaps.length || amendmentGaps.length || clarificationGaps.length || lineItemGaps.length || highRisks.length || !commercial || !tender.estimate_id) {
+    throw new Error("Bid pack cannot be generated until compliance, amendments, questions, line items, high risks, estimate and commercial model are clear");
+  }
+
+  const { data: latest } = await (s as any).from("tender_bid_packs")
+    .select("version").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",tenderId)
+    .order("version",{ascending:false}).limit(1).maybeSingle();
+  const version=Number(latest?.version||0)+1;
+  const acceptedQuote=(quotes??[]).find((q:any)=>q.status==="accepted") ?? null;
+  const manifest={
+    tender:{
+      id:tender.id,external_id:tender.external_id,title:tender.title,buyer_name:tender.buyer_name,
+      closing_date:tender.closing_date,source:tender.source,source_url:tender.source_url,
+    },
+    generated_at:new Date().toISOString(),
+    requirements:(requirements??[]).map((r:any)=>({title:r.title,status:r.status,mandatory:r.mandatory,evidence_url:r.evidence_url,source_reference:r.source_reference})),
+    amendments:(amendments??[]).map((a:any)=>({number:a.amendment_number,title:a.title,acknowledged_at:a.acknowledged_at,changed_fields:a.changed_fields})),
+    clarifications:(clarifications??[]).map((q:any)=>({question:q.question,status:q.status,response_text:q.response_text})),
+    supplier_quote:acceptedQuote,
+    commercial_model:commercial,
+    price_years:priceYears??[],
+    line_items:lineItems??[],
+    risks:risks??[],
+    approvals:approvals??[],
+    reusable_documents:(vaultDocs??[]).map((d:any)=>({document_type:d.document_type,title:d.title,evidence_url:d.evidence_url,expires_on:d.expires_on})),
+  };
+  const { data: userData } = await s.auth.getUser();
+  await (s as any).from("tender_bid_packs").update({status:"obsolete"})
+    .eq("workspace_id",ctx.workspaceId).eq("tender_record_id",tenderId).in("status",["draft","ready"]);
+  const { error } = await (s as any).from("tender_bid_packs").insert({
+    workspace_id:ctx.workspaceId,
+    tender_record_id:tenderId,
+    version,
+    status:"ready",
+    manifest,
+    generated_by:userData.user?.id ?? null,
+    approved_at:new Date().toISOString(),
+  });
+  if (error) throw error;
+  revalidatePath(`/procurement/${tenderId}`);
+  revalidatePath("/procurement");
+}
+
+export async function updateTenderCallup(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const tenderId = String(formData.get("tender_id") || "");
+  const id = String(formData.get("callup_id") || "");
+  const status = String(formData.get("status") || "");
+  if (!tenderId || !id || !["issued","accepted","in_fulfillment","delivered","invoiced","paid","cancelled"].includes(status)) throw new Error("Invalid call-up update");
+  const now=new Date().toISOString();
+  const { error } = await (s as any).from("tender_callups").update({
+    status,
+    revenue: Math.max(0,numberField(formData,"revenue")),
+    direct_cost: Math.max(0,numberField(formData,"direct_cost")),
+    invoice_number: String(formData.get("invoice_number") || "").trim() || null,
+    delivered_at: status==="delivered" ? now : undefined,
+    invoice_sent_at: status==="invoiced" ? now : undefined,
+    paid_at: status==="paid" ? now : undefined,
+    updated_at: now,
+  }).eq("workspace_id",ctx.workspaceId).eq("tender_record_id",tenderId).eq("id",id);
+  if (error) throw error;
+  revalidatePath(`/procurement/${tenderId}`);
 }
