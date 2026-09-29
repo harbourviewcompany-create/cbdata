@@ -102,7 +102,8 @@ begin
      or position('material_price_observations' in approval_def)=0
      or position('material_request_supplier_terms' in approval_def)=0
      or position('Reprice this material request before approving a plan' in approval_def)=0
-     or position('America/Toronto' in approval_def)=0 then
+     or position('America/Toronto' in approval_def)=0
+     or position('import' in approval_def)=0 then
     raise exception 'material plan approval does not revalidate current price/delivery evidence';
   end if;
 
