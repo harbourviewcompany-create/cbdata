@@ -398,11 +398,17 @@ export async function updateSupplierRegistration(formData: FormData) {
   const status = String(formData.get("status") || "");
   const allowed = ["unknown","not_required","required","in_progress","active","expired","blocked"];
   if (!id || !allowed.includes(status)) throw new Error("Invalid supplier registration status");
+  const accountReference = String(formData.get("account_reference") || "").trim();
+  const evidenceUrl = String(formData.get("evidence_url") || "").trim();
+  const notes = String(formData.get("notes") || "").trim();
+  if (notes && /(?:password|secret|cra\s*(?:business|bn)|business\s*number|bank\s*account|account\s*number|transit\s*number|institution\s*number|routing\s*number)/i.test(notes)) {
+    throw new Error("Do not store passwords, CRA business numbers, banking identifiers, or other secrets in CBData.");
+  }
   const { error } = await (s as any).from("supplier_registrations").update({
     status,
-    account_reference: String(formData.get("account_reference") || "").trim() || null,
-    evidence_url: String(formData.get("evidence_url") || "").trim() || null,
-    notes: String(formData.get("notes") || "").trim() || null,
+    account_reference: accountReference || null,
+    evidence_url: evidenceUrl || null,
+    notes: notes || null,
     updated_at: new Date().toISOString(),
   }).eq("workspace_id",ctx.workspaceId).eq("id",id);
   if (error) throw error;
