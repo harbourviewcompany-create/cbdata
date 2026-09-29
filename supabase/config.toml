@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.regional-tender-scout]
 verify_jwt = false
+
+[functions.contact-researcher]
+verify_jwt = false
