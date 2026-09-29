@@ -302,6 +302,8 @@ begin
 end;
 $$;
 
+revoke all on function private.capture_tender_amendment() from public, anon, authenticated;
+
 drop trigger if exists tender_records_capture_amendment on public.tender_records;
 create trigger tender_records_capture_amendment
 after update of title,closing_date,published_date,category,response_mode,registration_required,source_url,raw_payload
