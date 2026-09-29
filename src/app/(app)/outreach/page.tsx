@@ -93,10 +93,11 @@ export default async function OutreachPage({
       <div style={{display:"grid",gap:10}}>
         {rows.map(r=>{
           const emailLink=mailto(r.contact_email,r.latest_draft_subject,r.latest_draft_body);
-          return <article key={r.id} style={{border:"1px solid var(--line)",borderRadius:12,padding:14,display:"grid",gap:10}}>
-            <div style={{display:"grid",gridTemplateColumns:"80px minmax(180px,1fr) minmax(220px,1.4fr) minmax(180px,1fr)",gap:14,alignItems:"start"}}>
+          const legacyDraft=!!r.latest_draft_body && /snow, grounds, janitorial|if you are reviewing contractors/i.test(r.latest_draft_body);
+          return <article key={r.id} className="outreach-queue-card">
+            <div className="outreach-queue-summary">
               <div>
-                <span className="eyebrow">READY</span>
+                <span className="eyebrow">SCORE</span>
                 <strong style={{display:"block",fontSize:26}}>{r.outreach_readiness_score}</strong>
                 <span className="muted" style={{fontSize:11}}>contact {r.contact_confidence_score}</span>
               </div>
@@ -108,10 +109,10 @@ export default async function OutreachPage({
                 {r.contact_email ? <a href={`mailto:${r.contact_email}`} style={{fontSize:11}}>{r.contact_email}</a> : null}
               </div>
               <div>
-                <span className="eyebrow">WHY NOW</span>
+                <span className="eyebrow">FIT &amp; TIMING</span>
                 <div style={{fontSize:12,lineHeight:1.45,marginTop:4}}>{r.why_now ?? "Target intelligence available"}</div>
                 <div className="muted" style={{fontSize:11,marginTop:5}}>
-                  {r.property_count} properties · {r.high_signal_property_count} high-signal · {r.open_signal_count} open signals
+                  {r.property_count} properties · {r.high_signal_property_count} strong-fit properties · {r.open_signal_count ? `${r.open_signal_count} open signals` : "No verified buying trigger"}
                   {r.service_fit?.length ? ` · ${r.service_fit.join(" / ")}` : ""}
                 </div>
               </div>
@@ -122,35 +123,36 @@ export default async function OutreachPage({
               </div>
             </div>
 
-            {r.latest_draft_body ? <details>
-              <summary style={{cursor:"pointer",fontWeight:700,fontSize:12}}>Latest {r.latest_draft_state} draft</summary>
+            {r.latest_draft_body ? <details name="outreach-draft-review" className="outreach-draft-review">
+              <summary>Review {r.latest_draft_state} message{r.latest_draft_subject ? ` · ${r.latest_draft_subject}` : ""}</summary>
               <div style={{marginTop:10,padding:12,border:"1px solid var(--line)",borderRadius:10,whiteSpace:"pre-wrap",fontSize:12,lineHeight:1.5}}>
                 {r.latest_draft_subject ? <strong style={{display:"block",marginBottom:8}}>{r.latest_draft_subject}</strong> : null}
                 {r.latest_draft_body}
               </div>
+              {legacyDraft ? <p className="outreach-draft-warning">This older draft uses a generic service list. Rewrite it before approval.</p> : null}
             </details> : null}
 
-            <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-              {!r.latest_draft_id || r.recommended_action==="generate_draft" ? <form action={generateDraft} style={{display:"flex",gap:6}}>
+            <div className="outreach-queue-actions">
+              {(!r.latest_draft_id || r.latest_draft_state==="draft" || (legacyDraft && r.latest_draft_state==="approved") || r.recommended_action==="generate_draft") ? <form action={generateDraft} className="outreach-rewrite-form">
                 <input type="hidden" name="target_id" value={r.id}/>
                 <select name="objective" defaultValue="referral">
                   <option value="referral">Referral / right person</option><option value="introduction">Introduction</option>
                   <option value="meeting">Meeting</option><option value="site_walk">Site walkthrough</option>
                   <option value="vendor_registration">Vendor registration</option><option value="quote">Quote opportunity</option>
                 </select>
-                <select name="channel" defaultValue="email" aria-label="Draft channel">
+                <select name="channel" defaultValue={r.latest_draft_channel ?? "email"} aria-label="Draft channel">
                   <option value="email">Email</option><option value="linkedin">LinkedIn</option>
                   <option value="call">Call opener</option><option value="voicemail">Voicemail</option><option value="sms">SMS</option>
                 </select>
-                <button className="primary" type="submit">Generate draft</button>
+                <button className={r.latest_draft_id ? "button" : "primary"} type="submit">{r.latest_draft_id ? "Rewrite draft" : "Generate draft"}</button>
               </form> : null}
-              {r.latest_draft_id && r.latest_draft_state==="draft" ? <form action={approveDraft}>
+              {r.latest_draft_id && r.latest_draft_state==="draft" && !legacyDraft ? <form action={approveDraft}>
                 <input type="hidden" name="target_id" value={r.id}/>
                 <input type="hidden" name="draft_id" value={r.latest_draft_id}/>
-                <button className="primary" type="submit">Approve</button>
+                <button className="primary" type="submit">Approve message</button>
               </form> : null}
-              {r.latest_draft_id && r.latest_draft_state==="approved" && r.latest_draft_channel==="email" && emailLink ? <a className="primary" href={emailLink}>Open email</a> : null}
-              {r.latest_draft_id && r.latest_draft_state==="approved" ? <form action={markSent}>
+              {r.latest_draft_id && r.latest_draft_state==="approved" && !legacyDraft && r.latest_draft_channel==="email" && emailLink ? <a className="primary" href={emailLink}>Open email</a> : null}
+              {r.latest_draft_id && r.latest_draft_state==="approved" && !legacyDraft ? <form action={markSent}>
                 <input type="hidden" name="target_id" value={r.id}/>
                 <input type="hidden" name="draft_id" value={r.latest_draft_id}/>
                 <input type="hidden" name="provider" value="manual"/>
