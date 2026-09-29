@@ -398,15 +398,74 @@ export async function updateSupplierRegistration(formData: FormData) {
   const status = String(formData.get("status") || "");
   const allowed = ["unknown","not_required","required","in_progress","active","expired","blocked"];
   if (!id || !allowed.includes(status)) throw new Error("Invalid supplier registration status");
+  const accountReference = String(formData.get("account_reference") || "").trim();
+  const evidenceUrl = String(formData.get("evidence_url") || "").trim();
+  const notes = String(formData.get("notes") || "").trim();
+  if (notes && /(?:password|secret|cra\s*(?:business|bn)|business\s*number|bank\s*account|account\s*number|transit\s*number|institution\s*number|routing\s*number)/i.test(notes)) {
+    throw new Error("Do not store passwords, CRA business numbers, banking identifiers, or other secrets in CBData.");
+  }
   const { error } = await (s as any).from("supplier_registrations").update({
     status,
-    account_reference: String(formData.get("account_reference") || "").trim() || null,
-    evidence_url: String(formData.get("evidence_url") || "").trim() || null,
-    notes: String(formData.get("notes") || "").trim() || null,
+    account_reference: accountReference || null,
+    evidence_url: evidenceUrl || null,
+    notes: notes || null,
     updated_at: new Date().toISOString(),
   }).eq("workspace_id",ctx.workspaceId).eq("id",id);
   if (error) throw error;
   revalidatePath("/procurement");
+  revalidatePath("/procurement/registration");
+}
+
+export async function updateSupplierRegistrationStep(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const id = String(formData.get("step_id") || "");
+  const status = String(formData.get("status") || "");
+  const allowed = ["pending","in_progress","complete","blocked","not_applicable"];
+  if (!id || !allowed.includes(status)) throw new Error("Invalid registration step");
+
+  const { data: step, error: stepError } = await (s as any)
+    .from("supplier_registration_steps")
+    .select("id,supplier_registration_id,sensitive,evidence_required")
+    .eq("workspace_id",ctx.workspaceId).eq("id",id).single();
+  if (stepError) throw stepError;
+
+  const evidenceUrl = String(formData.get("evidence_url") || "").trim();
+  const notes = String(formData.get("notes") || "").trim();
+  if (step.sensitive && notes && /(?:business\s*number|account\s*number|transit|institution\s*number|password|secret|routing\s*number)/i.test(notes)) {
+    throw new Error("Do not store passwords, CRA business numbers, banking identifiers, or other secrets in CBData. Record completion/evidence only.");
+  }
+  if (status === "complete" && step.evidence_required && !evidenceUrl) {
+    throw new Error("Evidence is required before this registration step can be completed");
+  }
+
+  const { data: userData } = await s.auth.getUser();
+  const { error } = await (s as any).from("supplier_registration_steps").update({
+    status,
+    evidence_url: evidenceUrl || null,
+    notes: notes || null,
+    completed_at: status === "complete" ? new Date().toISOString() : null,
+    completed_by: status === "complete" ? userData.user?.id ?? null : null,
+    updated_at: new Date().toISOString(),
+  }).eq("workspace_id",ctx.workspaceId).eq("id",id);
+  if (error) throw error;
+
+  const { data: readiness } = await (s as any).from("v_supplier_registration_readiness")
+    .select("bid_ready,award_ready,bid_gap_count,award_gap_count")
+    .eq("workspace_id",ctx.workspaceId)
+    .eq("supplier_registration_id",step.supplier_registration_id)
+    .maybeSingle();
+
+  const nextStatus = readiness?.bid_ready ? "active" : status === "blocked" ? "blocked" : "in_progress";
+  const { error: registrationError } = await (s as any).from("supplier_registrations").update({
+    status: nextStatus,
+    updated_at: new Date().toISOString(),
+  }).eq("workspace_id",ctx.workspaceId).eq("id",step.supplier_registration_id);
+  if (registrationError && readiness?.bid_ready) throw registrationError;
+
+  revalidatePath("/procurement");
+  revalidatePath("/procurement/registration");
+  revalidatePath("/procurement/coverage");
 }
 
 export async function runCanadaBuysScout() {
