@@ -123,7 +123,7 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
           <label className="stacked-field"><span>Submission method</span><input name="submission_method" defaultValue={tender.submission_method||""} placeholder="MERX, SAP Business Network, email, portal"/></label>
           <label className="stacked-field"><span>Receipt / confirmation #</span><input name="submission_reference" defaultValue={tender.submission_reference||""} placeholder="Required"/></label>
           <label className="stacked-field"><span>Receipt URL</span><input name="submission_receipt_url" defaultValue={tender.submission_receipt_url||""} placeholder="https://..."/></label>
-          <button className="primary" type="submit" disabled={incomplete.length>0||!estimate}>Confirm submitted</button>
+          <button className="primary" type="submit" disabled={!readiness?.ready_to_submit}>Confirm submitted</button>
           {tender.submission_confirmed_at?<span className="status-meta">Confirmed {fmt(tender.submission_confirmed_at)}</span>:null}
         </form>
       </div>
