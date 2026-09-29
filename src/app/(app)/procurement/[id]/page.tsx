@@ -42,6 +42,7 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
     {data:reqs},{data:deadlines},{data:docs},{data:history},{data:links},{data:estimate},
     {data:amendments},{data:clarifications},{data:quotes},{data:costModels},{data:risks},
     {data:approvals},{data:readiness},{data:vaultDocs},{data:awards},{data:callups},
+    {data:portalSnapshots},{data:lineItems},{data:priceYears},{data:debrief},
   ]=await Promise.all([
     (s as any).from("tender_requirements").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("mandatory",{ascending:false}).order("created_at"),
     (s as any).from("tender_deadlines").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("due_at"),
@@ -59,6 +60,10 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
     (s as any).from("supplier_document_vault").select("*").eq("workspace_id",ctx.workspaceId).order("document_type"),
     tender.buyer_name ? (s as any).from("procurement_awards").select("id,title,awarded_to,award_amount,currency,award_date,contract_end_date,source_url").eq("workspace_id",ctx.workspaceId).ilike("buyer_name",tender.buyer_name).order("award_date",{ascending:false}).limit(12) : Promise.resolve({data:[]}),
     (s as any).from("tender_callups").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("issued_at",{ascending:false}),
+    (s as any).from("tender_portal_snapshots").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("captured_at",{ascending:false}),
+    (s as any).from("tender_line_items").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("item_number"),
+    (s as any).from("tender_price_years").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("year_number"),
+    (s as any).from("tender_debriefs").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).maybeSingle(),
   ]);
 
   const mandatory=(reqs??[]).filter((r:any)=>r.mandatory);
@@ -232,6 +237,10 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
       vaultDocs={vaultDocs??[]}
       awards={awards??[]}
       callups={callups??[]}
+      portalSnapshots={portalSnapshots??[]}
+      lineItems={lineItems??[]}
+      priceYears={priceYears??[]}
+      debrief={debrief}
     />
 
     <section className="tender-detail-grid">
