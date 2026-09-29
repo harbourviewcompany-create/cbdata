@@ -27,10 +27,10 @@ export default async function DashboardPage() {
   const { workspaceId, user } = ctx;
 
   const [
-    { data: snapshot },
-    { data: recentWork },
-    { data: recentIssues },
-    { data: nextActions },
+    snapshotRes,
+    recentWorkRes,
+    recentIssuesRes,
+    nextActionsRes,
     openTargetsRes,
     convertedTargetsRes,
     totalTargetsRes,
@@ -80,6 +80,33 @@ export default async function DashboardPage() {
       .eq("status", "open"),
   ]);
 
+  const queryFailures = [
+    ["workspace snapshot", snapshotRes.error],
+    ["work exceptions", recentWorkRes.error],
+    ["issue queue", recentIssuesRes.error],
+    ["next actions", nextActionsRes.error],
+    ["open targets", openTargetsRes.error],
+    ["converted targets", convertedTargetsRes.error],
+    ["target total", totalTargetsRes.error],
+    ["open opportunities", openOpportunities.error],
+  ].filter((entry): entry is [string, NonNullable<(typeof snapshotRes)["error"]>] => Boolean(entry[1]));
+
+  if (queryFailures.length) {
+    console.error("Command center query failure", {
+      workspaceId,
+      failures: queryFailures.map(([query, error]) => ({
+        query,
+        code: error.code,
+        message: error.message,
+      })),
+    });
+  }
+
+  const snapshot = snapshotRes.data;
+  const recentWork = recentWorkRes.data;
+  const recentIssues = recentIssuesRes.data;
+  const nextActions = nextActionsRes.data;
+
   const metrics = snapshot ?? {
     workspace_id: workspaceId,
     property_count: 0,
@@ -96,7 +123,7 @@ export default async function DashboardPage() {
   const openTargets = openTargetsRes.count ?? 0;
   const convertedTargets = convertedTargetsRes.count ?? 0;
   const totalTargets = totalTargetsRes.count ?? 0;
-  const opportunities = openOpportunities ?? [];
+  const opportunities = openOpportunities.data ?? [];
   const pipelineValue = opportunities.reduce((sum, r) => sum + Number(r.estimated_value ?? 0), 0);
   const isEmpty =
     metrics.property_count === 0 &&
@@ -134,6 +161,15 @@ export default async function DashboardPage() {
           <Link className="button" href={"/targets" as Route}>PM targets</Link>
         </div>
       </section>
+
+      {queryFailures.length > 0 ? (
+        <section className="panel" role="alert" style={{ marginBottom: 14 }}>
+          <strong>Some command-center data could not be loaded.</strong>
+          <p className="muted" style={{ marginBottom: 0 }}>
+            The affected metrics are temporarily unavailable. Refresh the page; if this persists, check the production error logs.
+          </p>
+        </section>
+      ) : null}
 
       <section className="metrics" aria-label="Key counts">
         <Metric label="Properties" value={metrics.property_count} href="/properties" emptyHint="Add sites you service" />
