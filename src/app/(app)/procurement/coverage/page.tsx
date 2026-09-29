@@ -97,10 +97,10 @@ export default async function ProcurementCoveragePage(){
         {(pursuits??[]).map((r:any)=><div className="targets-grid-row" key={r.id}>
           <div><strong>{r.buyer_name}</strong><span className="status-meta">{r.primary_source_key||"source gap"}</span></div>
           <div><strong>{r.contract_title||r.title}</strong><span className="status-meta">{r.service_category} · {fmtDate(r.expected_publish_start)}–{fmtDate(r.expected_publish_end)}</span></div>
-          <div><span className="pill">{r.contact_readiness_status}</span><span className="status-meta">{r.known_contact_count||0} known contacts</span></div>
-          <div><span className="pill">{r.vendor_readiness_status}</span><span className="status-meta">{r.supplier_registration_status||"registration not recorded"}</span></div>
+          <div><span className="pill">{r.contact_readiness_status}</span>{r.pursuit_contact_name?<><strong>{r.pursuit_contact_name}</strong><span className="status-meta">{r.pursuit_contact_title||"procurement contact"}</span>{r.pursuit_contact_email?<a className="status-meta" href={`mailto:${r.pursuit_contact_email}`}>{r.pursuit_contact_email}</a>:null}</>:<span className="status-meta">{r.known_contact_count||0} known contacts</span>}</div>
+          <div><span className="pill">{r.vendor_readiness_status}</span><span className="status-meta">{r.supplier_registration_status||"registration not recorded"}</span>{r.registration_url?<a className="button" href={r.registration_url} target="_blank" rel="noreferrer">Registration</a>:null}</div>
           <div><span className="score-chip score-high">{r.fit_score}</span><span className="status-meta">{r.pursuit_priority||"watch"}</span></div>
-          <div><strong>{r.next_action||"Resolve pursuit readiness"}</strong>{r.target_id?<Link className="button" href="/targets">Open target</Link>:null}</div>
+          <div><strong>{r.next_action||"Resolve pursuit readiness"}</strong><span className="status-meta">{r.incumbent_name?`incumbent ${r.incumbent_name}`:"incumbent gap"}{r.award_value?` · ${new Intl.NumberFormat("en-CA",{style:"currency",currency:r.currency||"CAD",maximumFractionDigits:0}).format(r.award_value)}`:""}</span>{r.target_id?<Link className="button" href="/targets">Open target</Link>:null}</div>
         </div>)}
       </div></div>
     </section>
