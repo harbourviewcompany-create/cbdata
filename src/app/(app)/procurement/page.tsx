@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { requireWorkspace } from "@/lib/workspace";
-import { runCanadaBuysScout, runRegionalTenderScout, updateSupplierRegistration, updateTenderStage } from "./actions";
+import { addManualTender, runCanadaBuysScout, runRegionalTenderScout, updateSupplierRegistration, updateTenderStage } from "./actions";
 import "./procurement.css";
 
 function fmtDate(value:string|null){ if(!value) return "—"; return new Date(value).toLocaleDateString("en-CA",{year:"numeric",month:"short",day:"numeric"}); }
@@ -57,6 +57,22 @@ export default async function ProcurementPage(){
       <p className="muted tender-intro">One operating queue for public and institutional opportunities: discovery, fit, buyer/property intelligence, bid/no-bid, compliance, pricing, submission and award follow-up.</p>
       <div style={{marginTop:12}}><Link className="button" href="/procurement/coverage">Regional Coverage Engine</Link></div>
     </header>
+
+    <section className="panel" style={{marginBottom:18}}>
+      <div className="panel-head"><div><span className="eyebrow">DIRECT PURSUIT INTAKE</span><h3>Add a tender outside the normal regional scout</h3></div><span className="muted">Use for a known CanadaBuys / SAP / MERX opportunity you want CB to pursue.</span></div>
+      <form action={addManualTender} className="manual-tender-form">
+        <input name="external_id" placeholder="Tender / solicitation ID" required/>
+        <input name="title" placeholder="Opportunity title" required/>
+        <input name="buyer_name" placeholder="Buyer"/>
+        <input name="region" placeholder="Delivery region"/>
+        <input name="category" placeholder="Category"/>
+        <input name="closing_date" type="date"/>
+        <input name="source_url" placeholder="Source URL"/>
+        <select name="source" defaultValue="CanadaBuys"><option>CanadaBuys</option><option>SAP Business Network</option><option>MERX</option><option>Bids & Tenders</option><option>Manual</option></select>
+        <select name="response_mode" defaultValue="formal_rfp"><option value="formal_rfp">RFP / RISO</option><option value="formal_tender">Formal tender</option><option value="rfq">RFQ</option><option value="registration_required">Registration required</option></select>
+        <button className="primary" type="submit">Create pursuit</button>
+      </form>
+    </section>
 
     <section className="metrics" style={{marginBottom:18}}>
       <div className="metric"><span>Open tenders</span><strong>{open.length}</strong></div>
