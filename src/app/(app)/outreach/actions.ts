@@ -49,6 +49,10 @@ export async function generateDraft(formData: FormData) {
   const objective = String(formData.get("objective") ?? "introduction");
   await assertTargetInWorkspace(s, targetId, workspaceId);
 
+  // Prefer the strongest verified member of the account buying committee before drafting.
+  const { error: contactError } = await s.rpc("select_outreach_contact" as never, { p_target_id: targetId } as never);
+  if (contactError) throw new Error(contactError.message);
+
   const { error } = await s.rpc("generate_outreach_draft" as never, {
     p_target_id: targetId,
     p_channel: channel,
