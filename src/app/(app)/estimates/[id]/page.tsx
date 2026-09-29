@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { advanceEstimate, convertEstimate } from "../actions";
+import { generateDeckMaterialTakeoff } from "../../materials/actions";
 
 const money = (value: number | string | null | undefined) =>
   value == null
@@ -237,11 +238,21 @@ export default async function EstimateDetail({
             <span className="eyebrow">MATERIAL SOURCING</span>
             <h3>Material Price Intelligence</h3>
           </div>
-          {materialRequest ? (
-            <Link className="button" href={`/materials/${materialRequest.id}` as Route}>Open sourcing</Link>
-          ) : (
-            <Link className="button" href={`/materials?estimate_id=${id}` as Route}>Price materials</Link>
-          )}
+          <div className="quote-actions">
+            {materialRequest ? (
+              <Link className="button" href={`/materials/${materialRequest.id}` as Route}>Open sourcing</Link>
+            ) : null}
+            {canManage && row.estimate_kind === "deck" ? (
+              <form action={generateDeckMaterialTakeoff}>
+                <input type="hidden" name="estimate_id" value={id} />
+                <button className="primary" type="submit">
+                  {materialRequest ? "Refresh takeoff & prices" : "Generate takeoff & prices"}
+                </button>
+              </form>
+            ) : !materialRequest ? (
+              <Link className="button" href={`/materials?estimate_id=${id}` as Route}>Price materials</Link>
+            ) : null}
+          </div>
         </div>
         {materialRequest ? (
           <div className="deck-audit-grid" style={{ marginTop: 14 }}>
@@ -256,7 +267,7 @@ export default async function EstimateDetail({
           </div>
         ) : (
           <p className="muted" style={{ marginTop: 12 }}>
-            Build the lumber takeoff, compare Ottawa suppliers, preserve source evidence, and select the lowest-cost buy plan before finalizing direct costs.
+            Generate the core lumber takeoff from the saved deck dimensions, refresh Ottawa supplier pricing, preserve source evidence, and select the lowest-cost buy plan before finalizing direct costs.
           </p>
         )}
         {materialRequest?.selected_plan_id ? (
