@@ -42,6 +42,8 @@ export default async function ProcurementPage(){
   const {data:runs}=await (s as any).from("canadabuys_runs").select("id,started_at,finished_at,status,fetched_count,qualifying_count,inserted_count,updated_count,lead_created_count,error_count,error_message").eq("workspace_id",ctx.workspaceId).order("started_at",{ascending:false}).limit(8);
   const {data:regionalRuns}=await (s as any).from("tender_scout_runs").select("id,source_key,source_name,started_at,finished_at,status,fetched_count,qualifying_count,inserted_count,updated_count,lead_created_count,error_count,error_message").eq("workspace_id",ctx.workspaceId).order("started_at",{ascending:false}).limit(20);
   const {data:sources}=await (s as any).from("tender_sources").select("source_key,display_name,source_url,ingestion_mode,coverage_tier,adapter_status,buyer_scope,last_run_at,last_success_at,last_error,last_verified_at").eq("workspace_id",ctx.workspaceId).eq("enabled",true).order("display_name");
+  const {data:sourceHealth}=await (s as any).from("v_procurement_source_health").select("*").eq("workspace_id",ctx.workspaceId).order("display_name");
+  const {data:inboxRows}=await (s as any).from("v_procurement_inbox").select("id,title,buyer_name,source_key,closing_at,bid_score,bid_recommendation,bid_score_breakdown,inbox_bucket,promoted_tender_record_id,source_url").eq("workspace_id",ctx.workspaceId).in("inbox_bucket",["deadline","best_new","needs_review","watching"]).order("bid_score",{ascending:false}).limit(60);
   const {data:registrations}=await (s as any).from("supplier_registrations").select("id,source_key,registration_name,status,account_reference,expires_on,evidence_url,notes,updated_at").eq("workspace_id",ctx.workspaceId).order("registration_name");
   const [{data:intelligenceRows},{data:subtradeRows},{data:futureRows},{data:cycleRows}]=await Promise.all([
     (s as any).from("tender_pursuit_intelligence").select("tender_record_id,pursuit_mode,scope_fit,eligibility,commercial_attractiveness,geographic_fit,timing,competition,strategic_value,subtrade_potential,overall_score,rationale,next_best_action").eq("workspace_id",ctx.workspaceId),
@@ -63,6 +65,11 @@ export default async function ProcurementPage(){
   const futurePipeline=(futureRows??[]).length;
   const sourceCounts=new Map<string,number>(); for(const t of openRaw) sourceCounts.set(t.source||"Other",(sourceCounts.get(t.source||"Other")||0)+1);
 
+  const inbox=inboxRows??[];
+  const health=sourceHealth??[];
+  const unhealthy=health.filter((x:any)=>x.health_status!=="healthy");
+  const inboxCounts=new Map<string,number>(); for(const x of inbox) inboxCounts.set(x.inbox_bucket,(inboxCounts.get(x.inbox_bucket)||0)+1);
+
   return <main className="list-shell">
     <header className="list-header">
       <Link className="back" href="/dashboard">← Command</Link>
@@ -71,6 +78,25 @@ export default async function ProcurementPage(){
       <p className="muted tender-intro">One operating queue for public and institutional opportunities: discovery, fit, buyer/property intelligence, bid/no-bid, compliance, pricing, submission and award follow-up.</p>
       <div style={{marginTop:12}}><Link className="button" href={"/procurement/coverage" as Route}>Regional Coverage Engine</Link></div>
     </header>
+
+    <section className="panel" style={{marginBottom:18}}>
+      <div className="panel-head"><div><span className="eyebrow">PROCUREMENT INBOX</span><h3>What needs attention now</h3></div><span className="muted">{unhealthy.length} source issues · {inbox.length} prioritized opportunities</span></div>
+      <div className="metrics" style={{marginBottom:14}}>
+        <div className="metric"><span>Deadline</span><strong>{inboxCounts.get("deadline")||0}</strong></div>
+        <div className="metric"><span>Best new</span><strong>{inboxCounts.get("best_new")||0}</strong></div>
+        <div className="metric"><span>Needs review</span><strong>{inboxCounts.get("needs_review")||0}</strong></div>
+        <div className="metric"><span>Watching</span><strong>{inboxCounts.get("watching")||0}</strong></div>
+        <div className="metric"><span>Source issues</span><strong>{unhealthy.length}</strong></div>
+      </div>
+      <div className="tender-list">
+        {inbox.slice(0,12).map((o:any)=><div className="tender-list-row" key={o.id}>
+          <div><strong>{o.title}</strong><span className="status-meta">{o.buyer_name||"Unknown buyer"} · {o.inbox_bucket.replaceAll("_"," ")}</span><span className="status-meta">{o.closing_at ? "closes "+fmtDate(o.closing_at) : "deadline not published"}</span></div>
+          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><span className="score-chip score-high">{Math.round(Number(o.bid_score||0))}</span><span className="pill">{o.bid_recommendation}</span>{o.promoted_tender_record_id?<Link className="button" href={("/procurement/"+o.promoted_tender_record_id) as Route}>Open pursuit</Link>:o.source_url?<a className="button" href={o.source_url} target="_blank" rel="noreferrer">Review source</a>:null}</div>
+        </div>)}
+        {inbox.length===0?<div className="muted">No prioritized procurement items currently require attention.</div>:null}
+      </div>
+      {unhealthy.length?<div style={{marginTop:12}}><strong>Source health</strong><p className="muted">{unhealthy.slice(0,6).map((x:any)=>x.display_name+": "+x.health_status).join(" · ")}</p></div>:null}
+    </section>
 
     <section className="panel" style={{marginBottom:18}}>
       <div className="panel-head"><div><span className="eyebrow">DIRECT PURSUIT INTAKE</span><h3>Add a tender outside the normal regional scout</h3></div><span className="muted">Use for a known CanadaBuys / SAP / MERX opportunity you want CB to pursue.</span></div>
