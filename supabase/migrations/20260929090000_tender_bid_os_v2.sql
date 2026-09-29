@@ -272,6 +272,21 @@ create table if not exists public.tender_price_years (
   unique(cost_model_id, year_number)
 );
 
+create table if not exists public.tender_bid_packs (
+  id uuid primary key default extensions.uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  tender_record_id uuid not null references public.tender_records(id) on delete cascade,
+  version integer not null,
+  status text not null default 'draft' check (status in ('draft','ready','submitted','obsolete')),
+  manifest jsonb not null default '{}'::jsonb,
+  generated_by uuid references auth.users(id) on delete set null,
+  generated_at timestamptz not null default now(),
+  approved_at timestamptz,
+  submitted_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique(tender_record_id, version)
+);
+
 create table if not exists public.tender_debriefs (
   id uuid primary key default extensions.uuid_generate_v4(),
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -305,6 +320,8 @@ create index if not exists idx_tender_portal_snapshots_tender on public.tender_p
 create index if not exists idx_tender_line_items_tender_status on public.tender_line_items(tender_record_id, status);
 create index if not exists idx_tender_price_years_model on public.tender_price_years(cost_model_id, year_number);
 create index if not exists idx_tender_debriefs_rebid on public.tender_debriefs(workspace_id, next_rebid_date);
+create index if not exists idx_tender_bid_packs_tender on public.tender_bid_packs(tender_record_id, version desc, status);
+
 
 
 do $$
@@ -314,7 +331,8 @@ begin
     'tender_amendments','tender_clarifications','tender_supplier_quotes',
     'tender_supplier_quote_lines','tender_cost_models','tender_risks',
     'tender_approvals','supplier_document_vault','tender_callups',
-    'tender_portal_snapshots','tender_line_items','tender_price_years','tender_debriefs'
+    'tender_portal_snapshots','tender_line_items','tender_price_years','tender_debriefs',
+    'tender_bid_packs'
   ]
   loop
     execute format('alter table public.%I enable row level security', t);
@@ -401,6 +419,12 @@ begin
     changes,new.source_url,fp,now()
   ) on conflict(tender_record_id,fingerprint) do nothing;
 
+  update public.tender_bid_packs
+  set status='obsolete'
+  where tender_record_id=new.id
+    and workspace_id=new.workspace_id
+    and status in ('draft','ready');
+
   return new;
 end;
 $$;
@@ -445,6 +469,7 @@ select
   coalesce(q.accepted_supplier_quotes,0) as accepted_supplier_quotes,
   coalesce(li.line_item_gaps,0) as line_item_gaps,
   coalesce(risk.high_open_risks,0) as high_open_risks,
+  coalesce(bp.bid_pack_ready,false) as bid_pack_ready,
   coalesce(cm.commercial_model_approved,false) as commercial_model_approved,
   coalesce(ap.compliance_approved,false) as compliance_approved,
   coalesce(ap.commercial_approved,false) as commercial_approved,
@@ -457,6 +482,7 @@ select
     and coalesce(cl.blocking_clarifications,0)=0
     and coalesce(li.line_item_gaps,0)=0
     and coalesce(risk.high_open_risks,0)=0
+    and coalesce(bp.bid_pack_ready,false)
     and t.estimate_id is not null
     and (not t.commercial_model_required or coalesce(cm.commercial_model_approved,false))
     and coalesce(ap.compliance_approved,false)
@@ -508,6 +534,12 @@ left join lateral (
   from public.tender_risks r
   where r.tender_record_id=t.id and r.workspace_id=t.workspace_id
 ) risk on true
+left join lateral (
+  select exists(
+    select 1 from public.tender_bid_packs p
+    where p.tender_record_id=t.id and p.workspace_id=t.workspace_id and p.status='ready'
+  ) as bid_pack_ready
+) bp on true
 left join lateral (
   select
     bool_or(a.approval_type='compliance' and a.status='approved') as compliance_approved,
