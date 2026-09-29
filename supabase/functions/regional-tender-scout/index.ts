@@ -74,8 +74,8 @@ function pick(row:Record<string,string>,aliases:string[]){for(const a of aliases
 
 function parseMerx(html:string,source:Source):Candidate[]{
  const plain=cleanHtml(html),out:Candidate[]=[];
- const re=/([A-Z0-9][A-Z0-9._\/-]{3,})\s+(.{4,220}?)\s+Ottawa,\s*ON,\s*CAN\s+Calendar\s+Published\s+(20\d{2}[\/-]\d{2}[\/-]\d{2})\s+Clock\s+Closing\s+(20\d{2}[\/-]\d{2}[\/-]\d{2})/gi;
- for(const m of plain.matchAll(re))out.push({externalId:m[1],title:m[2].trim(),buyer:source.buyer,publishedDate:isoDate(m[3]),closingDate:isoDate(m[4]),url:source.url,region:source.region,raw:{parser:"merx_text"}});
+ const re=/([A-Z0-9][A-Z0-9._\/-]{3,})\s+(.{4,220}?)\s+([A-Za-zÀ-ÿ0-9 .,'’\-]{2,80}),\s*(ON|QC),\s*CAN\s+Calendar\s+Published\s+(20\d{2}[\/-]\d{2}[\/-]\d{2})\s+Clock\s+Closing\s+(20\d{2}[\/-]\d{2}[\/-]\d{2})/gi;
+ for(const m of plain.matchAll(re))out.push({externalId:m[1],title:m[2].trim(),buyer:source.buyer,publishedDate:isoDate(m[5]),closingDate:isoDate(m[6]),url:source.url,region:source.region,raw:{parser:"merx_text",listed_city:m[3].trim(),listed_province:m[4]}});
  return out;
 }
 
