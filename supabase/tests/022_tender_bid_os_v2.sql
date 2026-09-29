@@ -18,7 +18,11 @@ begin
     ('tender_risks'),
     ('tender_approvals'),
     ('supplier_document_vault'),
-    ('tender_callups')
+    ('tender_callups'),
+    ('tender_portal_snapshots'),
+    ('tender_line_items'),
+    ('tender_price_years'),
+    ('tender_debriefs')
   ) as x(name)
   where to_regclass('public.'||x.name) is null;
 
@@ -29,7 +33,8 @@ begin
   foreach t in array array[
     'tender_amendments','tender_clarifications','tender_supplier_quotes',
     'tender_supplier_quote_lines','tender_cost_models','tender_risks',
-    'tender_approvals','supplier_document_vault','tender_callups'
+    'tender_approvals','supplier_document_vault','tender_callups',
+    'tender_portal_snapshots','tender_line_items','tender_price_years','tender_debriefs'
   ]
   loop
     select c.relrowsecurity and c.relforcerowsecurity into rls_ok
@@ -72,6 +77,14 @@ begin
       and column_name='ready_to_submit'
   ) then
     raise exception 'Tender readiness view missing ready_to_submit';
+  end if;
+
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema='public' and table_name='v_tender_bid_readiness'
+      and column_name='line_item_gaps'
+  ) then
+    raise exception 'Tender readiness view missing line_item_gaps';
   end if;
 
   select exists (
