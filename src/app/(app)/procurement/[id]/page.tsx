@@ -16,6 +16,7 @@ import {
   updateTenderRequirement,
   updateTenderStage,
 } from "../actions";
+import BidOpsV2 from "./BidOpsV2";
 import "../procurement.css";
 
 const STAGES=["new","qualifying","pursuing","pricing","review","submitted","won","lost","no_bid"];
@@ -37,13 +38,27 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
   const {data:tender}=await (s as any).from("tender_records").select("*").eq("workspace_id",ctx.workspaceId).eq("id",id).maybeSingle();
   if(!tender) notFound();
 
-  const [{data:reqs},{data:deadlines},{data:docs},{data:history},{data:links},{data:estimate}]=await Promise.all([
+  const [
+    {data:reqs},{data:deadlines},{data:docs},{data:history},{data:links},{data:estimate},
+    {data:amendments},{data:clarifications},{data:quotes},{data:costModels},{data:risks},
+    {data:approvals},{data:readiness},{data:vaultDocs},{data:awards},{data:callups},
+  ]=await Promise.all([
     (s as any).from("tender_requirements").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("mandatory",{ascending:false}).order("created_at"),
     (s as any).from("tender_deadlines").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("due_at"),
     (s as any).from("tender_documents").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).eq("is_current",true).order("created_at"),
     (s as any).from("tender_stage_history").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("created_at",{ascending:false}).limit(20),
     (s as any).from("tender_properties").select("property_id,scope_note,evidence_url,evidence_label,properties(name,address_line_1,city,province,property_type)").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id),
     tender.estimate_id ? (s as any).from("estimates").select("id,estimate_number,total,estimated_direct_cost,estimated_gross_profit,estimated_margin,status").eq("workspace_id",ctx.workspaceId).eq("id",tender.estimate_id).maybeSingle() : Promise.resolve({data:null}),
+    (s as any).from("tender_amendments").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("amendment_number",{ascending:false}),
+    (s as any).from("tender_clarifications").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("created_at",{ascending:false}),
+    (s as any).from("tender_supplier_quotes").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("landed_cost",{ascending:true}),
+    (s as any).from("tender_cost_models").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("updated_at",{ascending:false}),
+    (s as any).from("tender_risks").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("created_at",{ascending:false}),
+    (s as any).from("tender_approvals").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("approved_at",{ascending:false}),
+    (s as any).from("v_tender_bid_readiness").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).maybeSingle(),
+    (s as any).from("supplier_document_vault").select("*").eq("workspace_id",ctx.workspaceId).order("document_type"),
+    tender.buyer_name ? (s as any).from("procurement_awards").select("id,title,awarded_to,award_amount,currency,award_date,contract_end_date,source_url").eq("workspace_id",ctx.workspaceId).ilike("buyer_name",tender.buyer_name).order("award_date",{ascending:false}).limit(12) : Promise.resolve({data:[]}),
+    (s as any).from("tender_callups").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("issued_at",{ascending:false}),
   ]);
 
   const mandatory=(reqs??[]).filter((r:any)=>r.mandatory);
@@ -163,10 +178,11 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
       <div className="panel-head"><div><span className="eyebrow">COMPLIANCE</span><h3>Mandatory requirements</h3></div></div>
       <div className="tender-list">
         {(reqs??[]).map((r:any)=><div className="tender-list-row" key={r.id}>
-          <div><strong>{r.title}</strong><span className="status-meta">{r.requirement_type}{r.mandatory?" · mandatory":""}</span>{r.description?<span className="status-meta wrap">{r.description}</span>:null}</div>
+          <div><strong>{r.title}</strong><span className="status-meta">{r.requirement_type}{r.mandatory?" · mandatory":""}{r.evidence_required?" · evidence required":""}</span>{r.source_reference?<span className="status-meta">Source: {r.source_reference}</span>:null}{r.description?<span className="status-meta wrap">{r.description}</span>:null}</div>
           <form action={updateTenderRequirement} className="inline-form">
             <input type="hidden" name="tender_id" value={id}/><input type="hidden" name="requirement_id" value={r.id}/>
             <select name="status" defaultValue={r.status}>{["pending","in_progress","complete","blocked","not_applicable"].map(x=><option key={x} value={x}>{x.replace("_"," ")}</option>)}</select>
+            <input name="evidence_url" defaultValue={r.evidence_url||""} placeholder={r.evidence_required?"Evidence URL required":"Evidence URL"}/>
             <button className="button" type="submit">Save</button>
           </form>
         </div>)}
@@ -175,7 +191,9 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
         <input type="hidden" name="tender_id" value={id}/>
         <input name="title" placeholder="Requirement, e.g. $5M CGL certificate" required/>
         <select name="requirement_type" defaultValue="compliance"><option value="compliance">Compliance</option><option value="site_visit">Site visit</option><option value="bonding">Bonding</option><option value="insurance">Insurance</option><option value="security">Security</option><option value="reference">Reference</option><option value="form">Form</option><option value="other">Other</option></select>
+        <input name="source_reference" placeholder="Clause / section"/>
         <label><input type="checkbox" name="mandatory" defaultChecked/> Mandatory</label>
+        <label><input type="checkbox" name="evidence_required"/> Evidence required</label>
         <button className="button" type="submit">Add requirement</button>
       </form>
     </section>
@@ -201,6 +219,20 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
         <button className="button" type="submit">Add deadline</button>
       </form>
     </section>
+
+    <BidOpsV2
+      tender={tender}
+      readiness={readiness}
+      amendments={amendments??[]}
+      clarifications={clarifications??[]}
+      quotes={quotes??[]}
+      costModels={costModels??[]}
+      risks={risks??[]}
+      approvals={approvals??[]}
+      vaultDocs={vaultDocs??[]}
+      awards={awards??[]}
+      callups={callups??[]}
+    />
 
     <section className="tender-detail-grid">
       <div className="table-panel">
