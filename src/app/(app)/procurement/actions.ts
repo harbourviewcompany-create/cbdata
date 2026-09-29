@@ -527,6 +527,11 @@ export async function addTenderSupplierQuote(formData: FormData) {
     handling_cost: numberField(formData,"handling_cost"),
     financing_cost: numberField(formData,"financing_cost"),
     contingency_cost: numberField(formData,"contingency_cost"),
+    service_region: String(formData.get("service_region") || "").trim() || null,
+    distance_km: numberField(formData,"distance_km") || null,
+    capacity_score: numberField(formData,"capacity_score") || null,
+    reliability_score: numberField(formData,"reliability_score") || null,
+    emergency_score: numberField(formData,"emergency_score") || null,
     delivery_verified: formData.get("delivery_verified") === "on",
     valid_until: validUntil || null,
     quote_reference: String(formData.get("quote_reference") || "").trim() || null,
@@ -696,4 +701,155 @@ export async function addTenderCallup(formData: FormData) {
   });
   if (error) throw error;
   revalidatePath(`/procurement/${tenderId}`);
+}
+
+
+export async function saveTenderPortalSnapshot(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const tenderId = String(formData.get("tender_id") || "");
+  const portalName = String(formData.get("portal_name") || "").trim();
+  if (!tenderId || !portalName) throw new Error("Tender and portal name are required");
+  const rawText = String(formData.get("raw_payload") || "").trim();
+  let rawPayload: Record<string, unknown> = {};
+  if (rawText) {
+    try { rawPayload = JSON.parse(rawText); }
+    catch { rawPayload = { captured_text: rawText }; }
+  }
+  const sourceUrl = String(formData.get("source_url") || "").trim() || null;
+  const deadline = String(formData.get("response_deadline_at") || "");
+  const fingerprintSource = JSON.stringify(rawPayload) + "|" + String(sourceUrl || "") + "|" + String(deadline || "");
+  let hash = 0;
+  for (let i=0;i<fingerprintSource.length;i++) hash=((hash<<5)-hash+fingerprintSource.charCodeAt(i))|0;
+  const contentHash = "cb-"+Math.abs(hash).toString(16);
+  const { data: userData } = await s.auth.getUser();
+  const { error } = await (s as any).from("tender_portal_snapshots").upsert({
+    workspace_id: ctx.workspaceId,
+    tender_record_id: tenderId,
+    portal_name: portalName,
+    capture_method: String(formData.get("capture_method") || "authenticated_manual"),
+    response_status: String(formData.get("response_status") || "").trim() || null,
+    response_deadline_at: deadline ? new Date(deadline).toISOString() : null,
+    source_url: sourceUrl,
+    content_hash: contentHash,
+    raw_payload: rawPayload,
+    notes: String(formData.get("notes") || "").trim() || null,
+    captured_by: userData.user?.id ?? null,
+    captured_at: new Date().toISOString(),
+  },{onConflict:"tender_record_id,portal_name,content_hash"});
+  if (error) throw error;
+  revalidatePath(`/procurement/${tenderId}`);
+}
+
+export async function addTenderLineItem(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const tenderId = String(formData.get("tender_id") || "");
+  const itemNumber = String(formData.get("item_number") || "").trim();
+  const description = String(formData.get("description") || "").trim();
+  if (!tenderId || !itemNumber || !description) throw new Error("Tender, item number and description are required");
+  const { error } = await (s as any).from("tender_line_items").upsert({
+    workspace_id: ctx.workspaceId,
+    tender_record_id: tenderId,
+    item_number: itemNumber,
+    description,
+    specification: String(formData.get("specification") || "").trim() || null,
+    quantity: numberField(formData,"quantity") || null,
+    unit: String(formData.get("unit") || "").trim() || null,
+    mandatory: formData.get("mandatory") === "on",
+    source_reference: String(formData.get("source_reference") || "").trim() || null,
+    response_value: String(formData.get("response_value") || "").trim() || null,
+    unit_price: numberField(formData,"unit_price") || null,
+    status: String(formData.get("status") || "pending"),
+    updated_at: new Date().toISOString(),
+  },{onConflict:"tender_record_id,item_number"});
+  if (error) throw error;
+  revalidatePath(`/procurement/${tenderId}`);
+}
+
+export async function updateTenderLineItem(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const tenderId = String(formData.get("tender_id") || "");
+  const id = String(formData.get("line_item_id") || "");
+  const status = String(formData.get("status") || "");
+  if (!tenderId || !id || !["pending","priced","complete","not_applicable"].includes(status)) throw new Error("Invalid line-item update");
+  const { error } = await (s as any).from("tender_line_items").update({
+    response_value: String(formData.get("response_value") || "").trim() || null,
+    unit_price: numberField(formData,"unit_price") || null,
+    status,
+    updated_at: new Date().toISOString(),
+  }).eq("workspace_id",ctx.workspaceId).eq("tender_record_id",tenderId).eq("id",id);
+  if (error) throw error;
+  revalidatePath(`/procurement/${tenderId}`);
+}
+
+export async function saveTenderPriceYear(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const tenderId = String(formData.get("tender_id") || "");
+  const costModelId = String(formData.get("cost_model_id") || "");
+  const yearNumber = Math.max(1,Math.min(10,Math.trunc(numberField(formData,"year_number",1))));
+  if (!tenderId || !costModelId) throw new Error("Tender and cost model are required");
+  const { error } = await (s as any).from("tender_price_years").upsert({
+    workspace_id: ctx.workspaceId,
+    tender_record_id: tenderId,
+    cost_model_id: costModelId,
+    year_number: yearNumber,
+    projected_cost: Math.max(0,numberField(formData,"projected_cost")),
+    escalation_rate: numberField(formData,"escalation_rate")/100,
+    bid_price: Math.max(0,numberField(formData,"bid_price")),
+    notes: String(formData.get("notes") || "").trim() || null,
+    updated_at: new Date().toISOString(),
+  },{onConflict:"cost_model_id,year_number"});
+  if (error) throw error;
+  revalidatePath(`/procurement/${tenderId}`);
+}
+
+export async function saveTenderDebrief(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const tenderId = String(formData.get("tender_id") || "");
+  if (!tenderId) throw new Error("Tender is required");
+  const { data: userData } = await s.auth.getUser();
+  const nextRebid = String(formData.get("next_rebid_date") || "");
+  const winningValue = numberField(formData,"winning_value");
+  const payload = {
+    workspace_id: ctx.workspaceId,
+    tender_record_id: tenderId,
+    requested_at: formData.get("requested") === "on" ? new Date().toISOString() : null,
+    received_at: formData.get("received") === "on" ? new Date().toISOString() : null,
+    winning_supplier: String(formData.get("winning_supplier") || "").trim() || null,
+    winning_value: winningValue || null,
+    result_summary: String(formData.get("result_summary") || "").trim() || null,
+    strengths: String(formData.get("strengths") || "").trim() || null,
+    gaps: String(formData.get("gaps") || "").trim() || null,
+    lessons_learned: String(formData.get("lessons_learned") || "").trim() || null,
+    next_rebid_date: nextRebid || null,
+    source_url: String(formData.get("source_url") || "").trim() || null,
+    created_by: userData.user?.id ?? null,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await (s as any).from("tender_debriefs").upsert(payload,{onConflict:"tender_record_id"});
+  if (error) throw error;
+
+  const winner = String(formData.get("winning_supplier") || "").trim() || null;
+  const outcome = String(formData.get("outcome") || "");
+  const tenderPatch: Record<string,unknown> = {
+    award_supplier_name: winner,
+    award_value: winningValue || null,
+    expected_rebid_date: nextRebid || null,
+    debrief_requested_at: payload.requested_at,
+    debrief_notes: payload.lessons_learned,
+  };
+  if (outcome === "won" || outcome === "lost") {
+    tenderPatch.action_state = outcome;
+    tenderPatch.status = outcome;
+    tenderPatch.next_action = outcome === "won" ? "Create contract handoff and mobilization plan" : "Capture debrief, incumbent and next rebid date";
+  }
+  const { error: tenderError } = await (s as any).from("tender_records").update(tenderPatch)
+    .eq("workspace_id",ctx.workspaceId).eq("id",tenderId);
+  if (tenderError) throw tenderError;
+  revalidatePath(`/procurement/${tenderId}`);
+  revalidatePath("/procurement");
 }
