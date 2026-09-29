@@ -5,8 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { advanceEstimate, convertEstimate } from "../actions";
 
-const money = (value: number | string) =>
-  Number(value).toLocaleString("en-CA", { style: "currency", currency: "CAD" });
+const money = (value: number | string | null | undefined) =>
+  value == null
+    ? "—"
+    : Number(value).toLocaleString("en-CA", { style: "currency", currency: "CAD" });
 
 export default async function EstimateDetail({
   params,
