@@ -49,7 +49,7 @@ export default async function EstimateDetail({
       .maybeSingle(),
     (s as any)
       .from("v_material_request_summary")
-      .select("id,name,status,item_count,best_total,latest_run_status,latest_run_at")
+      .select("id,name,status,item_count,best_total,latest_run_status,latest_run_at,selected_plan_id,selected_total,selected_material_subtotal,selected_delivery_total")
       .eq("workspace_id", ctx.workspaceId)
       .eq("estimate_id", id)
       .order("created_at", { ascending: false })
@@ -69,6 +69,20 @@ export default async function EstimateDetail({
     + Number(item.estimated_labor_cost)
     + Number(item.estimated_equipment_cost)
     + Number(item.estimated_subcontractor_cost);
+
+  const budgetedMaterialCost = (items ?? []).reduce(
+    (sum, item) => sum + Number(item.estimated_material_cost ?? 0),
+    0,
+  );
+  const sourcedMaterialCost = materialRequest?.selected_material_subtotal == null
+    ? null
+    : Number(materialRequest.selected_material_subtotal);
+  const sourcedDeliveryCost = materialRequest?.selected_delivery_total == null
+    ? null
+    : Number(materialRequest.selected_delivery_total);
+  const materialVariance = sourcedMaterialCost == null
+    ? null
+    : sourcedMaterialCost - budgetedMaterialCost;
 
   return (
     <>
@@ -233,12 +247,21 @@ export default async function EstimateDetail({
             <div><span>Takeoff</span><strong>{materialRequest.item_count ?? 0} items</strong></div>
             <div><span>Best buy plan</span><strong>{money(materialRequest.best_total)}</strong></div>
             <div><span>Status</span><strong>{materialRequest.status}</strong></div>
+            <div><span>Estimate material allowance</span><strong>{money(budgetedMaterialCost)}</strong></div>
+            <div><span>Approved sourced materials</span><strong>{money(sourcedMaterialCost)}</strong></div>
+            <div><span>Material variance</span><strong>{materialVariance == null ? "—" : money(materialVariance)}</strong></div>
+            <div><span>Approved delivery</span><strong>{money(sourcedDeliveryCost)}</strong></div>
           </div>
         ) : (
           <p className="muted" style={{ marginTop: 12 }}>
             Build the lumber takeoff, compare Ottawa suppliers, preserve source evidence, and select the lowest-cost buy plan before finalizing direct costs.
           </p>
         )}
+        {materialRequest?.selected_plan_id ? (
+          <p className="muted" style={{ marginTop: 12 }}>
+            Sourced costs are shown as a variance against the estimate allowance; they are not silently written into estimate line items because the estimate may include non-lumber materials.
+          </p>
+        ) : null}
       </section>
 
       <section className="table-panel" style={{ marginTop: 14 }}>
