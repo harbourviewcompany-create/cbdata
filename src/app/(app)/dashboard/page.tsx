@@ -34,7 +34,7 @@ export default async function DashboardPage() {
     openTargetsRes,
     convertedTargetsRes,
     totalTargetsRes,
-    { data: openOpportunities },
+    openOpportunitiesRes,
   ] = await Promise.all([
     supabase
       .from("workspace_ops_snapshots")
@@ -88,7 +88,7 @@ export default async function DashboardPage() {
     ["open targets", openTargetsRes.error],
     ["converted targets", convertedTargetsRes.error],
     ["target total", totalTargetsRes.error],
-    ["open opportunities", openOpportunities.error],
+    ["open opportunities", openOpportunitiesRes.error],
   ].filter((entry): entry is [string, NonNullable<(typeof snapshotRes)["error"]>] => Boolean(entry[1]));
 
   if (queryFailures.length) {
@@ -123,7 +123,7 @@ export default async function DashboardPage() {
   const openTargets = openTargetsRes.count ?? 0;
   const convertedTargets = convertedTargetsRes.count ?? 0;
   const totalTargets = totalTargetsRes.count ?? 0;
-  const opportunities = openOpportunities.data ?? [];
+  const opportunities = openOpportunitiesRes.data ?? [];
   const pipelineValue = opportunities.reduce((sum, r) => sum + Number(r.estimated_value ?? 0), 0);
   const isEmpty =
     metrics.property_count === 0 &&
