@@ -8,6 +8,7 @@ import {
   addTenderRisk,
   addTenderSupplierQuote,
   approveTenderGate,
+  generateTenderBidPack,
   saveTenderCostModel,
   saveTenderDebrief,
   saveTenderPortalSnapshot,
@@ -16,6 +17,7 @@ import {
   updateTenderLineItem,
   updateTenderRisk,
   updateTenderSupplierQuote,
+  updateTenderCallup,
 } from "../actions";
 
 function money(value:any,currency="CAD"){
@@ -32,9 +34,9 @@ function dateOnly(value:string|null){
 }
 
 export default function BidOpsV2({
-  tender,readiness,amendments,clarifications,quotes,costModels,risks,approvals,vaultDocs,awards,callups,portalSnapshots,lineItems,priceYears,debrief,
+  tender,readiness,amendments,clarifications,quotes,costModels,risks,approvals,vaultDocs,awards,callups,portalSnapshots,lineItems,priceYears,debrief,bidPacks,
 }:{
-  tender:any;readiness:any;amendments:any[];clarifications:any[];quotes:any[];costModels:any[];risks:any[];approvals:any[];vaultDocs:any[];awards:any[];callups:any[];portalSnapshots:any[];lineItems:any[];priceYears:any[];debrief:any;
+  tender:any;readiness:any;amendments:any[];clarifications:any[];quotes:any[];costModels:any[];risks:any[];approvals:any[];vaultDocs:any[];awards:any[];callups:any[];portalSnapshots:any[];lineItems:any[];priceYears:any[];debrief:any;bidPacks:any[];
 }){
   const approved=new Set((approvals??[]).filter((a:any)=>a.status==="approved").map((a:any)=>a.approval_type));
   const activeModel=(costModels??[]).find((m:any)=>m.status==="approved") ?? (costModels??[])[0];
@@ -70,6 +72,7 @@ export default function BidOpsV2({
         {blockers.map(([label,value]:any)=><div key={label}><span>{label}</span><strong>{Number(value||0)}</strong></div>)}
         <div><span>Estimate</span><strong>{readiness?.estimate_linked?"yes":"no"}</strong></div>
         <div><span>Cost model</span><strong>{readiness?.commercial_model_approved?"approved":"missing"}</strong></div>
+        <div><span>Bid pack</span><strong>{readiness?.bid_pack_ready?"current":"missing"}</strong></div>
         <div><span>Approvals</span><strong>{["compliance","commercial","final"].filter(x=>approved.has(x)).length}/3</strong></div>
       </div>
       <p className="muted">Submission is permitted only when mandatory requirements and evidence are complete, amendments are acknowledged, blocking questions are resolved, high risks are dispositioned, pricing is approved, and all three human approvals are recorded.</p>
@@ -204,6 +207,15 @@ export default function BidOpsV2({
       </div>
     </section>
 
+    <section className="table-panel" style={{marginBottom:18}}>
+      <div className="panel-head"><div><span className="eyebrow">BID PACK GENERATOR</span><h3>Versioned submission manifest</h3></div><span className="muted">{bidPacks?.length||0} versions</span></div>
+      <div className="tender-list">
+        {(bidPacks??[]).map((p:any)=><div className="history-row" key={p.id}><div><strong>Bid pack v{p.version}</strong><span className="status-meta">{p.status} · generated {fmt(p.generated_at)}</span></div><div><strong>{Array.isArray(p.manifest?.requirements)?p.manifest.requirements.length:0} requirements</strong><span className="status-meta">{Array.isArray(p.manifest?.line_items)?p.manifest.line_items.length:0} line items</span></div></div>)}
+        {!bidPacks?.length?<p className="muted pad">Generate a package after the compliance and commercial controls are complete.</p>:null}
+      </div>
+      <form action={generateTenderBidPack} className="pad"><input type="hidden" name="tender_id" value={tender.id}/><button className="primary" type="submit">Generate current bid pack</button></form>
+    </section>
+
     <section className="tender-detail-grid">
       <div className="table-panel">
         <div className="panel-head"><div><span className="eyebrow">RISK REGISTER</span><h3>Contract and margin risks</h3></div></div>
@@ -256,7 +268,7 @@ export default function BidOpsV2({
       <div className="table-panel">
         <div className="panel-head"><div><span className="eyebrow">POST-AWARD</span><h3>Standing-offer call-ups</h3></div><span className="muted">{callups?.length||0} call-ups</span></div>
         <div className="tender-list">
-          {(callups??[]).map((c:any)=><div className="history-row" key={c.id}><div><strong>{c.callup_number}</strong><span className="status-meta">{c.status} · due {fmt(c.due_at)}</span></div><div><strong>{money(c.revenue)}</strong><span className="status-meta">GP {money(c.gross_profit)}</span></div></div>)}
+          {(callups??[]).map((c:any)=><div className="callup-row" key={c.id}><div><strong>{c.callup_number}</strong><span className="status-meta">{c.status} · due {fmt(c.due_at)} · GP {money(c.gross_profit)}</span></div><form action={updateTenderCallup} className="inline-form"><input type="hidden" name="tender_id" value={tender.id}/><input type="hidden" name="callup_id" value={c.id}/><select name="status" defaultValue={c.status}>{["issued","accepted","in_fulfillment","delivered","invoiced","paid","cancelled"].map(x=><option value={x} key={x}>{x.replace("_"," ")}</option>)}</select><input name="revenue" type="number" min="0" step="0.01" defaultValue={c.revenue||0} placeholder="Revenue"/><input name="direct_cost" type="number" min="0" step="0.01" defaultValue={c.direct_cost||0} placeholder="Direct cost"/><input name="invoice_number" defaultValue={c.invoice_number||""} placeholder="Invoice #"/><button className="button" type="submit">Update</button></form></div>)}
           {!callups?.length?<p className="muted pad">Call-ups appear here after award.</p>:null}
         </div>
         {tender.action_state==="won"?<form action={addTenderCallup} className="compact-form-grid pad">
