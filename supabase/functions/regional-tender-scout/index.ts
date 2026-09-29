@@ -23,6 +23,12 @@ const FACILITY_CONTEXT=["building","facility","facilities","property","school","
 const SOURCES=[
 {key:"city_ottawa_merx",name:"City of Ottawa / MERX",kind:"merx",url:"https://www.merx.com/cityofottawa/solicitations/open-bids",buyer:"City of Ottawa",region:"Ottawa, Ontario"},
 {key:"och_merx",name:"Ottawa Community Housing / MERX",kind:"merx",url:"https://www.merx.com/ottawacommunityhousing/solicitations/open-bids",buyer:"Ottawa Community Housing",region:"Ottawa, Ontario"},
+{key:"uottawa_merx",name:"University of Ottawa / MERX",kind:"merx",url:"https://www.merx.com/oupma/uottawa/solicitations/open-bids",buyer:"University of Ottawa",region:"Ottawa, Ontario"},
+{key:"carleton_merx",name:"Carleton University / MERX",kind:"merx",url:"https://www.merx.com/oupma/carleton/solicitations/open-bids",buyer:"Carleton University",region:"Ottawa, Ontario"},
+{key:"algonquin_merx",name:"Algonquin College / MERX",kind:"merx",url:"https://www.merx.com/algonquincollege/solicitations/open-bids",buyer:"Algonquin College",region:"Ottawa, Ontario"},
+{key:"montfort_merx",name:"Hôpital Montfort / MERX",kind:"merx",url:"https://www.merx.com/hopitalmontfort/solicitations/open-bids",buyer:"Hôpital Montfort",region:"Ottawa, Ontario"},
+{key:"lacite_merx",name:"La Cité / MERX",kind:"merx",url:"https://www.merx.com/lacitecollegiale/solicitations/open-bids",buyer:"La Cité",region:"Ottawa, Ontario"},
+{key:"bruyere_merx",name:"Bruyère / MERX",kind:"merx",url:"https://www.merx.com/bruyerecontinuingcare/solicitations/open-bids",buyer:"Bruyère Health",region:"Ottawa, Ontario"},
 {key:"ocdsb_bids_tenders",name:"OCDSB Bids & Tenders",kind:"bids_tenders",url:"https://ocdsb.bidsandtenders.ca/",buyer:"Ottawa-Carleton District School Board",region:"Ottawa, Ontario"},
 {key:"ocsb_bids_tenders",name:"OCSB Bids & Tenders",kind:"bids_tenders",url:"https://ocsb.bidsandtenders.ca/",buyer:"Ottawa Catholic School Board",region:"Ottawa, Ontario"},
 {key:"clarence_rockland_bids_tenders",name:"Clarence-Rockland Bids & Tenders",kind:"bids_tenders",url:"https://clarence-rockland.bidsandtenders.ca/",buyer:"City of Clarence-Rockland",region:"Prescott-Russell, Ontario"},
@@ -68,8 +74,8 @@ function pick(row:Record<string,string>,aliases:string[]){for(const a of aliases
 
 function parseMerx(html:string,source:Source):Candidate[]{
  const plain=cleanHtml(html),out:Candidate[]=[];
- const re=/([A-Z0-9][A-Z0-9._\/-]{3,})\s+(.{4,220}?)\s+Ottawa,\s*ON,\s*CAN\s+Calendar\s+Published\s+(20\d{2}[\/-]\d{2}[\/-]\d{2})\s+Clock\s+Closing\s+(20\d{2}[\/-]\d{2}[\/-]\d{2})/gi;
- for(const m of plain.matchAll(re))out.push({externalId:m[1],title:m[2].trim(),buyer:source.buyer,publishedDate:isoDate(m[3]),closingDate:isoDate(m[4]),url:source.url,region:source.region,raw:{parser:"merx_text"}});
+ const re=/([A-Z0-9][A-Z0-9._\/-]{3,})\s+(.{4,220}?)\s+([A-Za-zÀ-ÿ0-9 .,'’\-]{2,80}),\s*(ON|QC),\s*CAN\s+Calendar\s+Published\s+(20\d{2}[\/-]\d{2}[\/-]\d{2})\s+Clock\s+Closing\s+(20\d{2}[\/-]\d{2}[\/-]\d{2})/gi;
+ for(const m of plain.matchAll(re))out.push({externalId:m[1],title:m[2].trim(),buyer:source.buyer,publishedDate:isoDate(m[5]),closingDate:isoDate(m[6]),url:source.url,region:source.region,raw:{parser:"merx_text",listed_city:m[3].trim(),listed_province:m[4]}});
  return out;
 }
 
@@ -91,9 +97,18 @@ async function parseGatineau(source:Source):Promise<Candidate[]>{
 Deno.serve(async(req)=>{
  if(req.method!=="POST")return new Response("method_not_allowed",{status:405});
  const supabaseUrl=Deno.env.get("SUPABASE_URL"),serviceRoleKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");if(!supabaseUrl||!serviceRoleKey)return Response.json({error:"not_configured"},{status:500});
- const token=(req.headers.get("authorization")||"").replace(/^Bearer\s+/,""),admin=createClient(supabaseUrl,serviceRoleKey);const {data:userData,error:userError}=await admin.auth.getUser(token);if(userError||!userData.user)return Response.json({error:"unauthorized"},{status:401});
- const body=await req.json().catch(()=>({})),requestedWorkspace=typeof body.workspace_id==="string"?body.workspace_id:null;const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id").eq("user_id",userData.user.id).eq("status","active");const membership=(memberships||[]).find((m:any)=>!requestedWorkspace||m.workspace_id===requestedWorkspace);if(!membership)return Response.json({error:"workspace_access_denied"},{status:403});
- const workspaceId=membership.workspace_id;
+ const token=(req.headers.get("authorization")||"").replace(/^Bearer\s+/,""),cronToken=req.headers.get("x-cbdata-cron-token")||"",admin=createClient(supabaseUrl,serviceRoleKey);
+ const body=await req.json().catch(()=>({})),requestedWorkspace=typeof body.workspace_id==="string"?body.workspace_id:null;
+ let workspaceId:string|null=null;
+ if(cronToken){
+  const {data:cronAllowed,error:cronError}=await admin.rpc("verify_procurement_scout_cron_token",{p_token:cronToken});if(cronError||cronAllowed!==true)return Response.json({error:"unauthorized_cron"},{status:401});
+  if(!requestedWorkspace)return Response.json({error:"workspace_required"},{status:400});
+  const {data:workspace}=await admin.from("workspaces").select("id").eq("id",requestedWorkspace).eq("status","active").maybeSingle();if(!workspace)return Response.json({error:"workspace_not_active"},{status:404});workspaceId=workspace.id;
+ }else{
+  const {data:userData,error:userError}=await admin.auth.getUser(token);if(userError||!userData.user)return Response.json({error:"unauthorized"},{status:401});
+  const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id").eq("user_id",userData.user.id).eq("status","active");const membership=(memberships||[]).find((m:any)=>!requestedWorkspace||m.workspace_id===requestedWorkspace);if(!membership)return Response.json({error:"workspace_access_denied"},{status:403});workspaceId=membership.workspace_id;
+ }
+ if(!workspaceId)return Response.json({error:"workspace_unresolved"},{status:400});
  await admin.from("tender_sources").upsert(
    SOURCES.map(source=>({workspace_id:workspaceId,source_key:source.key,display_name:source.name,source_url:source.url,ingestion_mode:"live",enabled:true,updated_at:new Date().toISOString()})),
    {onConflict:"workspace_id,source_key",ignoreDuplicates:true}

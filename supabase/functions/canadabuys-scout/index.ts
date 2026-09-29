@@ -206,11 +206,23 @@ async function ensureBuyerContact(admin:any,workspaceId:string,organizationId:st
 Deno.serve(async(req)=>{
  if(req.method!=="POST") return new Response("method_not_allowed",{status:405});
  const supabaseUrl=Deno.env.get("SUPABASE_URL"); const serviceRoleKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"); if(!supabaseUrl||!serviceRoleKey) return Response.json({error:"not_configured"},{status:500});
- const auth=req.headers.get("authorization")||""; const token=auth.startsWith("Bearer ")?auth.slice(7):""; const admin=createClient(supabaseUrl,serviceRoleKey);
- const {data:authUser,error:authError}=await admin.auth.getUser(token); if(authError||!authUser.user) return Response.json({error:"unauthorized"},{status:401});
+ const auth=req.headers.get("authorization")||""; const token=auth.startsWith("Bearer ")?auth.slice(7):""; const cronToken=req.headers.get("x-cbdata-cron-token")||""; const admin=createClient(supabaseUrl,serviceRoleKey);
  const body=await req.json().catch(()=>({})); const requestedWorkspace=typeof body.workspace_id==="string"?body.workspace_id:null;
- const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id,role").eq("user_id",authUser.user.id).eq("status","active"); const workspace=(memberships||[]).find((m:any)=>!requestedWorkspace||m.workspace_id===requestedWorkspace); if(!workspace) return Response.json({error:"workspace_access_denied"},{status:403});
- const workspaceId=workspace.workspace_id; const {data:run, error:runError}=await admin.from("canadabuys_runs").insert({workspace_id:workspaceId,query:SEARCH_TERMS.join(", "),region:"Ottawa / National Capital Region"}).select("id").single(); if(runError||!run) return Response.json({error:runError?.message||"run_create_failed"},{status:500});
+ let workspaceId:string|null=null;
+ if(cronToken){
+   const {data:cronAllowed,error:cronError}=await admin.rpc("verify_procurement_scout_cron_token",{p_token:cronToken});
+   if(cronError||cronAllowed!==true)return Response.json({error:"unauthorized_cron"},{status:401});
+   if(!requestedWorkspace)return Response.json({error:"workspace_required"},{status:400});
+   const {data:workspace}=await admin.from("workspaces").select("id").eq("id",requestedWorkspace).eq("status","active").maybeSingle();
+   if(!workspace)return Response.json({error:"workspace_not_active"},{status:404});
+   workspaceId=workspace.id;
+ }else{
+   const {data:authUser,error:authError}=await admin.auth.getUser(token); if(authError||!authUser.user)return Response.json({error:"unauthorized"},{status:401});
+   const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id,role").eq("user_id",authUser.user.id).eq("status","active");
+   const workspace=(memberships||[]).find((m:any)=>!requestedWorkspace||m.workspace_id===requestedWorkspace); if(!workspace)return Response.json({error:"workspace_access_denied"},{status:403});
+   workspaceId=workspace.workspace_id;
+ }
+ if(!workspaceId)return Response.json({error:"workspace_unresolved"},{status:400}); const {data:run, error:runError}=await admin.from("canadabuys_runs").insert({workspace_id:workspaceId,query:SEARCH_TERMS.join(", "),region:"Ottawa / National Capital Region"}).select("id").single(); if(runError||!run) return Response.json({error:runError?.message||"run_create_failed"},{status:500});
  let fetchedCount=0,errorCount=0; const candidates=new Map<string,any>();
  try{
   try{
