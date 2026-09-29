@@ -1,0 +1,1 @@
+alter function public.is_named_outreach_person(text) set search_path = public;
