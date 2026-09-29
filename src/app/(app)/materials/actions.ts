@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireWorkspace } from "@/lib/workspace";
 import { requireWorkspaceRole } from "@/lib/authz";
+import { buildDeckTakeoff, parseLegacyDeckSpec } from "../estimates/deck-takeoff";
 
 const MATERIAL_ROLES = ["owner", "administrator", "operations_manager", "sales_manager", "sales_rep"] as const;
 
@@ -98,6 +99,144 @@ async function recalculateIfReady(
     return invokePriceScout(s, workspaceId, requestId, refresh);
   }
   return null;
+}
+
+export async function generateDeckMaterialTakeoff(f: FormData) {
+  const { ctx, s } = await context();
+  const estimateId = textValue(f, "estimate_id");
+  if (!estimateId) throw new Error("Estimate is required");
+
+  const [{ data: estimate }, { data: firstItems }, { data: existingSpec }, { data: userData }] = await Promise.all([
+    (s as any)
+      .from("estimates")
+      .select("id,estimate_number,estimate_kind,property_id,status")
+      .eq("workspace_id", ctx.workspaceId)
+      .eq("id", estimateId)
+      .maybeSingle(),
+    (s as any)
+      .from("estimate_items")
+      .select("description")
+      .eq("workspace_id", ctx.workspaceId)
+      .eq("estimate_id", estimateId)
+      .order("sort_order")
+      .limit(1),
+    (s as any)
+      .from("deck_estimate_specs")
+      .select("*")
+      .eq("workspace_id", ctx.workspaceId)
+      .eq("estimate_id", estimateId)
+      .maybeSingle(),
+    s.auth.getUser(),
+  ]);
+
+  if (!estimate || estimate.estimate_kind !== "deck") throw new Error("Deck estimate not found");
+
+  let spec = existingSpec as any;
+  if (!spec) {
+    const legacy = parseLegacyDeckSpec(firstItems?.[0]?.description ?? "");
+    if (!legacy) throw new Error("This legacy deck estimate has no recoverable dimensions. Revise the estimate and save its structured scope first.");
+
+    const { data: inserted, error: specError } = await (s as any)
+      .from("deck_estimate_specs")
+      .insert({
+        workspace_id: ctx.workspaceId,
+        estimate_id: estimateId,
+        ...legacy,
+        created_by: userData.user?.id ?? null,
+      })
+      .select("*")
+      .single();
+    if (specError || !inserted) throw new Error(specError?.message || "Could not persist recovered deck specification");
+    spec = inserted;
+  }
+
+  const takeoff = buildDeckTakeoff(spec);
+  const canonicalKeys = [...new Set(takeoff.map((line) => line.canonicalKey))];
+
+  const { data: catalog, error: catalogError } = await (s as any)
+    .from("material_catalog_items")
+    .select("id,canonical_key,description")
+    .eq("workspace_id", ctx.workspaceId)
+    .eq("active", true)
+    .in("canonical_key", canonicalKeys);
+  if (catalogError) throw new Error(catalogError.message);
+
+  const catalogByKey = new Map((catalog ?? []).map((row: any) => [row.canonical_key, row]));
+  const missing = canonicalKeys.filter((key) => !catalogByKey.has(key));
+  if (missing.length) throw new Error(`Material catalog is missing: ${missing.join(", ")}`);
+
+  const { data: existingRequests, error: requestLookupError } = await (s as any)
+    .from("material_requests")
+    .select("id,status")
+    .eq("workspace_id", ctx.workspaceId)
+    .eq("estimate_id", estimateId)
+    .neq("status", "archived")
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (requestLookupError) throw new Error(requestLookupError.message);
+
+  let requestId = existingRequests?.[0]?.id as string | undefined;
+  if (!requestId) {
+    const { data: created, error: createError } = await (s as any)
+      .from("material_requests")
+      .insert({
+        workspace_id: ctx.workspaceId,
+        estimate_id: estimateId,
+        property_id: estimate.property_id ?? null,
+        name: `${estimate.estimate_number} automatic deck takeoff`,
+        region: "Ottawa, ON",
+        status: "draft",
+        waste_pct: 5,
+        delivery_mode: "pickup",
+        notes: "Core lumber generated from the structured deck estimate. Verify structural design, hardware, concrete, stairs and guards before purchasing.",
+        created_by: userData.user?.id ?? null,
+      })
+      .select("id")
+      .single();
+    if (createError || !created) throw new Error(createError?.message || "Could not create material request");
+    requestId = created.id;
+  }
+
+  const { error: deleteError } = await (s as any)
+    .from("material_request_items")
+    .delete()
+    .eq("workspace_id", ctx.workspaceId)
+    .eq("request_id", requestId)
+    .eq("source_type", "deck_takeoff");
+  if (deleteError) throw new Error(deleteError.message);
+
+  const generatedRows = takeoff.map((line, index) => ({
+    workspace_id: ctx.workspaceId,
+    request_id: requestId,
+    material_item_id: catalogByKey.get(line.canonicalKey).id,
+    quantity: line.quantity,
+    notes: line.note,
+    sort_order: index,
+    source_type: "deck_takeoff",
+    source_key: line.sourceKey,
+  }));
+
+  const { error: insertError } = await (s as any)
+    .from("material_request_items")
+    .insert(generatedRows);
+  if (insertError) throw new Error(insertError.message);
+
+  await (s as any)
+    .from("material_requests")
+    .update({
+      property_id: estimate.property_id ?? null,
+      status: "draft",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("workspace_id", ctx.workspaceId)
+    .eq("id", requestId);
+
+  await invokePriceScout(s, ctx.workspaceId, requestId, true);
+
+  revalidatePath("/materials");
+  revalidatePath(`/materials/${requestId}`);
+  revalidatePath(`/estimates/${estimateId}`);
+  redirect(`/materials/${requestId}`);
 }
 
 export async function createMaterialRequest(f: FormData) {
