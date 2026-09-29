@@ -5,6 +5,74 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireWorkspace } from "@/lib/workspace";
 
+export async function addManualTender(formData: FormData) {
+  const ctx = await requireWorkspace();
+  const s = await createClient();
+  const externalId = String(formData.get("external_id") || "").trim();
+  const title = String(formData.get("title") || "").trim();
+  const source = String(formData.get("source") || "Manual").trim() || "Manual";
+  if (!externalId || !title) throw new Error("Tender ID and title are required");
+
+  const closingDate = String(formData.get("closing_date") || "");
+  const payload = {
+    workspace_id: ctx.workspaceId,
+    source,
+    external_id: externalId,
+    title,
+    buyer_name: String(formData.get("buyer_name") || "").trim() || null,
+    category: String(formData.get("category") || "").trim() || null,
+    region: String(formData.get("region") || "").trim() || null,
+    closing_date: closingDate || null,
+    source_url: String(formData.get("source_url") || "").trim() || null,
+    response_mode: String(formData.get("response_mode") || "formal_rfp"),
+    status: "new",
+    action_state: "new",
+    next_action: "Review solicitation and mandatory requirements",
+    last_verified_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data: existing, error: lookupError } = await (s as any).from("tender_records")
+    .select("id").eq("workspace_id",ctx.workspaceId).eq("source",source).eq("external_id",externalId).maybeSingle();
+  if (lookupError) throw lookupError;
+
+  let tenderId = existing?.id as string | undefined;
+  if (tenderId) {
+    const { error } = await (s as any).from("tender_records").update(payload)
+      .eq("workspace_id",ctx.workspaceId).eq("id",tenderId);
+    if (error) throw error;
+  } else {
+    const { data: created, error } = await (s as any).from("tender_records").insert(payload).select("id").single();
+    if (error) throw error;
+    tenderId = created.id;
+  }
+
+  await (s as any).from("tender_requirements").upsert({
+    workspace_id: ctx.workspaceId,
+    tender_record_id: tenderId,
+    requirement_type: "compliance",
+    title: "Review mandatory solicitation requirements",
+    description: "Capture every mandatory clause, required form, certification and supporting evidence before submission.",
+    mandatory: true,
+    status: "pending",
+  },{onConflict:"tender_record_id,title"});
+
+  if (closingDate) {
+    await (s as any).from("tender_deadlines").upsert({
+      workspace_id: ctx.workspaceId,
+      tender_record_id: tenderId,
+      deadline_type: "submission",
+      title: "Tender submission deadline",
+      due_at: new Date(closingDate+"T23:59:00").toISOString(),
+      mandatory: true,
+      status: "open",
+    },{onConflict:"tender_record_id,deadline_type,due_at"});
+  }
+
+  revalidatePath("/procurement");
+  redirect(`/procurement/${tenderId}`);
+}
+
 const STAGES: Record<string, string> = {
   new: "Review solicitation and mandatory requirements",
   qualifying: "Complete bid/no-bid qualification",
