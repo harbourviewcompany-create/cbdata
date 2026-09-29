@@ -3,12 +3,13 @@ import Link from "next/link";
 import type { Route } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { requireWorkspace } from "@/lib/workspace";
-import { runCanadaBuysScout, runRegionalTenderScout, updateSupplierRegistration, updateTenderStage } from "./actions";
+import { runCanadaBuysScout, runRegionalTenderScout, runTenderIntelligence, updateFutureOpportunityStatus, updateSupplierRegistration, updateTenderStage } from "./actions";
 import "./procurement.css";
 
 function fmtDate(value:string|null){ if(!value) return "—"; return new Date(value).toLocaleDateString("en-CA",{year:"numeric",month:"short",day:"numeric"}); }
 function daysLeft(value:string|null){ if(!value) return null; const end=new Date(value+"T23:59:59Z").getTime(); return Math.ceil((end-Date.now())/86400000); }
 function urgencyLabel(value:string|null){ const d=daysLeft(value); if(d===null) return "no deadline"; if(d<0) return "closed"; if(d===0) return "closes today"; if(d===1) return "1 day"; return `${d} days`; }
+function tenderKey(t:any){ const n=(v:any)=>String(v??"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim(); return [n(t.buyer_name),n(t.title),t.closing_date||""].join("|"); }
 
 const STAGES=["new","qualifying","pursuing","pricing","review","submitted","won","lost","no_bid"];
 
@@ -36,14 +37,27 @@ export default async function ProcurementPage(){
 
   const {data:runs}=await (s as any).from("canadabuys_runs").select("id,started_at,finished_at,status,fetched_count,qualifying_count,inserted_count,updated_count,lead_created_count,error_count,error_message").eq("workspace_id",ctx.workspaceId).order("started_at",{ascending:false}).limit(8);
   const {data:regionalRuns}=await (s as any).from("tender_scout_runs").select("id,source_key,source_name,started_at,finished_at,status,fetched_count,qualifying_count,inserted_count,updated_count,lead_created_count,error_count,error_message").eq("workspace_id",ctx.workspaceId).order("started_at",{ascending:false}).limit(20);
-  const {data:sources}=await (s as any).from("tender_sources").select("source_key,display_name,source_url,ingestion_mode,last_run_at,last_success_at,last_error").eq("workspace_id",ctx.workspaceId).eq("enabled",true).order("display_name");
+  const {data:sources}=await (s as any).from("tender_sources").select("source_key,display_name,source_url,ingestion_mode,coverage_tier,adapter_status,buyer_scope,last_run_at,last_success_at,last_error,last_verified_at").eq("workspace_id",ctx.workspaceId).eq("enabled",true).order("display_name");
   const {data:registrations}=await (s as any).from("supplier_registrations").select("id,source_key,registration_name,status,account_reference,expires_on,evidence_url,notes,updated_at").eq("workspace_id",ctx.workspaceId).order("registration_name");
+  const [{data:intelligenceRows},{data:subtradeRows},{data:futureRows},{data:cycleRows}]=await Promise.all([
+    (s as any).from("tender_pursuit_intelligence").select("tender_record_id,pursuit_mode,scope_fit,eligibility,commercial_attractiveness,geographic_fit,timing,competition,strategic_value,subtrade_potential,overall_score,rationale,next_best_action").eq("workspace_id",ctx.workspaceId),
+    (s as any).from("tender_subtrade_opportunities").select("id,tender_record_id,trade,package_title,scope_summary,fit_score,pursuit_status,suggested_action,due_at,target_primes").eq("workspace_id",ctx.workspaceId).in("pursuit_status",["identified","researching_primes","outreach","pricing"]).order("fit_score",{ascending:false}).limit(100),
+    (s as any).from("procurement_future_opportunities").select("id,buyer_name,title,service_category,signal_type,expected_publish_start,expected_publish_end,fit_score,confidence,status,next_action,next_action_at,source_url,linked_tender_id").eq("workspace_id",ctx.workspaceId).in("status",["watch","research","pre_position"]).order("expected_publish_start",{ascending:true}).limit(100),
+    (s as any).from("procurement_contract_cycles").select("id,buyer_name,service_category,incumbent_name,award_value,currency,contract_end_date,expected_rebid_date,confidence,status,evidence_url").eq("workspace_id",ctx.workspaceId).order("expected_rebid_date",{ascending:true}).limit(100),
+  ]);
+  const intelligenceByTender=new Map<string,any>((intelligenceRows??[]).map((x:any)=>[x.tender_record_id,x]));
 
-  const open=(tenders??[]).filter((t:any)=>t.closing_date && new Date(t.closing_date+"T23:59:59Z")>=new Date());
+  const openRaw=(tenders??[]).filter((t:any)=>t.closing_date && new Date(t.closing_date+"T23:59:59Z")>=new Date() && !["no_bid","lost","won"].includes(t.action_state));
+  const canonicalOpen=new Map<string,any>();
+  for(const t of openRaw){ const k=tenderKey(t); const current=canonicalOpen.get(k); if(!current||Number(t.fit_score||0)>Number(current.fit_score||0)) canonicalOpen.set(k,t); }
+  const open=Array.from(canonicalOpen.values());
   const urgent=open.filter((t:any)=>{const d=daysLeft(t.closing_date); return d!==null && d<=7;}).length;
   const pursuing=open.filter((t:any)=>["pursuing","pricing","review","submitted"].includes(t.action_state)).length;
   const highFit=open.filter((t:any)=>Number(t.fit_score||0)>=75).length;
-  const sourceCounts=new Map<string,number>(); for(const t of open) sourceCounts.set(t.source||"Other",(sourceCounts.get(t.source||"Other")||0)+1);
+  const primeBids=(intelligenceRows??[]).filter((x:any)=>x.pursuit_mode==="prime_bid").length;
+  const subtradePursuits=(subtradeRows??[]).filter((x:any)=>Number(x.fit_score||0)>=70).length;
+  const futurePipeline=(futureRows??[]).length;
+  const sourceCounts=new Map<string,number>(); for(const t of openRaw) sourceCounts.set(t.source||"Other",(sourceCounts.get(t.source||"Other")||0)+1);
 
   return <main className="list-shell">
     <header className="list-header">
@@ -51,7 +65,7 @@ export default async function ProcurementPage(){
       <span className="eyebrow">GROWTH / PROCUREMENT</span>
       <h1>Tender Intelligence</h1>
       <p className="muted tender-intro">One operating queue for public and institutional opportunities: discovery, fit, buyer/property intelligence, bid/no-bid, compliance, pricing, submission and award follow-up.</p>
-      <div style={{marginTop:12}}><Link className="button" href="/procurement/coverage">Regional Coverage Engine</Link></div>
+      <div style={{marginTop:12}}><Link className="button" href={"/procurement/coverage" as Route}>Regional Coverage Engine</Link></div>
     </header>
 
     <section className="metrics" style={{marginBottom:18}}>
@@ -59,16 +73,20 @@ export default async function ProcurementPage(){
       <div className="metric"><span>High fit ≥75</span><strong>{highFit}</strong></div>
       <div className="metric"><span>Closing ≤7 days</span><strong>{urgent}</strong></div>
       <div className="metric"><span>Active pursuits</span><strong>{pursuing}</strong></div>
+      <div className="metric"><span>Prime-bid fit</span><strong>{primeBids}</strong></div>
+      <div className="metric"><span>Subtrade plays</span><strong>{subtradePursuits}</strong></div>
+      <div className="metric"><span>Future pipeline</span><strong>{futurePipeline}</strong></div>
     </section>
 
     <section className="source-strip">
       {(sources??[]).map((source:any)=><div key={source.source_key}>
         <strong>{source.display_name}</strong>
-        <span>{source.ingestion_mode.replace("_"," ")}{source.source_key==="canadabuys" ? ` · ${sourceCounts.get("CanadaBuys")||0} open` : ""}</span>
+        <span>{source.coverage_tier||source.ingestion_mode.replace("_"," ")} · {source.adapter_status||"unverified"}{source.source_key==="canadabuys" ? ` · ${sourceCounts.get("CanadaBuys")||0} open` : ""}</span>
+        {source.buyer_scope?<span>{source.buyer_scope}</span>:null}
         {source.last_success_at?<span>last success {fmtDate(source.last_success_at)}</span>:null}
         {source.last_error?<span>{source.last_error}</span>:null}
       </div>)}
-      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><form action={runRegionalTenderScout}><button className="primary" type="submit">Scan all regional tenders</button></form><form action={runCanadaBuysScout}><button className="button" type="submit">CanadaBuys only</button></form></div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><form action={runRegionalTenderScout}><button className="primary" type="submit">Scan + refresh intelligence</button></form><form action={runCanadaBuysScout}><button className="button" type="submit">CanadaBuys only</button></form><form action={runTenderIntelligence}><button className="button" type="submit">Refresh intelligence</button></form></div>
     </section>
 
     <section className="table-panel" style={{marginBottom:18}}>
@@ -104,7 +122,7 @@ export default async function ProcurementPage(){
           <div><strong>{fmtDate(t.closing_date)}</strong><span className="status-meta">{urgencyLabel(t.closing_date)}</span>{t.published_date?<span className="status-meta">opened {fmtDate(t.published_date)}</span>:null}</div>
           <div><strong>{t.title}</strong><span className="status-meta">{t.category||"Service"} · {t.external_id}</span><span className="status-meta">{t.next_action||"Review solicitation and mandatory requirements"}</span></div>
           <div><strong>{t.buyer_name||"—"}</strong><span className="status-meta">{t.source||"Unknown source"} · {t.region||"NCR"}</span></div>
-          <div><span className="score-chip score-high">{t.fit_score??"—"}</span><span className="status-meta">{t.fit_note||"Fit note pending"}</span></div>
+          <div>{(()=>{const intel=intelligenceByTender.get(t.id);return <><span className="score-chip score-high">{intel?.overall_score??t.fit_score??"—"}</span><span className="status-meta">{intel?.pursuit_mode?.replaceAll("_"," ")||"discovery fit"}</span><span className="status-meta">{intel?.next_best_action||t.fit_note||"Fit note pending"}</span></>;})()}</div>
           <div>{(propertiesByTender.get(t.id)??[]).length?<>{(propertiesByTender.get(t.id)??[]).map((p:any)=><span className="status-meta" key={p.property_id}>{p.name}</span>)}</>:<span className="status-meta">property mapping gap</span>}</div>
           <div className="bid-control">
             <form action={updateTenderStage}>
@@ -145,6 +163,38 @@ export default async function ProcurementPage(){
           <div><a href={p.evidence_url} target="_blank" rel="noreferrer">{p.evidence_label||"Source"}</a><span className="status-meta">{p.source_confidence||"—"}</span></div>
           <div className="status-meta">{p.scope_note||"—"}</div>
         </div>))}
+      </div></div>
+    </section>
+
+    <section className="table-panel" style={{marginBottom:18}}>
+      <div className="panel-head"><div><span className="eyebrow">SUBTRADE ENGINE</span><h3>Downstream packages hidden inside prime tenders</h3></div><span className="muted">{(subtradeRows??[]).length} active packages</span></div>
+      <div className="table-wrap"><div className="targets-grid procurement-grid">
+        <div className="targets-grid-row targets-grid-head"><div>Fit</div><div>Package</div><div>Parent tender</div><div>Status</div><div>Due</div><div>Next action</div></div>
+        {(subtradeRows??[]).map((x:any)=>{const t=(tenders??[]).find((r:any)=>r.id===x.tender_record_id);return <div className="targets-grid-row" key={x.id}>
+          <div><span className="score-chip score-high">{x.fit_score}</span></div>
+          <div><strong>{x.package_title}</strong><span className="status-meta">{x.trade.replaceAll("_"," ")}</span><span className="status-meta">{x.scope_summary||"Scope review required"}</span></div>
+          <div>{t?<><Link href={`/procurement/${t.id}` as Route}>{t.title}</Link><span className="status-meta">{t.buyer_name||"—"}</span></>:<span className="muted">Tender unavailable</span>}</div>
+          <div><span className="pill">{x.pursuit_status.replaceAll("_"," ")}</span></div>
+          <div>{fmtDate(x.due_at)}</div>
+          <div><strong>{x.suggested_action||"Identify bidding primes and estimator contacts"}</strong></div>
+        </div>})}
+        {!(subtradeRows??[]).length?<div className="targets-grid-row"><div className="muted">Refresh intelligence to extract subtrade packages.</div></div>:null}
+      </div></div>
+    </section>
+
+    <section className="table-panel" style={{marginBottom:18}}>
+      <div className="panel-head"><div><span className="eyebrow">FUTURE OPPORTUNITIES</span><h3>Contract cycles and predicted rebids</h3></div><span className="muted">{(futureRows??[]).length} pre-tender signals · {(cycleRows??[]).length} tracked cycles</span></div>
+      <div className="table-wrap"><div className="targets-grid procurement-grid">
+        <div className="targets-grid-row targets-grid-head"><div>Window</div><div>Opportunity</div><div>Buyer</div><div>Fit</div><div>Confidence</div><div>Pre-position action</div></div>
+        {(futureRows??[]).map((x:any)=><div className="targets-grid-row" key={x.id}>
+          <div><strong>{fmtDate(x.expected_publish_start)}</strong><span className="status-meta">to {fmtDate(x.expected_publish_end)}</span></div>
+          <div><strong>{x.title}</strong><span className="status-meta">{x.service_category} · {x.signal_type.replaceAll("_"," ")}</span></div>
+          <div>{x.buyer_name}</div>
+          <div><span className="score-chip score-high">{x.fit_score}</span></div>
+          <div><span className="pill">{x.confidence}</span><form action={updateFutureOpportunityStatus} className="inline-form"><input type="hidden" name="future_id" value={x.id}/><select name="status" defaultValue={x.status}>{["watch","research","pre_position","published","converted","closed"].map(v=><option key={v} value={v}>{v.replaceAll("_"," ")}</option>)}</select><button className="button" type="submit">Update</button></form></div>
+          <div><strong>{x.next_action||"Research buyer and incumbent"}</strong>{x.next_action_at?<span className="status-meta">start {fmtDate(x.next_action_at)}</span>:null}</div>
+        </div>)}
+        {!(futureRows??[]).length?<div className="targets-grid-row"><div className="muted">Award and contract-cycle data will populate pre-tender opportunities here.</div></div>:null}
       </div></div>
     </section>
 
