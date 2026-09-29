@@ -10,9 +10,13 @@ import {
   confirmTenderSubmission,
   createEstimateFromTender,
   markAddendaChecked,
+  runTenderDocumentIntelligence,
+  runTenderIntelligence,
+  saveTenderContractCycle,
   saveNoBidReason,
   saveTenderScorecard,
   updateTenderDeadline,
+  updateSubtradeStatus,
   updateTenderRequirement,
   updateTenderStage,
 } from "../actions";
@@ -37,13 +41,17 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
   const {data:tender}=await (s as any).from("tender_records").select("*").eq("workspace_id",ctx.workspaceId).eq("id",id).maybeSingle();
   if(!tender) notFound();
 
-  const [{data:reqs},{data:deadlines},{data:docs},{data:history},{data:links},{data:estimate}]=await Promise.all([
+  const [{data:reqs},{data:deadlines},{data:docs},{data:history},{data:links},{data:estimate},{data:intel},{data:subtrades},{data:futureSignals},{data:cycles}]=await Promise.all([
     (s as any).from("tender_requirements").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("mandatory",{ascending:false}).order("created_at"),
     (s as any).from("tender_deadlines").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("due_at"),
     (s as any).from("tender_documents").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).eq("is_current",true).order("created_at"),
     (s as any).from("tender_stage_history").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("created_at",{ascending:false}).limit(20),
     (s as any).from("tender_properties").select("property_id,scope_note,evidence_url,evidence_label,properties(name,address_line_1,city,province,property_type)").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id),
     tender.estimate_id ? (s as any).from("estimates").select("id,estimate_number,total,estimated_direct_cost,estimated_gross_profit,estimated_margin,status").eq("workspace_id",ctx.workspaceId).eq("id",tender.estimate_id).maybeSingle() : Promise.resolve({data:null}),
+    (s as any).from("tender_pursuit_intelligence").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).maybeSingle(),
+    (s as any).from("tender_subtrade_opportunities").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("fit_score",{ascending:false}),
+    (s as any).from("procurement_future_opportunities").select("*").eq("workspace_id",ctx.workspaceId).eq("linked_tender_id",id).order("expected_publish_start",{ascending:true}),
+    (s as any).from("procurement_contract_cycles").select("*").eq("workspace_id",ctx.workspaceId).eq("source_tender_id",id).order("expected_rebid_date",{ascending:true}),
   ]);
 
   const mandatory=(reqs??[]).filter((r:any)=>r.mandatory);
@@ -72,10 +80,43 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
     </header>
 
     <section className="metrics" style={{marginBottom:18}}>
-      <div className="metric"><span>Fit</span><strong>{tender.fit_score??"—"}</strong></div>
+      <div className="metric"><span>Pursuit score</span><strong>{intel?.overall_score??tender.fit_score??"—"}</strong><span>{intel?.pursuit_mode?.replaceAll("_"," ")||"unclassified"}</span></div>
       <div className="metric"><span>Mandatory gaps</span><strong>{incomplete.length}</strong></div>
       <div className="metric"><span>Next deadline</span><strong className="metric-small">{nextDeadline?fmt(nextDeadline.due_at):"—"}</strong></div>
       <div className="metric"><span>Estimate</span><strong>{estimate?money(estimate.total,tender.currency):"Not started"}</strong></div>
+    </section>
+
+    <section className="panel" style={{marginBottom:18}}>
+      <div className="panel-head">
+        <div><span className="eyebrow">PURSUIT INTELLIGENCE</span><h3>{intel?.pursuit_mode?.replaceAll("_"," ")||"Refresh intelligence"}</h3></div>
+        <form action={runTenderIntelligence}><input type="hidden" name="tender_id" value={id}/><button className="button" type="submit">Recalculate</button></form>
+      </div>
+      {intel?<><div className="scorecard-grid">
+        {[
+          ["Scope",intel.scope_fit],["Eligibility",intel.eligibility],["Commercial",intel.commercial_attractiveness],
+          ["Geography",intel.geographic_fit],["Timing",intel.timing],["Competition",intel.competition],
+          ["Strategic",intel.strategic_value],["Subtrade",intel.subtrade_potential],
+        ].map(([label,value])=><div key={String(label)}><span className="status-meta">{label}</span><strong style={{display:"block",fontSize:22}}>{value}</strong></div>)}
+      </div>
+      <p><strong>Next best action:</strong> {intel.next_best_action}</p>
+      <p className="muted">{intel.rationale}</p></>:<p className="muted">Run Tender Intelligence to classify prime-bid vs subtrade potential and calculate pursuit scores.</p>}
+    </section>
+
+    <section className="tender-detail-grid">
+      <div className="table-panel">
+        <div className="panel-head"><div><span className="eyebrow">SUBTRADE ENGINE</span><h3>Downstream packages</h3></div></div>
+        <div className="tender-list">
+          {(subtrades??[]).length?(subtrades??[]).map((x:any)=><div className="tender-list-row" key={x.id}><div><strong>{x.package_title}</strong><span className="status-meta">fit {x.fit_score} · {x.pursuit_status.replaceAll("_"," ")}</span><span className="status-meta wrap">{x.scope_summary}</span><span className="status-meta wrap">{x.suggested_action}</span></div><form action={updateSubtradeStatus} className="inline-form"><input type="hidden" name="subtrade_id" value={x.id}/><input type="hidden" name="tender_id" value={id}/><select name="status" defaultValue={x.pursuit_status}>{["identified","researching_primes","outreach","pricing","submitted","won","lost","not_pursuing"].map(v=><option key={v} value={v}>{v.replaceAll("_"," ")}</option>)}</select><button className="button" type="submit">Update</button></form></div>):<p className="muted pad">No downstream packages identified.</p>}
+        </div>
+      </div>
+      <div className="table-panel">
+        <div className="panel-head"><div><span className="eyebrow">CONTRACT CYCLE</span><h3>Incumbent / rebid intelligence</h3></div></div>
+        <div className="tender-list">
+          {(cycles??[]).map((x:any)=><div className="tender-list-row" key={x.id}><div><strong>{x.service_category}</strong><span className="status-meta">incumbent {x.incumbent_name||"unknown"} · rebid {x.expected_rebid_date||x.contract_end_date||"unknown"}</span><span className="status-meta">{x.confidence} confidence · {x.award_value?money(x.award_value,x.currency):"award value unknown"}</span></div></div>)}
+          {(futureSignals??[]).map((x:any)=><div className="tender-list-row" key={x.id}><div><strong>{x.title}</strong><span className="status-meta">{x.expected_publish_start||"?"} → {x.expected_publish_end||"?"}</span><span className="status-meta wrap">{x.next_action}</span></div></div>)}
+          {!(cycles??[]).length&&!(futureSignals??[]).length?<p className="muted pad">Add award/incumbent/contract dates when known; CBData will create the future rebid window automatically.</p>:null}
+        </div>
+      </div>
     </section>
 
     {incomplete.length>0?<section className="panel tender-blocker">
@@ -148,6 +189,19 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
       </div>
 
       <div className="panel">
+        <div className="panel-head"><div><span className="eyebrow">CONTRACT CYCLE EVIDENCE</span><h3>Incumbent / award / rebid</h3></div></div>
+        <form action={saveTenderContractCycle} className="stacked-form">
+          <input type="hidden" name="tender_id" value={id}/>
+          <label className="stacked-field"><span>Incumbent contractor</span><input name="incumbent_name" defaultValue={tender.incumbent_name||""} placeholder="Verified incumbent"/></label>
+          <label className="stacked-field"><span>Previous award value</span><input name="previous_award_value" type="number" min="0" step="0.01" defaultValue={tender.previous_award_value??""} placeholder="CAD"/></label>
+          <label className="stacked-field"><span>Contract start</span><input name="contract_start_date" type="date" defaultValue={tender.contract_start_date||""}/></label>
+          <label className="stacked-field"><span>Contract end</span><input name="contract_end_date" type="date" defaultValue={tender.contract_end_date||""}/></label>
+          <label className="stacked-field"><span>Expected rebid</span><input name="expected_rebid_date" type="date" defaultValue={tender.expected_rebid_date||""}/></label>
+          <button className="button" type="submit">Save + rebuild future opportunity</button>
+        </form>
+      </div>
+
+      <div className="panel">
         <div className="panel-head"><div><span className="eyebrow">ESTIMATE</span><h3>Commercial position</h3></div></div>
         {estimate?<dl className="tender-kv">
           <div><dt>Status</dt><dd>{estimate.status}</dd></div>
@@ -208,9 +262,9 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
         <div className="tender-list">{(links??[]).length?(links??[]).map((x:any)=><div className="tender-list-row" key={x.property_id}><div><strong>{x.properties?.name||"Property"}</strong><span className="status-meta">{[x.properties?.address_line_1,x.properties?.city,x.properties?.province].filter(Boolean).join(", ")}</span><span className="status-meta wrap">{x.scope_note||"Scope not mapped"}</span></div></div>):<p className="muted pad">No facility mapping yet.</p>}</div>
       </div>
       <div className="table-panel">
-        <div className="panel-head"><div><span className="eyebrow">DOCUMENTS / HISTORY</span><h3>Evidence trail</h3></div></div>
+        <div className="panel-head"><div><span className="eyebrow">DOCUMENTS / HISTORY</span><h3>Evidence trail</h3></div><form action={runTenderDocumentIntelligence}><input type="hidden" name="tender_id" value={id}/><button className="button" type="submit">Analyze documents</button></form></div>
         <div className="tender-list">
-          {(docs??[]).map((d:any)=><div className="tender-list-row" key={d.id}><div><strong>{d.title}</strong><span className="status-meta">{d.document_type}{d.version?` · ${d.version}`:""}</span></div>{d.source_url?<a className="button" href={d.source_url} target="_blank" rel="noreferrer">Open</a>:null}</div>)}
+          {(docs??[]).map((d:any)=><div className="tender-list-row" key={d.id}><div><strong>{d.title}</strong><span className="status-meta">{d.document_type}{d.version?` · ${d.version}`:""} · {d.extraction_status?.replaceAll("_"," ")||"not parsed"}</span>{d.intelligence&&Object.keys(d.intelligence).length?<span className="status-meta wrap">{JSON.stringify(d.intelligence)}</span>:null}</div>{d.source_url?<a className="button" href={d.source_url} target="_blank" rel="noreferrer">Open</a>:null}</div>)}
           {(history??[]).map((h:any)=><div className="tender-list-row" key={h.id}><div><strong>{h.from_stage||"new"} → {h.to_stage}</strong><span className="status-meta">{fmt(h.created_at)}</span></div></div>)}
         </div>
       </div>
