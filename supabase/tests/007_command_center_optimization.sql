@@ -60,8 +60,8 @@ begin
     raise exception 'anon must not execute public.refresh_workspace_ops_snapshot';
   end if;
 
-  if not has_function_privilege('authenticated', 'public.is_workspace_member(uuid)', 'EXECUTE') then
-    raise exception 'authenticated must execute public.is_workspace_member';
+  if has_function_privilege('authenticated', 'public.refresh_workspace_ops_snapshot(uuid)', 'EXECUTE') then
+    raise exception 'authenticated must not directly execute public.refresh_workspace_ops_snapshot';
   end if;
 
   if not exists (
