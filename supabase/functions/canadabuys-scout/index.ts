@@ -8,7 +8,7 @@ const SEARCH_TERMS = [
 "landscaping","grounds maintenance","snow removal","winter maintenance","janitorial services","cleaning services",
 "facility maintenance","building maintenance","property maintenance","roofing","roof replacement","hvac","mechanical contractor",
 "ventilation","sheet metal","ductwork","building envelope","renovation","general contractor","paving","asphalt","concrete",
-"fencing","site work","déneigement","entretien paysager","nettoyage","conciergerie","entretien bâtiment",
+"fencing","site work","structural steel","steel fabrication","metal fabrication","welding","miscellaneous metals","architectural metals","pre-engineered metal","metal roofing","roof flashing","soffit","fascia","coping","roof curb","mechanical insulation","duct insulation","fire damper","smoke damper","air balancing","building automation","controls","preventive maintenance contract","standing offer","request for standing offer","source list","prequalification","contractor prequalification","vendor of record","déneigement","entretien paysager","nettoyage","conciergerie","entretien bâtiment",
 "CHEO","Children's Hospital of Eastern Ontario","The Ottawa Hospital","Royal Ottawa","Hôpital Montfort","Bruyère",
 "University of Ottawa","Carleton University","Algonquin College","La Cité","CECCE","CEPEO","Ottawa Community Housing","Hydro Ottawa"
 ];
@@ -33,6 +33,10 @@ const FIT_RULES:FitRule[]=[
 {label:"painting & finishes",weight:16,terms:["painting","flooring","carpet","tile replacement","millwork","carpentry","drywall"]},
 {label:"plumbing",weight:10,terms:["plumbing","plumber","domestic water","sanitary piping"]},
 {label:"electrical",weight:8,terms:["electrical contractor","electrical upgrade","lighting replacement","fire alarm replacement"]},
+{label:"metals & fabrication",weight:30,core:true,terms:["structural steel","steel fabrication","metal fabrication","welding","miscellaneous metals","architectural metals","pre-engineered metal","metal stairs","metal railing"]},
+{label:"roof sheet metal",weight:30,core:true,terms:["metal roofing","roof flashing","sheet metal flashing","soffit","fascia","coping","roof curb"]},
+{label:"mechanical accessories",weight:26,core:true,terms:["fire damper","smoke damper","volume damper","roof curb","exhaust hood","mechanical insulation","duct insulation","air balancing"]},
+{label:"standing offers & prequalification",weight:18,terms:["standing offer","request for standing offer","rfso","source list","prequalification","pre-qualification","contractor prequalification","vendor of record"]},
 {label:"construction",weight:10,terms:["construction","building addition","capital renewal","school renewal"]}
 ];
 const EXCLUSION_TERMS=["software maintenance","software management","document management software","logiciel","gestion documentaire","informatique","it maintenance","network maintenance","vehicle maintenance","fleet maintenance","aircraft maintenance","marine maintenance","medical equipment","laboratory equipment","training services","consulting services","engineering services only","architectural services only","survey services","office supplies","food services"];
