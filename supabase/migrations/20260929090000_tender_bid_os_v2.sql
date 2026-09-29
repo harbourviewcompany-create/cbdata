@@ -195,6 +195,103 @@ create table if not exists public.tender_callups (
   unique(tender_record_id, callup_number)
 );
 
+
+alter table public.tender_supplier_quotes
+  add column if not exists service_region text,
+  add column if not exists distance_km numeric,
+  add column if not exists capacity_score integer check (capacity_score between 1 and 5),
+  add column if not exists reliability_score integer check (reliability_score between 1 and 5),
+  add column if not exists emergency_score integer check (emergency_score between 1 and 5),
+  add column if not exists local_fulfillment_score numeric generated always as (
+    case
+      when capacity_score is null and reliability_score is null and emergency_score is null then null
+      else round((
+        coalesce(capacity_score,0)::numeric * 0.35 +
+        coalesce(reliability_score,0)::numeric * 0.35 +
+        coalesce(emergency_score,0)::numeric * 0.30
+      ) * 20, 1)
+    end
+  ) stored;
+
+create table if not exists public.tender_portal_snapshots (
+  id uuid primary key default extensions.uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  tender_record_id uuid not null references public.tender_records(id) on delete cascade,
+  portal_name text not null,
+  capture_method text not null default 'authenticated_manual' check (capture_method in ('authenticated_manual','authenticated_automation','public','import')),
+  response_status text,
+  response_deadline_at timestamptz,
+  source_url text,
+  content_hash text,
+  raw_payload jsonb not null default '{}'::jsonb,
+  notes text,
+  captured_by uuid references auth.users(id) on delete set null,
+  captured_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  unique(tender_record_id, portal_name, content_hash)
+);
+
+create table if not exists public.tender_line_items (
+  id uuid primary key default extensions.uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  tender_record_id uuid not null references public.tender_records(id) on delete cascade,
+  portal_snapshot_id uuid references public.tender_portal_snapshots(id) on delete set null,
+  item_number text not null,
+  description text not null,
+  specification text,
+  quantity numeric,
+  unit text,
+  mandatory boolean not null default true,
+  source_reference text,
+  response_value text,
+  unit_price numeric,
+  extended_price numeric generated always as (
+    case when quantity is null or unit_price is null then null else quantity * unit_price end
+  ) stored,
+  status text not null default 'pending' check (status in ('pending','priced','complete','not_applicable')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(tender_record_id, item_number)
+);
+
+create table if not exists public.tender_price_years (
+  id uuid primary key default extensions.uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  tender_record_id uuid not null references public.tender_records(id) on delete cascade,
+  cost_model_id uuid not null references public.tender_cost_models(id) on delete cascade,
+  year_number integer not null check (year_number between 1 and 10),
+  projected_cost numeric not null default 0,
+  escalation_rate numeric not null default 0,
+  bid_price numeric not null default 0,
+  projected_margin numeric generated always as (
+    case when bid_price <= 0 then null else (bid_price - projected_cost) / bid_price end
+  ) stored,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(cost_model_id, year_number)
+);
+
+create table if not exists public.tender_debriefs (
+  id uuid primary key default extensions.uuid_generate_v4(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  tender_record_id uuid not null references public.tender_records(id) on delete cascade,
+  requested_at timestamptz,
+  received_at timestamptz,
+  winning_supplier text,
+  winning_value numeric,
+  result_summary text,
+  strengths text,
+  gaps text,
+  lessons_learned text,
+  next_rebid_date date,
+  source_url text,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(tender_record_id)
+);
+
 create index if not exists idx_tender_amendments_tender_observed on public.tender_amendments(tender_record_id, observed_at desc);
 create index if not exists idx_tender_clarifications_tender_status on public.tender_clarifications(tender_record_id, status, blocking);
 create index if not exists idx_tender_supplier_quotes_tender_status on public.tender_supplier_quotes(tender_record_id, status, landed_cost);
@@ -204,6 +301,11 @@ create index if not exists idx_tender_risks_tender_status on public.tender_risks
 create index if not exists idx_tender_approvals_tender on public.tender_approvals(tender_record_id, approval_type, status);
 create index if not exists idx_supplier_document_vault_expiry on public.supplier_document_vault(workspace_id, expires_on);
 create index if not exists idx_tender_callups_tender_status on public.tender_callups(tender_record_id, status);
+create index if not exists idx_tender_portal_snapshots_tender on public.tender_portal_snapshots(tender_record_id, captured_at desc);
+create index if not exists idx_tender_line_items_tender_status on public.tender_line_items(tender_record_id, status);
+create index if not exists idx_tender_price_years_model on public.tender_price_years(cost_model_id, year_number);
+create index if not exists idx_tender_debriefs_rebid on public.tender_debriefs(workspace_id, next_rebid_date);
+
 
 do $$
 declare t text;
@@ -211,7 +313,8 @@ begin
   foreach t in array array[
     'tender_amendments','tender_clarifications','tender_supplier_quotes',
     'tender_supplier_quote_lines','tender_cost_models','tender_risks',
-    'tender_approvals','supplier_document_vault','tender_callups'
+    'tender_approvals','supplier_document_vault','tender_callups',
+    'tender_portal_snapshots','tender_line_items','tender_price_years','tender_debriefs'
   ]
   loop
     execute format('alter table public.%I enable row level security', t);
