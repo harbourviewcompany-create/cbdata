@@ -47,7 +47,8 @@ type Source=(typeof SOURCES)[number];
 type Candidate={externalId:string;title:string;buyer:string;category?:string|null;publishedDate?:string|null;closingDate?:string|null;url:string;region:string;detail?:string;raw?:unknown};
 
 function cleanHtml(v:string){return v.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;/gi,'"').replace(/&#39;/gi,"'").replace(/\s+/g," ").trim();}
-function norm(v:string){return v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();}\nfunction containsPhrase(text:string,term:string){const n=" "+norm(text)+" ";const needle=" "+norm(term)+" ";return n.includes(needle);}
+function norm(v:string){return v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();}
+function containsPhrase(text:string,term:string){const n=" "+norm(text)+" ";const needle=" "+norm(term)+" ";return n.includes(needle);}
 function classifyFit(v:string){
  const n=norm(v);
  const matched=FIT_RULES.filter(r=>r.terms.some(t=>containsPhrase(v,t)));
