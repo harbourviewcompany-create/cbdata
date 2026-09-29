@@ -52,6 +52,39 @@ begin
     raise exception 'private.is_workspace_member missing';
   end if;
 
+  if has_function_privilege('anon', 'public.is_workspace_member(uuid)', 'EXECUTE') then
+    raise exception 'anon must not execute public.is_workspace_member';
+  end if;
+
+  if has_function_privilege('anon', 'public.refresh_workspace_ops_snapshot(uuid)', 'EXECUTE') then
+    raise exception 'anon must not execute public.refresh_workspace_ops_snapshot';
+  end if;
+
+  if not has_function_privilege('authenticated', 'public.is_workspace_member(uuid)', 'EXECUTE') then
+    raise exception 'authenticated must execute public.is_workspace_member';
+  end if;
+
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'workspace_ops_snapshots'
+      and roles @> array['authenticated'::name]
+      and cmd = 'SELECT'
+  ) then
+    raise exception 'workspace_ops_snapshots authenticated SELECT policy missing';
+  end if;
+
+  if exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'workspace_ops_snapshots'
+      and roles @> array['anon'::name]
+  ) then
+    raise exception 'workspace_ops_snapshots must not expose anon policy';
+  end if;
+
   raise notice 'Command center optimization verification passed';
 end $$;
 rollback;
