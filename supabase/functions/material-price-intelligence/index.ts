@@ -118,6 +118,25 @@ function parseVisiblePrice(html: string, item: AnyRow, productName: string): num
   return prices.length ? prices[0] : null;
 }
 
+function parseBulkTerms(html: string) {
+  const text = decodeHtml(html);
+  const patterns = [
+    /buy\s+([0-9]+)\s+(?:units?\s+)?or\s+more[^0-9]{0,80}(?:save|get)\s+([0-9]+)\s*%/i,
+    /purchase\s+of\s+([0-9]+)\s+units?\s+or\s+more[\s\S]{0,120}?(?:save|get)\s+([0-9]+)\s*%/i,
+    /([0-9]+)\s+units?\s+or\s+more[\s\S]{0,120}?([0-9]+)\s*%/i,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (!match) continue;
+    const min = Number(match[1]);
+    const pct = Number(match[2]);
+    if (Number.isFinite(min) && min > 0 && Number.isFinite(pct) && pct > 0 && pct < 100) {
+      return { bulkMinQty: min, bulkDiscountPct: pct };
+    }
+  }
+  return { bulkMinQty: null, bulkDiscountPct: null };
+}
+
 const LIVE_PRICE_HOSTS = [
   "homedepot.ca",
   "rona.ca",
@@ -166,10 +185,13 @@ async function fetchPrice(product: AnyRow, item: AnyRow) {
   const exact = parseJsonLdPrice(html, product.product_name);
   const visible = exact ?? parseVisiblePrice(html, item, product.product_name);
   if (visible == null) throw new Error("Price not found in source page");
+  const bulk = parseBulkTerms(html);
   return {
     price: visible / Number(product.pack_qty || 1),
     excerpt: decodeHtml(html).slice(0, 4000),
     evidenceUrl: response.url || productUrl.toString(),
+    bulkMinQty: bulk.bulkMinQty,
+    bulkDiscountPct: bulk.bulkDiscountPct,
   };
 }
 
@@ -305,8 +327,8 @@ Deno.serve(async (req) => {
           currency: "CAD",
           stock_status: "verify_store",
           store_label: "Web price — verify Ottawa store",
-          bulk_min_qty: product.bulk_min_qty,
-          bulk_discount_pct: product.bulk_discount_pct,
+          bulk_min_qty: found.bulkMinQty ?? product.bulk_min_qty,
+          bulk_discount_pct: found.bulkDiscountPct ?? product.bulk_discount_pct,
           evidence_url: found.evidenceUrl,
           source_type: "live_page",
           confidence: "medium",
