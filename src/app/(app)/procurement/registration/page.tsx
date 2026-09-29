@@ -35,6 +35,10 @@ export default async function SupplierRegistrationPage(){
       <p className="muted tender-intro">
         Track portal access, Government of Canada questionnaire completion and pre-award requirements without storing passwords, CRA business numbers or banking identifiers in CBData.
       </p>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}>
+        <a className="primary" href="https://canadabuys.canada.ca/en/you-are-now-leaving-canadabuys?land_source=sap_ariba" target="_blank" rel="noreferrer">Open SAP Business Network</a>
+        <a className="button" href="https://canadabuys.canada.ca/en/support/registering-sap-ariba-guide-businesses" target="_blank" rel="noreferrer">Official registration guide</a>
+      </div>
     </header>
 
     {(registrations??[]).map((r:any)=>{
@@ -53,6 +57,11 @@ export default async function SupplierRegistrationPage(){
             <span className="pill">award {rr?.award_ready?"ready":`${rr?.award_gap_count??0} gaps`}</span>
           </div>
         </div>
+
+        {r.status==="blocked"?<div className="panel" style={{margin:"14px 0"}}>
+          <strong>Current blocker: authenticated SAP Business Network access</strong>
+          <p className="muted" style={{marginTop:6}}>Create or recover the company account, activate the main user, then record the ANID and non-sensitive evidence here. Do not enter the SAP password, CRA business number or banking details into CBData.</p>
+        </div>:null}
 
         <form action={updateSupplierRegistration} className="supplier-registration-form" style={{margin:"14px 0 18px"}}>
           <input type="hidden" name="registration_id" value={r.id}/>
