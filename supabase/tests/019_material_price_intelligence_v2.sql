@@ -157,11 +157,24 @@ begin
     join pg_namespace ns on ns.oid=p.pronamespace
     where ns.nspname='public'
       and p.proname='select_material_price_plan'
+      and not p.prosecdef
+      and has_function_privilege('authenticated',p.oid,'EXECUTE')
+      and not has_function_privilege('anon',p.oid,'EXECUTE')
+  ) then
+    raise exception 'Public material plan approval RPC must be an authenticated-only SECURITY INVOKER wrapper';
+  end if;
+
+  if not exists (
+    select 1
+    from pg_proc p
+    join pg_namespace ns on ns.oid=p.pronamespace
+    where ns.nspname='private'
+      and p.proname='select_material_price_plan'
       and p.prosecdef
       and has_function_privilege('authenticated',p.oid,'EXECUTE')
       and not has_function_privilege('anon',p.oid,'EXECUTE')
   ) then
-    raise exception 'Atomic material plan approval RPC is missing or mis-granted';
+    raise exception 'Private material plan approval implementation is missing or mis-granted';
   end if;
 
   if not exists (
