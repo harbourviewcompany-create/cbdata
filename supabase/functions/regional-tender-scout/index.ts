@@ -23,6 +23,12 @@ const FACILITY_CONTEXT=["building","facility","facilities","property","school","
 const SOURCES=[
 {key:"city_ottawa_merx",name:"City of Ottawa / MERX",kind:"merx",url:"https://www.merx.com/cityofottawa/solicitations/open-bids",buyer:"City of Ottawa",region:"Ottawa, Ontario"},
 {key:"och_merx",name:"Ottawa Community Housing / MERX",kind:"merx",url:"https://www.merx.com/ottawacommunityhousing/solicitations/open-bids",buyer:"Ottawa Community Housing",region:"Ottawa, Ontario"},
+{key:"uottawa_merx",name:"University of Ottawa / MERX",kind:"merx",url:"https://www.merx.com/oupma/uottawa/solicitations/open-bids",buyer:"University of Ottawa",region:"Ottawa, Ontario"},
+{key:"carleton_merx",name:"Carleton University / MERX",kind:"merx",url:"https://www.merx.com/oupma/carleton/solicitations/open-bids",buyer:"Carleton University",region:"Ottawa, Ontario"},
+{key:"algonquin_merx",name:"Algonquin College / MERX",kind:"merx",url:"https://www.merx.com/algonquincollege/solicitations/open-bids",buyer:"Algonquin College",region:"Ottawa, Ontario"},
+{key:"montfort_merx",name:"Hôpital Montfort / MERX",kind:"merx",url:"https://www.merx.com/hopitalmontfort/solicitations/open-bids",buyer:"Hôpital Montfort",region:"Ottawa, Ontario"},
+{key:"lacite_merx",name:"La Cité / MERX",kind:"merx",url:"https://www.merx.com/lacitecollegiale/solicitations/open-bids",buyer:"La Cité",region:"Ottawa, Ontario"},
+{key:"bruyere_merx",name:"Bruyère / MERX",kind:"merx",url:"https://www.merx.com/bruyerecontinuingcare/solicitations/open-bids",buyer:"Bruyère Health",region:"Ottawa, Ontario"},
 {key:"ocdsb_bids_tenders",name:"OCDSB Bids & Tenders",kind:"bids_tenders",url:"https://ocdsb.bidsandtenders.ca/",buyer:"Ottawa-Carleton District School Board",region:"Ottawa, Ontario"},
 {key:"ocsb_bids_tenders",name:"OCSB Bids & Tenders",kind:"bids_tenders",url:"https://ocsb.bidsandtenders.ca/",buyer:"Ottawa Catholic School Board",region:"Ottawa, Ontario"},
 {key:"clarence_rockland_bids_tenders",name:"Clarence-Rockland Bids & Tenders",kind:"bids_tenders",url:"https://clarence-rockland.bidsandtenders.ca/",buyer:"City of Clarence-Rockland",region:"Prescott-Russell, Ontario"},
