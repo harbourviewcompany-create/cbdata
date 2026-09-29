@@ -3,6 +3,37 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.1";
 const cleanHtml=(v:string)=>v.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;/gi,'"').replace(/&#39;/gi,"'").replace(/\s+/g," ").trim();
 const norm=(v:string)=>(v||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
 
+function publicHttpUrl(value:string){
+  let u:URL;
+  try{u=new URL(value);}catch{throw new Error("invalid_document_url");}
+  if(!["http:","https:"].includes(u.protocol))throw new Error("unsupported_document_url_scheme");
+  const h=u.hostname.toLowerCase().replace(/^\[|\]$/g,"");
+  if(h==="localhost"||h.endsWith(".localhost")||h.endsWith(".local")||h==="::1"||h==="0.0.0.0")throw new Error("blocked_document_host");
+  const m=h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if(m){
+    const a=Number(m[1]),b=Number(m[2]);
+    if(a===10||a===127||a===0||(a===169&&b===254)||(a===172&&b>=16&&b<=31)||(a===192&&b===168))throw new Error("blocked_document_host");
+  }
+  return u.toString();
+}
+
+async function readTextLimited(r:Response,maxBytes=1_000_000){
+  const length=Number(r.headers.get("content-length")||0);
+  if(length>maxBytes)throw new Error("document_too_large");
+  if(!r.body)return "";
+  const reader=r.body.getReader(),decoder=new TextDecoder();
+  let bytes=0,out="";
+  while(true){
+    const {done,value}=await reader.read();
+    if(done)break;
+    bytes+=value.byteLength;
+    if(bytes>maxBytes){await reader.cancel();throw new Error("document_too_large");}
+    out+=decoder.decode(value,{stream:true});
+  }
+  out+=decoder.decode();
+  return out;
+}
+
 function intelligenceFor(text:string){
   const n=norm(text);
   const scopes:string[]=[];
@@ -53,11 +84,14 @@ Deno.serve(async(req)=>{
     try{
       let text=String(d.extracted_text||"");
       if(!text&&d.source_url){
-        const r=await fetch(d.source_url,{headers:{"User-Agent":"CBData-Tender-Document-Intelligence/1.0"}});
+        const safeUrl=publicHttpUrl(d.source_url);
+        const r=await fetch(safeUrl,{headers:{"User-Agent":"CBData-Tender-Document-Intelligence/1.0"},redirect:"follow"});
         if(!r.ok)throw new Error("document_fetch_"+r.status);
+        const finalUrl=publicHttpUrl(r.url);
+        if(finalUrl!==r.url)throw new Error("blocked_document_redirect");
         const ct=(r.headers.get("content-type")||"").toLowerCase();
         if(ct.includes("text/")||ct.includes("html")||ct.includes("json")){
-          text=cleanHtml(await r.text()).slice(0,100000);
+          text=cleanHtml(await readTextLimited(r)).slice(0,100000);
         }else{
           const intel=intelligenceFor([d.title,d.document_type,d.source_url].join(" "));
           await admin.from("tender_documents").update({
