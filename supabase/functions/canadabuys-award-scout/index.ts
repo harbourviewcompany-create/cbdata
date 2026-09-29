@@ -23,9 +23,9 @@ function regionMatch(v:string){const n=norm(v);return REGION_TERMS.some(x=>n.inc
 function serviceFit(v:string){const n=norm(v);return Array.from(new Set(SERVICE_TERMS.filter(([x])=>n.includes(norm(x))).map(([,x])=>x)));}
 function isoDate(v:string|null|undefined){if(!v)return null;const m=v.match(/(20\d{2})[\/-](\d{1,2})[\/-](\d{1,2})/);if(m)return m[1]+"-"+m[2].padStart(2,"0")+"-"+m[3].padStart(2,"0");const d=new Date(v);return Number.isNaN(d.getTime())?null:d.toISOString().slice(0,10);}
 function money(v:string|null|undefined){if(!v)return null;const n=Number(v.replace(/[^0-9.-]/g,""));return Number.isFinite(n)&&n>0?n:null;}
-function field(text:string,labels:string[]){for(const label of labels){const re=new RegExp(label+"\\s*:?\\s*(.*?)(?=\\s+[A-Z][A-Za-z /()-]{2,40}\\s*:|$)","i");const m=text.match(re);if(m?.[1])return m[1].trim();}return null;}
+function field(text:string,labels:string[]){for(const label of labels){const re=new RegExp(label+"\\s*:?\\s*(.*?)(?=\\s+[A-Z][A-Za-z /()-]{2,40}\\s*:|$)","i");const m=text.match(re);if(m?.[1])return m[1].trim();}return null;}\nfunction authority(text:string){const m=text.match(/Contracting authority\\s+(.+?)\\s+Email\\s+([A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,})/i);if(!m)return {name:null,email:null};return {name:m[1].replace(/\\s*\\([^)]*\\)\\s*$/,"").trim(),email:m[2].toLowerCase()};}\nfunction splitName(v:string|null){if(!v)return {first:"",last:""};const x=v.includes(",")?v.split(",").map(s=>s.trim()).reverse().join(" "):v;const p=x.split(/\\s+/).filter(Boolean);return {first:p.slice(0,-1).join(" ")||p[0]||"Unknown",last:p.length>1?p[p.length-1]:"Unknown"};}
 
-type Award={externalId:string;title:string;category:string|null;awardDate:string|null;contractEndDate:string|null;buyer:string|null;url:string;detail:string;awardedTo:string|null;amount:number|null};
+type Award={externalId:string;title:string;category:string|null;awardDate:string|null;contractEndDate:string|null;buyer:string|null;url:string;detail:string;awardedTo:string|null;amount:number|null;authorityName:string|null;authorityEmail:string|null};
 
 async function parseAwards(term:string):Promise<Award[]>{
  const url=new URL("/en/tender-opportunities",BASE);
@@ -102,7 +102,7 @@ Deno.serve(async(req)=>{
     workspace_id:workspaceId,source_key:"canadabuys",external_id:a.externalId,buyer_key:buyerKey,
     buyer_name:a.buyer||"Unknown buyer",title:a.title,awarded_to:a.awardedTo,award_amount:a.amount,currency:"CAD",
     award_date:a.awardDate,contract_end_date:a.contractEndDate,expected_rebid_date:expectedRebid,source_url:a.url,
-    raw_payload:{category:a.category,services:fit,detail_excerpt:a.detail.slice(0,12000),observed_at:new Date().toISOString()},
+    raw_payload:{category:a.category,services:fit,contracting_authority:a.authorityName,contracting_authority_email:a.authorityEmail,detail_excerpt:a.detail.slice(0,12000),observed_at:new Date().toISOString()},
     updated_at:new Date().toISOString()
   };
   const {data:existing}=await admin.from("procurement_awards").select("id").eq("workspace_id",workspaceId).eq("source_key","canadabuys").eq("external_id",a.externalId).maybeSingle();
