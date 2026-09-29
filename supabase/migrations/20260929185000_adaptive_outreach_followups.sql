@@ -80,7 +80,7 @@ begin
  if auth.uid() is null then raise exception 'Authentication required'; end if;
  select * into d from public.outreach_drafts where id=p_draft_id for update;
  if not found or not private.is_workspace_member(d.workspace_id) then raise exception 'draft unavailable'; end if;
- if d.state<>'approved' then raise exception 'invalid outreach draft transition: % -> sent',d.state using errcode='22023'; end if;
+ if d.state <> 'approved' then raise exception 'invalid outreach draft transition: % -> sent',d.state using errcode='22023'; end if;
  update public.outreach_drafts set state='sent',provider=p_provider,provider_message_id=p_provider_message_id,provider_thread_id=p_provider_thread_id,sent_at=now(),updated_at=now() where id=p_draft_id;
  v_touch_channel:=case d.channel when 'email' then 'email'::public.outreach_touch_channel when 'sms' then 'sms'::public.outreach_touch_channel when 'call' then 'call'::public.outreach_touch_channel when 'voicemail' then 'call'::public.outreach_touch_channel else 'other'::public.outreach_touch_channel end;
  perform public.log_outreach_touch(d.outreach_target_id,v_touch_channel,'sent',left(d.body,1000),'contacted','Recalculate adaptive next touch',now()+interval '1 minute');
