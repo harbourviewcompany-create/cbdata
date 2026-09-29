@@ -4,7 +4,7 @@ do $$
 declare
   expected_external text[] := array[
     'ottawa_hospital_medbuy','royal_biddingo','sto_seao',
-    'cisss_outaouais_seao','cecce_merx_watch','cepeo_procurement_watch'
+    'cisss_outaouais_seao','cecce_merx_watch','cepeo_procurement_watch','oca_link2build'
   ];
   key text;
 begin
