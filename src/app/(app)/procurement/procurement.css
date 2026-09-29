@@ -83,3 +83,9 @@
   .bid-health,.quote-form,.compact-form-grid{grid-template-columns:1fr}
   .compact-form-grid textarea{grid-column:auto}
 }
+
+.manual-tender-form{display:grid;grid-template-columns:repeat(5,minmax(140px,1fr));gap:8px}
+.manual-tender-form input,.manual-tender-form select{min-height:36px;border:1px solid var(--border);border-radius:7px;background:var(--panel);padding:6px 8px;color:inherit}
+.line-item-grid{grid-template-columns:minmax(260px,1.8fr) 80px 90px 110px 120px minmax(330px,1.8fr)}
+@media(max-width:1150px){.manual-tender-form{grid-template-columns:repeat(2,minmax(150px,1fr))}.line-item-grid{min-width:1050px}}
+@media(max-width:700px){.manual-tender-form{grid-template-columns:1fr}}
