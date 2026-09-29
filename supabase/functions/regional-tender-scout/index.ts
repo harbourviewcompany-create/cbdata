@@ -1,15 +1,16 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.1";
+import { syncDetectedRequirements } from "../_shared/procurement-requirements.ts";
 
 type FitRule={label:string;weight:number;core?:boolean;terms:string[]};
 const FIT_RULES:FitRule[]=[
 {label:"snow & ice",weight:28,core:true,terms:["snow removal","snow clearing","snow plow","snowplow","winter maintenance","ice control","salting","deicing","déneigement","deneigement"]},
-{label:"landscaping & grounds",weight:26,core:true,terms:["landscaping","grounds maintenance","groundskeeping","grass cutting","lawn mowing","turf maintenance","tree pruning","arborist","entretien paysager"]},
+{label:"landscaping & grounds",weight:26,core:true,terms:["landscaping","grounds maintenance","groundskeeping","grass cutting","lawn mowing","turf maintenance","tree pruning","arborist","vegetation management","entretien paysager"]},
 {label:"janitorial & cleaning",weight:28,core:true,terms:["janitorial","custodial","cleaning services","building cleaning","window cleaning","pressure washing","housekeeping","nettoyage","conciergerie"]},
 {label:"sheet metal & ductwork",weight:32,core:true,terms:["sheet metal","ductwork","duct work","metal flashing","metal cladding","siding","louvers","eavestrough","gutter"]},
 {label:"roofing & envelope",weight:26,core:true,terms:["roof replacement","roof repair","roofing","epdm","tpo roofing","modified bitumen","building envelope","waterproofing","cladding"]},
-{label:"facility maintenance",weight:24,core:true,terms:["facility maintenance","facilities maintenance","building maintenance","property maintenance","caretaking","preventive maintenance"]},
-{label:"hvac & mechanical",weight:24,core:true,terms:["hvac","mechanical contractor","mechanical systems","ventilation","air handling","exhaust fan","boiler","chiller","cooling tower"]},
+{label:"facility maintenance",weight:24,core:true,terms:["facility maintenance","facilities maintenance","building maintenance","property maintenance","building management services","maintenance management services","operations and maintenance","caretaking","preventive maintenance"]},
+{label:"hvac & mechanical",weight:24,core:true,terms:["hvac","mechanical contractor","mechanical systems","ventilation","air handling","exhaust fan","boiler","chiller","cooling tower","rooftop unit","rtu replacement","rtu"]},
 {label:"renovation & general contracting",weight:18,terms:["general contractor","general contracting","renovation","building renovation","tenant improvement","washroom renovation","accessibility upgrade","ceiling replacement","door replacement","window replacement","demolition"]},
 {label:"site & civil",weight:16,terms:["site work","sitework","asphalt paving","paving","concrete sidewalk","concrete repair","retaining wall","fencing","drainage","excavation","parking lot"]},
 {label:"painting & finishes",weight:16,terms:["painting","flooring","carpet","tile replacement","millwork","carpentry","drywall"]},
@@ -38,7 +39,8 @@ const SOURCES=[
 {key:"rcdsb_bids_tenders",name:"RCDSB Bids & Tenders",kind:"bids_tenders",url:"https://rcdsb.bidsandtenders.ca/",buyer:"Renfrew County District School Board",region:"Renfrew County, Ontario"},
 {key:"ucdsb_bids_tenders",name:"UCDSB Bids & Tenders",kind:"bids_tenders",url:"https://ucdsb.bidsandtenders.ca/",buyer:"Upper Canada District School Board",region:"Eastern Ontario"},
 {key:"leeds_grenville_bids_tenders",name:"Leeds Grenville Bids & Tenders",kind:"bids_tenders",url:"https://leedsgrenville.bidsandtenders.ca/",buyer:"United Counties of Leeds and Grenville",region:"Eastern Ontario"},
-{key:"gatineau_open_data",name:"Ville de Gatineau open tenders",kind:"gatineau_csv",url:"https://www.gatineau.ca/upload/donneesouvertes/appels_offres_utf8.csv",buyer:"Ville de Gatineau",region:"Gatineau, Québec"}
+{key:"gatineau_open_data",name:"Ville de Gatineau open tenders",kind:"gatineau_csv",url:"https://www.gatineau.ca/upload/donneesouvertes/appels_offres_utf8.csv",buyer:"Ville de Gatineau",region:"Gatineau, Québec"},
+{key:"oca_link2build",name:"OCA / Link2Build Bid Closing Calendar",kind:"oca_calendar",url:"https://oca.ca/bids-projects/bid-closing-calendar/",buyer:"Ottawa Construction Association",region:"Ottawa / Eastern Ontario"}
 ] as const;
 
 type Source=(typeof SOURCES)[number];
@@ -94,6 +96,59 @@ async function parseGatineau(source:Source):Promise<Candidate[]>{
  return out;
 }
 
+function inferOcaBuyer(title:string):string{
+ const rules:[RegExp,string][]=[
+  [/^TOH\b/i,"The Ottawa Hospital"],
+  [/^NCC\b/i,"National Capital Commission"],
+  [/^OCH\b/i,"Ottawa Community Housing"],
+  [/^CECCE\b/i,"Conseil des écoles catholiques du Centre-Est"],
+  [/^OCDSB\b/i,"Ottawa-Carleton District School Board"],
+  [/^OCSB\b/i,"Ottawa Catholic School Board"],
+  [/^uOttawa\b/i,"University of Ottawa"],
+  [/^Carleton\s+U\b/i,"Carleton University"],
+  [/^Algonquin\s+College\b/i,"Algonquin College"],
+  [/^H[oô]pital\s+Montfort\b/i,"Hôpital Montfort"],
+  [/^Bruy[eè]re\s+Health\b/i,"Bruyère Health"],
+  [/^NRC\b/i,"National Research Council Canada"],
+  [/^PSPC\b/i,"Public Services and Procurement Canada"],
+  [/^PCH\b/i,"Canadian Heritage"],
+  [/^DCC\b/i,"Defence Construction Canada"],
+  [/^BGIS\b/i,"BGIS"],
+  [/^YOW\b/i,"Ottawa International Airport Authority"]
+ ];
+ return rules.find(([pattern])=>pattern.test(title))?.[1]||"OCA / Link2Build public project";
+}
+
+async function parseOcaCalendar(source:Source):Promise<Candidate[]>{
+ const r=await fetch(source.url,{headers:{"User-Agent":"CBData-Regional-Tender-Scout/2.2"}});
+ if(!r.ok)throw new Error("oca_"+r.status);
+ const html=await r.text(),out:Candidate[]=[];
+ const projectLinks=Array.from(html.matchAll(/href=["'](https:\/\/tenders\.link2build\.ca\/project\/info\/([^"'?#]+))["']/gi))
+   .map(match=>({url:match[1],id:match[2]}));
+ const paragraphs=Array.from(html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi))
+   .map(match=>cleanHtml(match[1]))
+   .filter(value=>value&&!/^The Bid Closing Calendar is provided/i.test(value));
+ for(let i=0;i<projectLinks.length;i++){
+  const title=paragraphs[i*2]||"";
+  const location=paragraphs[i*2+1]||"";
+  if(!title||title.length<4)continue;
+  const detail=[title,location?("Location: "+location):"", "Public project listing from the OCA Bid Closing Calendar."].filter(Boolean).join(". ");
+  out.push({
+    externalId:projectLinks[i].id,
+    title,
+    buyer:inferOcaBuyer(title),
+    category:null,
+    publishedDate:null,
+    closingDate:null,
+    url:projectLinks[i].url,
+    region:location||source.region,
+    detail,
+    raw:{parser:"oca_calendar",location,calendar_url:source.url}
+  });
+ }
+ return Array.from(new Map(out.map(item=>[item.externalId,item])).values());
+}
+
 Deno.serve(async(req)=>{
  if(req.method!=="POST")return new Response("method_not_allowed",{status:405});
  const supabaseUrl=Deno.env.get("SUPABASE_URL"),serviceRoleKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");if(!supabaseUrl||!serviceRoleKey)return Response.json({error:"not_configured"},{status:500});
@@ -110,16 +165,62 @@ Deno.serve(async(req)=>{
  }
  if(!workspaceId)return Response.json({error:"workspace_unresolved"},{status:400});
  await admin.from("tender_sources").upsert(
-   SOURCES.map(source=>({workspace_id:workspaceId,source_key:source.key,display_name:source.name,source_url:source.url,ingestion_mode:"live",enabled:true,updated_at:new Date().toISOString()})),
-   {onConflict:"workspace_id,source_key",ignoreDuplicates:true}
+   SOURCES.map(source=>({workspace_id:workspaceId,source_key:source.key,display_name:source.name,source_url:source.url,ingestion_mode:"live",coverage_tier:"live",adapter_status:"active",enabled:true,updated_at:new Date().toISOString()})),
+   {onConflict:"workspace_id,source_key"}
  );
  const {data:sourceRows}=await admin.from("tender_sources").select("source_key,enabled").eq("workspace_id",workspaceId),enabled=new Map((sourceRows||[]).map((x:any)=>[x.source_key,x.enabled]));const {data:orgRows}=await admin.from("organizations").select("id,legal_name,operating_name").eq("workspace_id",workspaceId),orgs:any[]=orgRows||[],summary:any[]=[];
  for(const source of SOURCES){if(enabled.get(source.key)===false)continue;const {data:run}=await admin.from("tender_scout_runs").insert({workspace_id:workspaceId,source_key:source.key,source_name:source.name}).select("id").single();let fetched=0,qualifying=0,inserted=0,updated=0,leads=0,errors=0;
-  try{let candidates:Candidate[]=[];if(source.kind==="merx"){const r=await fetch(source.url,{headers:{"User-Agent":"CBData-Regional-Tender-Scout/1.0"}});if(!r.ok)throw new Error("merx_"+r.status);candidates=parseMerx(await r.text(),source);}else if(source.kind==="bids_tenders")candidates=await parseBidsTenders(source);else candidates=await parseGatineau(source);fetched=candidates.length;
-   for(const c of candidates){const {error:opportunityError}=await admin.from("procurement_opportunities").upsert({workspace_id:workspaceId,source_key:source.key,external_id:c.externalId,buyer_key:source.key,buyer_name:c.buyer,title:c.title,opportunity_type:"tender",description:c.detail||null,category:c.category||null,region:c.region,published_at:c.publishedDate?new Date(c.publishedDate+"T12:00:00Z").toISOString():null,closing_at:c.closingDate?new Date(c.closingDate+"T23:59:59-04:00").toISOString():null,source_url:c.url,raw_payload:{source_payload:c.raw||null,observed_at:new Date().toISOString()},last_seen_at:new Date().toISOString(),updated_at:new Date().toISOString()},{onConflict:"workspace_id,source_key,external_id"});if(opportunityError){errors++;continue;}const fit=classifyFit([c.title,c.category||"",c.detail||""].join(" "));if(fit.tier==="skip")continue;const matches=fit.services;qualifying++;let org=orgs.find(o=>norm(o.legal_name)===norm(c.buyer)||norm(o.operating_name||"")===norm(c.buyer));if(!org){const {data:created}=await admin.from("organizations").insert({workspace_id:workspaceId,legal_name:c.buyer,operating_name:c.buyer,organization_type:"owner",status:"active",primary_region:c.region,source_notes:"Created by regional tender discovery."}).select("id,legal_name,operating_name").single();if(created){org=created;orgs.push(created);}}
-    const score=fit.score;const payload={workspace_id:workspaceId,source:source.name,external_id:c.externalId,title:c.title,buyer_name:c.buyer,category:c.category||matches.join(", "),region:c.region,published_date:c.publishedDate||null,closing_date:c.closingDate||null,source_url:c.url,raw_payload:{source_key:source.key,scout_version:"2.0",services:matches,fit_tier:fit.tier,excluded_signal:fit.excluded,source_payload:c.raw||null,observed_at:new Date().toISOString()},matched_organization_id:org?.id||null,response_mode:"formal_tender",registration_required:source.kind==="bids_tenders",fit_score:score,fit_note:(fit.tier==="core"?"Core fit":fit.tier==="strong_adjacent"?"Strong adjacent fit":"Adjacent fit")+": "+matches.join(", ")+". Verify scope, prequalification, mandatory requirements and submission instructions before bidding.",last_verified_at:new Date().toISOString(),watch_query:matches.join(", "),updated_at:new Date().toISOString()};const {data:existing}=await admin.from("tender_records").select("id,lead_id").eq("workspace_id",workspaceId).eq("source",source.name).eq("external_id",c.externalId).maybeSingle();const {data:tender,error:tenderError}=existing?await admin.from("tender_records").update(payload).eq("id",existing.id).select("id,lead_id").single():await admin.from("tender_records").insert({...payload,status:"new"}).select("id,lead_id").single();if(tenderError||!tender){errors++;continue;}existing?updated++:inserted++;if(!tender.lead_id){const {data:lead}=await admin.from("leads").insert({workspace_id:workspaceId,organization_id:org?.id||null,source:source.name,lead_type:"tender",status:"new",region:c.region,score,source_detail_table:"tender_records",source_detail_id:tender.id}).select("id").single();if(lead?.id){leads++;await admin.from("tender_records").update({lead_id:lead.id}).eq("id",tender.id);}}}
+  try{let candidates:Candidate[]=[];if(source.kind==="merx"){const r=await fetch(source.url,{headers:{"User-Agent":"CBData-Regional-Tender-Scout/2.1"}});if(!r.ok)throw new Error("merx_"+r.status);candidates=parseMerx(await r.text(),source);}else if(source.kind==="bids_tenders")candidates=await parseBidsTenders(source);else if(source.kind==="oca_calendar")candidates=await parseOcaCalendar(source);else candidates=await parseGatineau(source);fetched=candidates.length;
+   for(const c of candidates){
+    const fit=classifyFit([c.title,c.category||"",c.detail||""].join(" "));
+    const matches=fit.services;
+    const {data:opportunity,error:opportunityError}=await admin.from("procurement_opportunities").upsert({
+      workspace_id:workspaceId,
+      source_key:source.key,
+      external_id:c.externalId,
+      buyer_key:source.key,
+      buyer_name:c.buyer,
+      title:c.title,
+      opportunity_type:"tender",
+      description:c.detail||null,
+      category:c.category||null,
+      region:c.region,
+      published_at:c.publishedDate?new Date(c.publishedDate+"T12:00:00Z").toISOString():null,
+      closing_at:c.closingDate?new Date(c.closingDate+"T23:59:59-04:00").toISOString():null,
+      source_url:c.url,
+      service_fit:matches,
+      relevance_score:fit.score,
+      classification_status:fit.tier==="skip"?"suppressed":fit.tier==="adjacent"?"watch":"actionable",
+      score_breakdown:{fit_tier:fit.tier,services:matches,excluded_signal:fit.excluded,has_core:fit.hasCore},
+      raw_payload:{source_payload:c.raw||null,detail_excerpt:(c.detail||"").slice(0,12000),observed_at:new Date().toISOString()},
+      last_seen_at:new Date().toISOString(),
+      updated_at:new Date().toISOString()
+    },{onConflict:"workspace_id,source_key,external_id"}).select("id").single();
+    if(opportunityError||!opportunity){errors++;continue;}
+    if(fit.tier==="skip")continue;
+    qualifying++;let org=orgs.find(o=>norm(o.legal_name)===norm(c.buyer)||norm(o.operating_name||"")===norm(c.buyer));if(!org){const {data:created}=await admin.from("organizations").insert({workspace_id:workspaceId,legal_name:c.buyer,operating_name:c.buyer,organization_type:"owner",status:"active",primary_region:c.region,source_notes:"Created by regional tender discovery."}).select("id,legal_name,operating_name").single();if(created){org=created;orgs.push(created);}}
+    const score=fit.score;const payload={workspace_id:workspaceId,source:source.name,external_id:c.externalId,title:c.title,buyer_name:c.buyer,category:c.category||matches.join(", "),region:c.region,published_date:c.publishedDate||null,closing_date:c.closingDate||null,source_url:c.url,raw_payload:{source_key:source.key,scout_version:"2.0",services:matches,fit_tier:fit.tier,excluded_signal:fit.excluded,source_payload:c.raw||null,observed_at:new Date().toISOString()},matched_organization_id:org?.id||null,response_mode:"formal_tender",registration_required:source.kind==="bids_tenders",fit_score:score,fit_note:(fit.tier==="core"?"Core fit":fit.tier==="strong_adjacent"?"Strong adjacent fit":"Adjacent fit")+": "+matches.join(", ")+". Verify scope, prequalification, mandatory requirements and submission instructions before bidding.",last_verified_at:new Date().toISOString(),watch_query:matches.join(", "),updated_at:new Date().toISOString()};const {data:existing}=await admin.from("tender_records").select("id,lead_id").eq("workspace_id",workspaceId).eq("source",source.name).eq("external_id",c.externalId).maybeSingle();const {data:tender,error:tenderError}=existing?await admin.from("tender_records").update(payload).eq("id",existing.id).select("id,lead_id").single():await admin.from("tender_records").insert({...payload,status:"new"}).select("id,lead_id").single();if(tenderError||!tender){errors++;continue;}
+    existing?updated++:inserted++;
+    try{
+      await syncDetectedRequirements(admin,workspaceId,tender.id,[c.title,c.category||"",c.detail||""].join(" "),c.url||null);
+    }catch{
+      errors++;
+    }
+    const {error:linkError}=await admin.from("procurement_opportunities").update({
+      promoted_tender_record_id:tender.id,
+      matched_organization_id:org?.id||null,
+      service_fit:matches,
+      relevance_score:fit.score,
+      classification_status:fit.tier==="skip"?"suppressed":fit.tier==="adjacent"?"watch":"actionable",
+      score_breakdown:{fit_tier:fit.tier,services:matches,excluded_signal:fit.excluded,has_core:fit.hasCore},
+      updated_at:new Date().toISOString()
+    }).eq("id",opportunity.id).eq("workspace_id",workspaceId);
+    if(linkError)errors++;
+    if(!tender.lead_id){const {data:lead}=await admin.from("leads").insert({workspace_id:workspaceId,organization_id:org?.id||null,source:source.name,lead_type:"tender",status:"new",region:c.region,score,source_detail_table:"tender_records",source_detail_id:tender.id}).select("id").single();if(lead?.id){leads++;await admin.from("tender_records").update({lead_id:lead.id}).eq("id",tender.id);}}}
    await admin.from("tender_scout_runs").update({finished_at:new Date().toISOString(),status:errors?"partial":"completed",fetched_count:fetched,qualifying_count:qualifying,inserted_count:inserted,updated_count:updated,lead_created_count:leads,error_count:errors}).eq("id",run?.id);await admin.from("tender_sources").update({last_run_at:new Date().toISOString(),...(errors?{last_error:`${errors} procurement writes failed`}:{last_success_at:new Date().toISOString(),last_error:null}),updated_at:new Date().toISOString()}).eq("workspace_id",workspaceId).eq("source_key",source.key);summary.push({source:source.key,fetched,qualifying,inserted,updated,leads,errors});
   }catch(e){const message=e instanceof Error?e.message:"unknown_error";errors++;await admin.from("tender_scout_runs").update({finished_at:new Date().toISOString(),status:"error",fetched_count:fetched,qualifying_count:qualifying,inserted_count:inserted,updated_count:updated,lead_created_count:leads,error_count:errors,error_message:message}).eq("id",run?.id);await admin.from("tender_sources").update({last_run_at:new Date().toISOString(),last_error:message,updated_at:new Date().toISOString()}).eq("workspace_id",workspaceId).eq("source_key",source.key);summary.push({source:source.key,error:message});}
  }
+ const {error:decisionError}=await admin.rpc("refresh_procurement_sales_engine",{p_workspace:workspaceId});
+ if(decisionError)summary.push({source:"decision_engine",error:decisionError.message});
  return Response.json({ok:summary.every(source=>!source.error&&!source.errors),sources:summary});
 });
