@@ -322,50 +322,76 @@ as
 select
   t.id as tender_record_id,
   t.workspace_id,
-  count(r.id) filter (
-    where r.mandatory and r.status not in ('complete','not_applicable')
-  )::integer as mandatory_requirement_gaps,
-  count(r.id) filter (
-    where r.mandatory and r.evidence_required and r.status='complete'
-      and nullif(trim(coalesce(r.evidence_url,'')),'') is null
-  )::integer as evidence_gaps,
-  count(a.id) filter (
-    where a.amendment_number > 0 and a.acknowledged_at is null
-  )::integer as unacknowledged_amendments,
-  count(c.id) filter (
-    where c.blocking and c.status not in ('answered','closed')
-  )::integer as blocking_clarifications,
-  count(q.id) filter (where q.status in ('received','shortlisted','accepted'))::integer as supplier_quotes_received,
-  count(q.id) filter (where q.status='accepted')::integer as accepted_supplier_quotes,
-  count(risk.id) filter (
-    where risk.status='open' and (risk.probability*risk.impact)>=15
-  )::integer as high_open_risks,
-  bool_or(cm.status='approved') as commercial_model_approved,
-  bool_or(ap.approval_type='compliance' and ap.status='approved') as compliance_approved,
-  bool_or(ap.approval_type='commercial' and ap.status='approved') as commercial_approved,
-  bool_or(ap.approval_type='final' and ap.status='approved') as final_approved,
+  coalesce(req.mandatory_requirement_gaps,0) as mandatory_requirement_gaps,
+  coalesce(req.evidence_gaps,0) as evidence_gaps,
+  coalesce(am.unacknowledged_amendments,0) as unacknowledged_amendments,
+  coalesce(cl.blocking_clarifications,0) as blocking_clarifications,
+  coalesce(q.supplier_quotes_received,0) as supplier_quotes_received,
+  coalesce(q.accepted_supplier_quotes,0) as accepted_supplier_quotes,
+  coalesce(risk.high_open_risks,0) as high_open_risks,
+  coalesce(cm.commercial_model_approved,false) as commercial_model_approved,
+  coalesce(ap.compliance_approved,false) as compliance_approved,
+  coalesce(ap.commercial_approved,false) as commercial_approved,
+  coalesce(ap.final_approved,false) as final_approved,
   t.estimate_id is not null as estimate_linked,
   (
-    count(r.id) filter (where r.mandatory and r.status not in ('complete','not_applicable'))=0
-    and count(r.id) filter (where r.mandatory and r.evidence_required and r.status='complete' and nullif(trim(coalesce(r.evidence_url,'')),'') is null)=0
-    and count(a.id) filter (where a.amendment_number > 0 and a.acknowledged_at is null)=0
-    and count(c.id) filter (where c.blocking and c.status not in ('answered','closed'))=0
-    and count(risk.id) filter (where risk.status='open' and (risk.probability*risk.impact)>=15)=0
+    coalesce(req.mandatory_requirement_gaps,0)=0
+    and coalesce(req.evidence_gaps,0)=0
+    and coalesce(am.unacknowledged_amendments,0)=0
+    and coalesce(cl.blocking_clarifications,0)=0
+    and coalesce(risk.high_open_risks,0)=0
     and t.estimate_id is not null
-    and (not t.commercial_model_required or bool_or(cm.status='approved'))
-    and bool_or(ap.approval_type='compliance' and ap.status='approved')
-    and bool_or(ap.approval_type='commercial' and ap.status='approved')
-    and bool_or(ap.approval_type='final' and ap.status='approved')
+    and (not t.commercial_model_required or coalesce(cm.commercial_model_approved,false))
+    and coalesce(ap.compliance_approved,false)
+    and coalesce(ap.commercial_approved,false)
+    and coalesce(ap.final_approved,false)
   ) as ready_to_submit
 from public.tender_records t
-left join public.tender_requirements r on r.tender_record_id=t.id and r.workspace_id=t.workspace_id
-left join public.tender_amendments a on a.tender_record_id=t.id and a.workspace_id=t.workspace_id
-left join public.tender_clarifications c on c.tender_record_id=t.id and c.workspace_id=t.workspace_id
-left join public.tender_supplier_quotes q on q.tender_record_id=t.id and q.workspace_id=t.workspace_id
-left join public.tender_cost_models cm on cm.tender_record_id=t.id and cm.workspace_id=t.workspace_id
-left join public.tender_risks risk on risk.tender_record_id=t.id and risk.workspace_id=t.workspace_id
-left join public.tender_approvals ap on ap.tender_record_id=t.id and ap.workspace_id=t.workspace_id
-group by t.id,t.workspace_id,t.estimate_id,t.commercial_model_required;
+left join lateral (
+  select
+    count(*) filter (where r.mandatory and r.status not in ('complete','not_applicable'))::integer as mandatory_requirement_gaps,
+    count(*) filter (
+      where r.mandatory and r.evidence_required and r.status='complete'
+        and nullif(trim(coalesce(r.evidence_url,'')),'') is null
+    )::integer as evidence_gaps
+  from public.tender_requirements r
+  where r.tender_record_id=t.id and r.workspace_id=t.workspace_id
+) req on true
+left join lateral (
+  select count(*) filter (where a.amendment_number>0 and a.acknowledged_at is null)::integer as unacknowledged_amendments
+  from public.tender_amendments a
+  where a.tender_record_id=t.id and a.workspace_id=t.workspace_id
+) am on true
+left join lateral (
+  select count(*) filter (where c.blocking and c.status not in ('answered','closed'))::integer as blocking_clarifications
+  from public.tender_clarifications c
+  where c.tender_record_id=t.id and c.workspace_id=t.workspace_id
+) cl on true
+left join lateral (
+  select
+    count(*) filter (where q.status in ('received','shortlisted','accepted'))::integer as supplier_quotes_received,
+    count(*) filter (where q.status='accepted')::integer as accepted_supplier_quotes
+  from public.tender_supplier_quotes q
+  where q.tender_record_id=t.id and q.workspace_id=t.workspace_id
+) q on true
+left join lateral (
+  select bool_or(cm.status='approved') as commercial_model_approved
+  from public.tender_cost_models cm
+  where cm.tender_record_id=t.id and cm.workspace_id=t.workspace_id
+) cm on true
+left join lateral (
+  select count(*) filter (where r.status='open' and (r.probability*r.impact)>=15)::integer as high_open_risks
+  from public.tender_risks r
+  where r.tender_record_id=t.id and r.workspace_id=t.workspace_id
+) risk on true
+left join lateral (
+  select
+    bool_or(a.approval_type='compliance' and a.status='approved') as compliance_approved,
+    bool_or(a.approval_type='commercial' and a.status='approved') as commercial_approved,
+    bool_or(a.approval_type='final' and a.status='approved') as final_approved
+  from public.tender_approvals a
+  where a.tender_record_id=t.id and a.workspace_id=t.workspace_id
+) ap on true;
 
 grant select on public.v_tender_bid_readiness to authenticated;
 
