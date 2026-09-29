@@ -313,10 +313,6 @@ export async function updateMaterialRequestSettings(f: FormData) {
     .eq("id", requestId)
     .maybeSingle();
   if (!request) throw new Error("Material request not found");
-  if (request.status === "approved") {
-    throw new Error("Change the takeoff or supplier terms before changing an approved request");
-  }
-
   const { error } = await (s as any)
     .from("material_requests")
     .update({
