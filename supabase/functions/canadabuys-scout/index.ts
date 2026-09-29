@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.1";
 
 const SOURCE = "CanadaBuys";
 const BASE = "https://canadabuys.canada.ca";
+const OPEN_FEED = BASE + "/opendata/pub/openTenderNotice-ouvertAvisAppelOffres.csv";
 const SEARCH_TERMS = [
 "Ottawa","Gatineau","National Capital Region","Outaouais",
 "landscaping","grounds maintenance","snow removal","winter maintenance","janitorial services","cleaning services",
@@ -54,6 +55,70 @@ function classifyFit(text:string){
  return {services,score,tier,excluded};
 }
 function isOpen(closingDate:string|null):boolean { return !!closingDate && new Date(closingDate+"T23:59:59Z").getTime() >= Date.now(); }
+
+function parseCsv(text:string):Record<string,string>[] {
+ const rows:string[][]=[]; let row:string[]=[]; let cell=""; let quoted=false;
+ for(let i=0;i<text.length;i++){
+  const ch=text[i];
+  if(ch==='"'){
+   if(quoted&&text[i+1]==='"'){ cell+='"'; i++; }
+   else quoted=!quoted;
+  } else if(ch===','&&!quoted){ row.push(cell); cell=""; }
+  else if((ch==="\n"||ch==="\r")&&!quoted){
+   if(ch==="\r"&&text[i+1]==="\n") i++;
+   row.push(cell);
+   if(row.some(v=>v.trim())) rows.push(row);
+   row=[]; cell="";
+  } else cell+=ch;
+ }
+ if(cell||row.length){ row.push(cell); rows.push(row); }
+ if(rows.length<2) return [];
+ const headers=rows[0].map(h=>normalize(h));
+ return rows.slice(1).map(values=>Object.fromEntries(headers.map((h,i)=>[h,(values[i]||"").trim()])));
+}
+function pick(row:Record<string,string>,aliases:string[]):string {
+ for(const alias of aliases){
+  const key=normalize(alias);
+  if(row[key]) return row[key];
+  const found=Object.entries(row).find(([k,v])=>v&&k.includes(key));
+  if(found) return found[1];
+ }
+ return "";
+}
+function csvCandidate(row:Record<string,string>){
+ const reference=pick(row,["referenceNumber-numeroReference","reference number","numero reference"]);
+ const solicitation=pick(row,["solicitationNumber-numeroSollicitation","solicitation number","numero sollicitation"]);
+ const externalId=reference||solicitation;
+ const title=pick(row,["title-titre-eng","title titre eng","title","titre eng"])||pick(row,["title-titre-fra","titre fra"]);
+ const buyer=pick(row,["organizationName-nomOrganisation-eng","organization name","nom organisation eng"]);
+ const category=pick(row,["procurementCategory-categorieApprovisionnement-eng","procurement category","categorie approvisionnement eng"])||null;
+ const openDate=dateValue(pick(row,["publicationDate-datePublication","publication date"]));
+ const closingDate=dateValue(pick(row,["tenderClosingDate-appelOffresdateCloture","tender closing date","closing date"]));
+ const description=pick(row,["tenderDescription-descriptionAppelOffres-eng","tender description","description appel offres eng"])||pick(row,["tenderDescription-descriptionAppelOffres-fra","description appel offres fra"]);
+ const status=pick(row,["tenderStatus-appelOffresStatut-eng","tenderStatus-tenderStatut-eng","tender status"]);
+ const externalNotice=pick(row,["externalNoticeUrl","external notice url","notice url","source url"]);
+ const haystack=Object.values(row).join(" ");
+ const url=externalId ? BASE+"/en/tender-opportunities/tender-notice/"+encodeURIComponent(externalId) : externalNotice;
+ return {externalId,title,buyer,category,openDate,closingDate,description,status,url,haystack,raw:row};
+}
+async function openFeedCandidates():Promise<any[]>{
+ const r=await fetch(OPEN_FEED,{headers:{"User-Agent":"CBData-CanadaBuys-Scout/3.0","Accept":"text/csv,*/*"}});
+ if(!r.ok) throw new Error("open_feed_"+r.status);
+ const rows=parseCsv(await r.text());
+ const out:any[]=[];
+ for(const raw of rows){
+  const row=csvCandidate(raw);
+  if(!row.externalId||!row.title) continue;
+  if(row.status&&!/open|ouvert/i.test(row.status)) continue;
+  if(row.closingDate&&!isOpen(row.closingDate)) continue;
+  const prefilter=[row.title,row.buyer||"",row.category||"",row.description||"",row.haystack].join(" ");
+  if(!regionMatch(prefilter)) continue;
+  const fit=classifyFit(prefilter);
+  if(fit.tier==="skip") continue;
+  out.push(row);
+ }
+ return out;
+}
 function parseRows(html:string) {
  const rows:Array<any>=[]; const rowMatches=html.match(/<tr[\s\S]*?<\/tr>/gi)||[];
  for(const row of rowMatches){
@@ -77,28 +142,35 @@ Deno.serve(async(req)=>{
  const workspaceId=workspace.workspace_id; const {data:run, error:runError}=await admin.from("canadabuys_runs").insert({workspace_id:workspaceId,query:SEARCH_TERMS.join(", "),region:"Ottawa / National Capital Region"}).select("id").single(); if(runError||!run) return Response.json({error:runError?.message||"run_create_failed"},{status:500});
  let fetchedCount=0,errorCount=0; const candidates=new Map<string,any>();
  try{
-  for(let i=0;i<SEARCH_TERMS.length;i+=6){
-   const batch=SEARCH_TERMS.slice(i,i+6);
-   const results=await Promise.allSettled(batch.map(async term=>{
-     const url=new URL("/en/tender-opportunities",BASE);
-     url.searchParams.set("current_tab","c");url.searchParams.set("items_per_page","50");url.searchParams.set("words",term);
-     url.searchParams.set("order","field_tender_closing_date");url.searchParams.set("sort","asc");
-     const r=await fetch(url,{headers:{"User-Agent":"CBData-CanadaBuys-Scout/2.0"}});
-     if(!r.ok)throw new Error("search_"+r.status);
-     return parseRows(await r.text());
-   }));
-   for(const result of results){
-     if(result.status==="rejected"){errorCount++;continue;}
-     for(const row of result.value){fetchedCount++;if(isOpen(row.closingDate))candidates.set(row.externalId,row);}
+  try{
+   const feedRows=await openFeedCandidates();
+   fetchedCount=feedRows.length;
+   for(const row of feedRows) candidates.set(row.externalId,row);
+  }catch(feedError){
+   errorCount++;
+   for(let i=0;i<SEARCH_TERMS.length;i+=6){
+    const batch=SEARCH_TERMS.slice(i,i+6);
+    const results=await Promise.allSettled(batch.map(async term=>{
+      const url=new URL("/en/tender-opportunities",BASE);
+      url.searchParams.set("current_tab","c");url.searchParams.set("items_per_page","50");url.searchParams.set("words",term);
+      url.searchParams.set("order","field_tender_closing_date");url.searchParams.set("sort","asc");
+      const r=await fetch(url,{headers:{"User-Agent":"CBData-CanadaBuys-Scout/3.0"}});
+      if(!r.ok)throw new Error("search_"+r.status);
+      return parseRows(await r.text());
+    }));
+    for(const result of results){
+      if(result.status==="rejected"){errorCount++;continue;}
+      for(const row of result.value){fetchedCount++;if(isOpen(row.closingDate))candidates.set(row.externalId,row);}
+    }
    }
   }
   let qualifyingCount=0,insertedCount=0,updatedCount=0,leadCreatedCount=0;
   const {data:orgRows}=await admin.from("organizations").select("id,legal_name,operating_name,organization_type").eq("workspace_id",workspaceId); const orgs:any[]=orgRows||[];
   for(const row of candidates.values()){
-   const detail=await detailFor(row.url); const combined=[row.title,row.category||"",row.buyer||"",detail].join(" "); if(!regionMatch(combined)) continue; const response=responseInfo(detail); const publishedDate=dateValue(row.openDate); const closingDate=dateValue(row.closingDate); await admin.from("procurement_opportunities").upsert({workspace_id:workspaceId,source_key:"canadabuys",external_id:row.externalId,buyer_name:row.buyer,title:row.title,opportunity_type:response.responseMode==="rfq"?"rfq":"tender",description:detail.slice(0,20000),category:row.category,region:"National Capital Region",published_at:publishedDate?new Date(publishedDate+"T12:00:00Z").toISOString():null,closing_at:closingDate?new Date(closingDate+"T23:59:59-04:00").toISOString():null,source_url:row.url,raw_payload:{source:"CanadaBuys",detail_excerpt:detail.slice(0,12000),observed_at:new Date().toISOString()},last_seen_at:new Date().toISOString(),updated_at:new Date().toISOString()},{onConflict:"workspace_id,source_key,external_id"}); const fit=fitFor(row.title,row.category,detail); if(fit.tier==="skip") continue; const services=fit.services; qualifyingCount++; const normalizedBuyer=normalize(row.buyer);
+   const detail=row.description||await detailFor(row.url); const combined=[row.title,row.category||"",row.buyer||"",detail,row.haystack||""].join(" "); if(!regionMatch(combined)) continue; const response=responseInfo(detail); const publishedDate=dateValue(row.openDate); const closingDate=dateValue(row.closingDate); await admin.from("procurement_opportunities").upsert({workspace_id:workspaceId,source_key:"canadabuys",external_id:row.externalId,buyer_name:row.buyer,title:row.title,opportunity_type:response.responseMode==="rfq"?"rfq":"tender",description:detail.slice(0,20000),category:row.category,region:"National Capital Region",published_at:publishedDate?new Date(publishedDate+"T12:00:00Z").toISOString():null,closing_at:closingDate?new Date(closingDate+"T23:59:59-04:00").toISOString():null,source_url:row.url,raw_payload:{source:"CanadaBuys",detail_excerpt:detail.slice(0,12000),observed_at:new Date().toISOString()},last_seen_at:new Date().toISOString(),updated_at:new Date().toISOString()},{onConflict:"workspace_id,source_key,external_id"}); const fit=fitFor(row.title,row.category,detail); if(fit.tier==="skip") continue; const services=fit.services; qualifyingCount++; const normalizedBuyer=normalize(row.buyer);
    let org=orgs.find(o=>normalize(o.legal_name)===normalizedBuyer||normalize(o.operating_name)===normalizedBuyer);
    if(!org&&row.buyer){ const {data:created}=await admin.from("organizations").insert({workspace_id:workspaceId,legal_name:row.buyer.replace(/[.]$/,"").trim(),operating_name:row.buyer.replace(/[.]$/,"").trim(),organization_type:"owner",status:"active",primary_region:"National Capital Region",source_notes:"Created by CanadaBuys prospecting; buyer identity sourced from CanadaBuys notice."}).select("id,legal_name,operating_name,organization_type").single(); if(created){org=created;orgs.push(created);} }
-   const payload={workspace_id:workspaceId,source:SOURCE,external_id:row.externalId,title:row.title,buyer_name:row.buyer,category:row.category,region:"National Capital Region",published_date:publishedDate,closing_date:closingDate,source_url:row.url,raw_payload:{source:SOURCE,source_key:"canadabuys",scout_version:"2.0",services,fit_tier:fit.tier,excluded_signal:fit.excluded,detail_excerpt:detail.slice(0,12000),observed_at:new Date().toISOString()},matched_organization_id:org?.id||null,response_mode:response.responseMode,registration_required:response.registrationRequired,fit_score:fit.score,fit_note:fit.fitNote,last_verified_at:new Date().toISOString(),watch_query:services.join(", "),notes:[fit.fitNote,response.registrationRequired?"Registration prerequisite indicated by source notice.":null,"Formal response requirements must be verified against the live notice and attachments."].filter(Boolean).join(" "),updated_at:new Date().toISOString()};
+   const payload={workspace_id:workspaceId,source:SOURCE,external_id:row.externalId,title:row.title,buyer_name:row.buyer,category:row.category,region:"National Capital Region",published_date:publishedDate,closing_date:closingDate,source_url:row.url,raw_payload:{source:SOURCE,source_key:"canadabuys",scout_version:"3.0",services,fit_tier:fit.tier,excluded_signal:fit.excluded,detail_excerpt:detail.slice(0,12000),observed_at:new Date().toISOString()},matched_organization_id:org?.id||null,response_mode:response.responseMode,registration_required:response.registrationRequired,fit_score:fit.score,fit_note:fit.fitNote,last_verified_at:new Date().toISOString(),watch_query:services.join(", "),notes:[fit.fitNote,response.registrationRequired?"Registration prerequisite indicated by source notice.":null,"Formal response requirements must be verified against the live notice and attachments."].filter(Boolean).join(" "),updated_at:new Date().toISOString()};
    const {data:existing}=await admin.from("tender_records").select("id,lead_id").eq("workspace_id",workspaceId).eq("source",SOURCE).eq("external_id",row.externalId).maybeSingle();
    const {data:tender,error:tenderError}=existing
     ? await admin.from("tender_records").update(payload).eq("id",existing.id).eq("workspace_id",workspaceId).select("id,lead_id").single()
