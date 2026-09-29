@@ -13,3 +13,10 @@ schema_paths = []
 [db.seed]
 enabled = false
 sql_paths = []
+
+# The handlers validate either a signed-in user token or a Vault-backed cron token.
+[functions.canadabuys-scout]
+verify_jwt = false
+
+[functions.regional-tender-scout]
+verify_jwt = false
