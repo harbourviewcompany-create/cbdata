@@ -31,7 +31,7 @@ begin
     select 1 from public.supplier_registrations
     where workspace_id=w and source_key='canadabuys'
       and registration_name='SAP Business Network — Government of Canada'
-      and status in ('required','in_progress','active')
+      and status in ('required','in_progress','active','blocked')
   ) then raise exception 'CanadaBuys supplier registration readiness record missing'; end if;
 
   if not exists (
