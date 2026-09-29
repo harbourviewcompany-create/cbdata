@@ -161,7 +161,7 @@ export async function generateDeckMaterialTakeoff(f: FormData) {
     .in("canonical_key", canonicalKeys);
   if (catalogError) throw new Error(catalogError.message);
 
-  const catalogByKey = new Map((catalog ?? []).map((row: any) => [row.canonical_key, row]));
+  const catalogByKey = new Map<string, any>((catalog ?? []).map((row: any) => [String(row.canonical_key), row]));
   const missing = canonicalKeys.filter((key) => !catalogByKey.has(key));
   if (missing.length) throw new Error(`Material catalog is missing: ${missing.join(", ")}`);
 
@@ -197,6 +197,8 @@ export async function generateDeckMaterialTakeoff(f: FormData) {
     requestId = created.id;
   }
 
+  if (!requestId) throw new Error("Material request could not be resolved");
+
   const { error: deleteError } = await (s as any)
     .from("material_request_items")
     .delete()
@@ -208,7 +210,7 @@ export async function generateDeckMaterialTakeoff(f: FormData) {
   const generatedRows = takeoff.map((line, index) => ({
     workspace_id: ctx.workspaceId,
     request_id: requestId,
-    material_item_id: catalogByKey.get(line.canonicalKey).id,
+    material_item_id: catalogByKey.get(line.canonicalKey)!.id,
     quantity: line.quantity,
     notes: line.note,
     sort_order: index,
