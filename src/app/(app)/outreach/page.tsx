@@ -38,6 +38,9 @@ export default async function OutreachPage({
   else if(action) query=query.eq("recommended_action",action);
   const {data,error}=await query;
   const rows=(data ?? []) as QueueRow[];
+  const targetIds=rows.map(r=>r.id);
+  const {data:coverageRows}=await (s as any).from("v_outreach_contact_coverage").select("*").in("outreach_target_id",targetIds.length?targetIds:["00000000-0000-0000-0000-000000000000"]);
+  const coverageByTarget=new Map<string,any>((coverageRows??[]).map((x:any)=>[x.outreach_target_id,x]));
   const ready=rows.filter(r=>r.outreach_readiness_score>=80).length;
   const drafts=rows.filter(r=>r.recommended_action==="review_draft").length;
   const sends=rows.filter(r=>r.recommended_action==="send").length;
@@ -91,6 +94,7 @@ export default async function OutreachPage({
                 <Link href={`/targets/${r.id}` as Route}><strong>{r.organization_display_name ?? "Target"}</strong></Link>
                 <div className="muted" style={{fontSize:12,marginTop:4}}>{r.contact_display_name ?? "No named contact"}</div>
                 <div className="muted" style={{fontSize:11}}>{r.contact_job_title ?? ""}</div>
+                {(()=>{const cv=coverageByTarget.get(r.id);return cv?<div className="muted" style={{fontSize:11,marginTop:4}}>buying committee {cv.contact_count}/4 · coverage {cv.contact_coverage_score}%{!cv.has_decision_maker?" · decision-maker gap":""}{!cv.has_operations?" · operations gap":""}{!cv.has_procurement?" · procurement gap":""}</div>:null;})()}
                 {r.contact_email ? <a href={`mailto:${r.contact_email}`} style={{fontSize:11}}>{r.contact_email}</a> : null}
               </div>
               <div>
@@ -119,6 +123,11 @@ export default async function OutreachPage({
             <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
               {!r.latest_draft_id || r.recommended_action==="generate_draft" ? <form action={generateDraft} style={{display:"flex",gap:6}}>
                 <input type="hidden" name="target_id" value={r.id}/>
+                <select name="objective" defaultValue="referral">
+                  <option value="referral">Referral / right person</option><option value="introduction">Introduction</option>
+                  <option value="meeting">Meeting</option><option value="site_walk">Site walkthrough</option>
+                  <option value="vendor_registration">Vendor registration</option><option value="quote">Quote opportunity</option>
+                </select>
                 <select name="channel" defaultValue="email" aria-label="Draft channel">
                   <option value="email">Email</option><option value="linkedin">LinkedIn</option>
                   <option value="call">Call opener</option><option value="voicemail">Voicemail</option><option value="sms">SMS</option>
