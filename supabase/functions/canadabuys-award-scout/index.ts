@@ -148,6 +148,45 @@ Deno.serve(async(req)=>{
       if(!fErr)future++;
     }
   }
+  if(a.authorityEmail&&(buyer?.organization_id||org?.id)){
+    const authorityOrgId=buyer?.organization_id||org?.id;
+    const {data:existingContact}=await admin.from("contacts").select("id").eq("workspace_id",workspaceId).ilike("email",a.authorityEmail).maybeSingle();
+    let authorityContactId=existingContact?.id||null;
+    if(!authorityContactId){
+      const nm=splitName(a.authorityName);
+      const {data:newContact}=await admin.from("contacts").insert({
+        workspace_id:workspaceId,first_name:nm.first,last_name:nm.last,
+        job_title:"Contracting Authority — "+(a.buyer||"Procurement"),
+        email:a.authorityEmail,status:"active",source_url:a.url,source_label:"CanadaBuys contract history",
+        source_confidence:"high",source_verified_at:new Date().toISOString()
+      }).select("id").single();
+      authorityContactId=newContact?.id||null;
+    } else {
+      await admin.from("contacts").update({
+        job_title:"Contracting Authority — "+(a.buyer||"Procurement"),
+        source_url:a.url,source_label:"CanadaBuys contract history",
+        source_confidence:"high",source_verified_at:new Date().toISOString(),updated_at:new Date().toISOString()
+      }).eq("id",authorityContactId);
+    }
+    if(authorityContactId){
+      const {data:rel}=await admin.from("organization_contacts").select("id")
+        .eq("organization_id",authorityOrgId).eq("contact_id",authorityContactId)
+        .eq("relationship_type","procurement_contracting_authority").maybeSingle();
+      if(!rel){
+        await admin.from("organization_contacts").insert({
+          workspace_id:workspaceId,organization_id:authorityOrgId,contact_id:authorityContactId,
+          relationship_type:"procurement_contracting_authority",is_primary:false,
+          start_date:new Date().toISOString().slice(0,10)
+        });
+      }
+      if(cycleId){
+        await admin.from("procurement_future_opportunities").update({
+          pursuit_contact_id:authorityContactId,contact_readiness_status:"ready",updated_at:new Date().toISOString()
+        }).eq("workspace_id",workspaceId).eq("contract_cycle_id",cycleId);
+      }
+    }
+  }
+
   if(buyerKey){
     await admin.from("procurement_buyers").update({
       last_award_at:a.awardDate?new Date(a.awardDate+"T12:00:00Z").toISOString():new Date().toISOString(),
