@@ -18,7 +18,7 @@ begin
     where workspace_id=w
       and source_key='canadabuys'
       and registration_name='SAP Business Network — Government of Canada'
-      and status in ('required','in_progress','active')
+      and status in ('required','in_progress','active','blocked')
       and evidence_url is not null
   ) then
     raise exception 'Canonical evidenced CanadaBuys supplier registration missing';
