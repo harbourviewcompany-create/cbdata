@@ -1,0 +1,1 @@
+create index if not exists idx_supplier_registration_steps_completed_by on public.supplier_registration_steps(completed_by);
