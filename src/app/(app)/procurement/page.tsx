@@ -111,7 +111,7 @@ export default async function ProcurementPage(){
     </section>
 
     <section className="table-panel" style={{marginBottom:18}}>
-      <div className="panel-head"><div><span className="eyebrow">SUPPLIER READINESS</span><h3>Registrations and prequalification</h3></div><span className="muted">{(registrations??[]).filter((r:any)=>r.status==="active"||r.status==="not_required").length}/{(registrations??[]).length} ready</span></div>
+      <div className="panel-head"><div><span className="eyebrow">SUPPLIER READINESS</span><h3>Registrations and prequalification</h3></div><div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}><span className="muted">{(registrations??[]).filter((r:any)=>r.status==="active"||r.status==="not_required").length}/{(registrations??[]).length} ready</span><Link className="button" href="/procurement/registration">Registration checklist</Link></div></div>
       <div className="tender-list">
         {(registrations??[]).map((r:any)=><div className="tender-list-row" key={r.id}>
           <div><strong>{r.registration_name}</strong><span className="status-meta">{r.source_key} · {r.status.replace("_"," ")}</span>{r.notes?<span className="status-meta wrap">{r.notes}</span>:null}</div>
