@@ -7,8 +7,10 @@ function publicHttpUrl(value:string){
   let u:URL;
   try{u=new URL(value);}catch{throw new Error("invalid_document_url");}
   if(!["http:","https:"].includes(u.protocol))throw new Error("unsupported_document_url_scheme");
+  if(u.username||u.password)throw new Error("document_url_credentials_not_allowed");
   const h=u.hostname.toLowerCase().replace(/^\[|\]$/g,"");
-  if(h==="localhost"||h.endsWith(".localhost")||h.endsWith(".local")||h==="::1"||h==="0.0.0.0")throw new Error("blocked_document_host");
+  if(h.includes(":"))throw new Error("ipv6_document_hosts_not_supported");
+  if(h==="localhost"||h.endsWith(".localhost")||h.endsWith(".local")||h==="0.0.0.0")throw new Error("blocked_document_host");
   const m=h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
   if(m){
     const a=Number(m[1]),b=Number(m[2]);
