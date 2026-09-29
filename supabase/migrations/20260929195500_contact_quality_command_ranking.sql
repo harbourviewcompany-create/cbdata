@@ -1,4 +1,7 @@
--- Contact-quality-aware command ranking.\ndrop view if exists public.v_outreach_command_queue;\ncreate view public.v_outreach_command_queue with(security_invoker=true) as
+-- Contact-quality-aware command ranking.
+drop function if exists public.get_daily_outreach_command_queue(integer);
+drop view if exists public.v_outreach_command_queue;
+create view public.v_outreach_command_queue with(security_invoker=true) as
 with base as (
  select e.*,a.next_touch_type,a.next_touch_at,a.sent_count,a.last_reply,
   c.source_confidence,c.source_url,
