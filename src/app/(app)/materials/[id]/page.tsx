@@ -8,7 +8,9 @@ import {
   recordManualMaterialQuote,
   removeMaterialRequestItem,
   runMaterialPriceScan,
+  saveMaterialSupplierTerms,
   selectMaterialPricePlan,
+  updateMaterialRequestSettings,
 } from "../actions";
 
 const money = (value: number | string | null | undefined) =>
@@ -45,6 +47,7 @@ export default async function MaterialRequestDetail({ params }: { params: Promis
     { data: requestItems },
     { data: catalog },
     { data: suppliers },
+    { data: supplierTerms },
     { data: runs },
   ] = await Promise.all([
     (s as any)
@@ -66,6 +69,11 @@ export default async function MaterialRequestDetail({ params }: { params: Promis
       .eq("workspace_id", ctx.workspaceId)
       .eq("active", true)
       .order("name"),
+    (s as any)
+      .from("material_request_supplier_terms")
+      .select("*")
+      .eq("workspace_id", ctx.workspaceId)
+      .eq("request_id", id),
     (s as any)
       .from("material_price_runs")
       .select("*")
@@ -97,6 +105,7 @@ export default async function MaterialRequestDetail({ params }: { params: Promis
   const catalogById = new Map((catalog ?? []).map((x: any) => [x.id, x]));
   const requestItemById = new Map((requestItems ?? []).map((x: any) => [x.id, x]));
   const supplierById = new Map((suppliers ?? []).map((x: any) => [x.id, x]));
+  const termsBySupplier = new Map((supplierTerms ?? []).map((x: any) => [x.supplier_id, x]));
   const bestPlan = plans?.[0] ?? null;
   const selectedPlan = plans?.find((p: any) => p.is_selected) ?? null;
   const covered = new Set((results ?? []).map((r: any) => r.request_item_id)).size;
@@ -128,6 +137,21 @@ export default async function MaterialRequestDetail({ params }: { params: Promis
         <div className="metric"><span>Best plan</span><strong>{money(bestPlan?.total)}</strong><small>{bestPlan?.plan_type?.replaceAll("_", " ") ?? "run pricing"}</small></div>
         <div className="metric"><span>Selected plan</span><strong>{money(selectedPlan?.total)}</strong><small>{selectedPlan ? "approved for buying" : "not selected"}</small></div>
         <div className="metric"><span>Price health</span><strong>{staleCount}</strong><small>stale supplier quotes in latest comparison</small></div>
+      </section>
+
+      <section className="panel" style={{ marginTop: 14 }}>
+        <div className="panel-head">
+          <div><span className="eyebrow">REQUEST SETTINGS</span><h3>Waste and fulfilment</h3></div>
+          <span className="muted">Changes recalculate using current supplier evidence.</span>
+        </div>
+        <form action={updateMaterialRequestSettings} className="form-grid" style={{ marginTop: 16 }}>
+          <input type="hidden" name="request_id" value={id} />
+          <label className="field"><span>Waste %</span><input name="waste_pct" type="number" min="0" max="50" step="0.5" defaultValue={request.waste_pct} required /></label>
+          <label className="field"><span>Fulfilment</span><select name="delivery_mode" defaultValue={request.delivery_mode}><option value="pickup">Pickup</option><option value="delivery">Delivery</option></select></label>
+          <label className="field field-span-2"><span>Notes</span><input name="notes" maxLength={500} defaultValue={request.notes ?? ""} /></label>
+          <div className="form-actions"><button type="submit">Save & recalculate</button></div>
+        </form>
+        {request.status === "approved" ? <p className="muted" style={{ marginTop: 10 }}>Approved requests are locked. Change a takeoff line or supplier terms first to invalidate the approval.</p> : null}
       </section>
 
       <section className="panel" style={{ marginTop: 14 }}>
@@ -201,8 +225,9 @@ export default async function MaterialRequestDetail({ params }: { params: Promis
                     <label className="field"><span>Price each</span><input name="price_each" type="number" min="0.01" step="0.01" required /></label>
                     <label className="field"><span>Store / desk</span><input name="store_label" placeholder="Ottawa contractor desk" /></label>
                     <label className="field"><span>Stock</span><select name="stock_status" defaultValue="quoted"><option value="quoted">Quoted</option><option value="in_stock">In stock</option><option value="limited">Limited</option><option value="order">Special order</option></select></label>
-                    <label className="field field-span-2"><span>Evidence URL</span><input name="evidence_url" type="url" placeholder="https://…" /></label>
-                    <label className="field field-span-2"><span>Quote note</span><input name="quote_note" maxLength={500} placeholder="Quote number, rep name, expiry, delivery terms…" /></label>
+                    <label className="field"><span>Quote valid until</span><input name="valid_until" type="date" /></label>
+                    <label className="field"><span>Evidence URL</span><input name="evidence_url" type="url" placeholder="https://…" /></label>
+                    <label className="field field-span-2"><span>Quote note</span><input name="quote_note" maxLength={500} placeholder="Quote number, rep name, pickup terms…" /></label>
                     <div className="form-actions"><button type="submit">Save quote & recalculate</button></div>
                   </form>
                 </details>
@@ -210,6 +235,40 @@ export default async function MaterialRequestDetail({ params }: { params: Promis
             })}
           </div>
         ) : <p className="muted">Add material lines first.</p>}
+      </section>
+
+      <section className="table-panel" style={{ marginTop: 14 }}>
+        <div className="panel-head" style={{ marginBottom: 14 }}>
+          <div><span className="eyebrow">SUPPLIER TERMS</span><h3>Delivery quotes and validity</h3></div>
+          <span className="muted">Delivery plans cannot be approved until every used supplier has a current verified fee.</span>
+        </div>
+        <div className="checks">
+          {(suppliers ?? []).map((supplier: any) => {
+            const terms: any = termsBySupplier.get(supplier.id);
+            const expired = terms?.valid_until && String(terms.valid_until) < new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Toronto" }).format(new Date());
+            return (
+              <details key={supplier.id}>
+                <summary>
+                  <strong>{supplier.name}</strong>
+                  {" · "}
+                  {terms?.delivery_verified && !expired ? "delivery verified" : "delivery not verified"}
+                  {terms?.valid_until ? ` · valid to ${terms.valid_until}` : ""}
+                </summary>
+                <form action={saveMaterialSupplierTerms} className="form-grid" style={{ marginTop: 12 }}>
+                  <input type="hidden" name="request_id" value={id} />
+                  <input type="hidden" name="supplier_id" value={supplier.id} />
+                  <label className="field"><span>Delivery fee</span><input name="delivery_fee" type="number" min="0" step="0.01" defaultValue={terms?.delivery_fee ?? ""} placeholder="0.00" /></label>
+                  <label className="field"><span>Valid until</span><input name="valid_until" type="date" defaultValue={terms?.valid_until ?? ""} /></label>
+                  <label className="field"><span>Quote reference</span><input name="quote_reference" maxLength={120} defaultValue={terms?.quote_reference ?? ""} placeholder="Quote # / rep" /></label>
+                  <label className="field"><span>Evidence URL</span><input name="evidence_url" type="url" defaultValue={terms?.evidence_url ?? ""} placeholder="https://…" /></label>
+                  <label className="field field-span-2"><span>Notes</span><input name="notes" maxLength={500} defaultValue={terms?.notes ?? ""} placeholder="Minimum order, lead time, delivery window…" /></label>
+                  <label className="field"><span><input name="delivery_verified" type="checkbox" defaultChecked={Boolean(terms?.delivery_verified && !expired)} /> Delivery fee verified</span></label>
+                  <div className="form-actions"><button type="submit">Save terms & recalculate</button></div>
+                </form>
+              </details>
+            );
+          })}
+        </div>
       </section>
 
       <section className="table-panel" style={{ marginTop: 14 }}>

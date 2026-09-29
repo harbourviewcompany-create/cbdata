@@ -118,6 +118,25 @@ function parseVisiblePrice(html: string, item: AnyRow, productName: string): num
   return prices.length ? prices[0] : null;
 }
 
+function parseBulkTerms(html: string) {
+  const text = decodeHtml(html);
+  const patterns = [
+    /buy\s+([0-9]+)\s+(?:units?\s+)?or\s+more[^0-9]{0,80}(?:save|get)\s+([0-9]+)\s*%/i,
+    /purchase\s+of\s+([0-9]+)\s+units?\s+or\s+more[\s\S]{0,120}?(?:save|get)\s+([0-9]+)\s*%/i,
+    /([0-9]+)\s+units?\s+or\s+more[\s\S]{0,120}?([0-9]+)\s*%/i,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (!match) continue;
+    const min = Number(match[1]);
+    const pct = Number(match[2]);
+    if (Number.isFinite(min) && min > 0 && Number.isFinite(pct) && pct > 0 && pct < 100) {
+      return { bulkMinQty: min, bulkDiscountPct: pct };
+    }
+  }
+  return { bulkMinQty: null, bulkDiscountPct: null };
+}
+
 const LIVE_PRICE_HOSTS = [
   "homedepot.ca",
   "rona.ca",
@@ -166,10 +185,13 @@ async function fetchPrice(product: AnyRow, item: AnyRow) {
   const exact = parseJsonLdPrice(html, product.product_name);
   const visible = exact ?? parseVisiblePrice(html, item, product.product_name);
   if (visible == null) throw new Error("Price not found in source page");
+  const bulk = parseBulkTerms(html);
   return {
     price: visible / Number(product.pack_qty || 1),
     excerpt: decodeHtml(html).slice(0, 4000),
     evidenceUrl: response.url || productUrl.toString(),
+    bulkMinQty: bulk.bulkMinQty,
+    bulkDiscountPct: bulk.bulkDiscountPct,
   };
 }
 
@@ -228,14 +250,48 @@ Deno.serve(async (req) => {
   if (!requestItems?.length) return json({ error: "Add at least one material item before pricing" }, 400);
 
   const materialIds = [...new Set(requestItems.map((x) => x.material_item_id))];
-  const [{ data: catalog }, { data: products }, { data: suppliers }] = await Promise.all([
+  const [{ data: catalog }, { data: products }, { data: suppliers }, { data: supplierTerms }] = await Promise.all([
     admin.from("material_catalog_items").select("*").eq("workspace_id", workspaceId).in("id", materialIds),
     admin.from("material_supplier_products").select("*").eq("workspace_id", workspaceId).eq("active", true).in("material_item_id", materialIds),
     admin.from("material_suppliers").select("*").eq("workspace_id", workspaceId).eq("active", true),
+    admin.from("material_request_supplier_terms").select("*").eq("workspace_id", workspaceId).eq("request_id", requestId),
   ]);
 
   const itemById = new Map((catalog || []).map((x) => [x.id, x]));
   const supplierById = new Map((suppliers || []).map((x) => [x.id, x]));
+  const termsBySupplier = new Map((supplierTerms || []).map((x) => [x.supplier_id, x]));
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Toronto" }).format(new Date());
+
+  const deliveryFor = (supplierId: string) => {
+    const supplier = supplierById.get(supplierId);
+    const terms = termsBySupplier.get(supplierId);
+    const termsCurrent = Boolean(terms && (!terms.valid_until || String(terms.valid_until) >= today));
+    if (termsCurrent && terms?.delivery_verified && terms.delivery_fee != null) {
+      return {
+        fee: Number(terms.delivery_fee),
+        verified: true,
+        quote_reference: terms.quote_reference ?? null,
+        valid_until: terms.valid_until ?? null,
+        evidence_url: terms.evidence_url ?? null,
+      };
+    }
+    if (supplier?.default_delivery_fee != null) {
+      return {
+        fee: Number(supplier.default_delivery_fee),
+        verified: true,
+        quote_reference: null,
+        valid_until: null,
+        evidence_url: null,
+      };
+    }
+    return {
+      fee: 0,
+      verified: false,
+      quote_reference: terms?.quote_reference ?? null,
+      valid_until: terms?.valid_until ?? null,
+      evidence_url: terms?.evidence_url ?? null,
+    };
+  };
 
   const { data: run, error: runError } = await admin
     .from("material_price_runs")
@@ -271,8 +327,8 @@ Deno.serve(async (req) => {
           currency: "CAD",
           stock_status: "verify_store",
           store_label: "Web price — verify Ottawa store",
-          bulk_min_qty: product.bulk_min_qty,
-          bulk_discount_pct: product.bulk_discount_pct,
+          bulk_min_qty: found.bulkMinQty ?? product.bulk_min_qty,
+          bulk_discount_pct: found.bulkDiscountPct ?? product.bulk_discount_pct,
           evidence_url: found.evidenceUrl,
           source_type: "live_page",
           confidence: "medium",
@@ -296,7 +352,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  const cutoff = new Date(Date.now() - 45 * 86_400_000).toISOString();
+  const cutoff = new Date(Date.now() - 180 * 86_400_000).toISOString();
   const { data: observations, error: observationsError } = await admin
     .from("material_price_observations")
     .select("*")
@@ -307,10 +363,18 @@ Deno.serve(async (req) => {
   if (observationsError) return json({ error: observationsError.message }, 500);
 
   const latest = new Map<string, AnyRow>();
-  const observationPriority = (observation: AnyRow) => {
+  const observationFresh = (observation: AnyRow) => {
     const ageDays = (Date.now() - new Date(observation.observed_at).getTime()) / 86_400_000;
-    if (observation.source_type === "manual_quote" && ageDays <= 30) return 4;
-    if (observation.source_type === "live_page" && ageDays <= 7) return 3;
+    if (observation.source_type === "manual_quote") {
+      return observation.valid_until
+        ? String(observation.valid_until) >= today
+        : ageDays <= 30;
+    }
+    return ageDays <= 7;
+  };
+  const observationPriority = (observation: AnyRow) => {
+    if (observation.source_type === "manual_quote" && observationFresh(observation)) return 4;
+    if (observation.source_type === "live_page" && observationFresh(observation)) return 3;
     if (observation.source_type === "manual_quote") return 2;
     return 1;
   };
@@ -344,8 +408,7 @@ Deno.serve(async (req) => {
       const observation = latest.get(key);
       if (!observation) continue;
       const ageDays = (Date.now() - new Date(observation.observed_at).getTime()) / 86_400_000;
-      const staleAfter = observation.source_type === "manual_quote" ? 30 : 7;
-      const stale = ageDays > staleAfter;
+      const stale = !observationFresh(observation);
       const product = productByPair.get(key);
       const min = Number(observation.bulk_min_qty ?? product?.bulk_min_qty ?? 0);
       const discount = Number(observation.bulk_discount_pct ?? product?.bulk_discount_pct ?? 0);
@@ -396,7 +459,7 @@ Deno.serve(async (req) => {
     const used = [...new Set(splitLines.map((x) => x.supplier_id))];
     const materialSubtotal = round2(splitLines.reduce((sum, x) => sum + Number(x.extended_price), 0));
     const deliveryTotal = requestRow.delivery_mode === "delivery"
-      ? round2(used.reduce((sum, supplierId) => sum + Number(supplierById.get(supplierId)?.default_delivery_fee || 0), 0))
+      ? round2(used.reduce((sum, supplierId) => sum + deliveryFor(String(supplierId)).fee, 0))
       : 0;
     plans.push({
       workspace_id: workspaceId,
@@ -408,7 +471,18 @@ Deno.serve(async (req) => {
       delivery_total: deliveryTotal,
       total: round2(materialSubtotal + deliveryTotal),
       lines: splitLines,
-      suppliers: used.map((id) => ({ id, name: supplierById.get(id)?.name || id, delivery_fee: supplierById.get(id)?.default_delivery_fee ?? null, delivery_verified: supplierById.get(id)?.default_delivery_fee != null })),
+      suppliers: used.map((id) => {
+        const delivery = deliveryFor(String(id));
+        return {
+          id,
+          name: supplierById.get(id)?.name || id,
+          delivery_fee: requestRow.delivery_mode === "delivery" ? delivery.fee : 0,
+          delivery_verified: requestRow.delivery_mode !== "delivery" || delivery.verified,
+          quote_reference: delivery.quote_reference,
+          valid_until: delivery.valid_until,
+          evidence_url: delivery.evidence_url,
+        };
+      }),
     });
   }
 
@@ -418,7 +492,8 @@ Deno.serve(async (req) => {
       .filter(Boolean);
     if (lines.length !== requestItems.length) continue;
     const materialSubtotal = round2(lines.reduce((sum, x) => sum + Number(x.extended_price), 0));
-    const deliveryTotal = requestRow.delivery_mode === "delivery" ? Number(supplier.default_delivery_fee || 0) : 0;
+    const delivery = deliveryFor(String(supplier.id));
+    const deliveryTotal = requestRow.delivery_mode === "delivery" ? delivery.fee : 0;
     plans.push({
       workspace_id: workspaceId,
       request_id: requestId,
@@ -429,7 +504,15 @@ Deno.serve(async (req) => {
       delivery_total: round2(deliveryTotal),
       total: round2(materialSubtotal + deliveryTotal),
       lines,
-      suppliers: [{ id: supplier.id, name: supplier.name, delivery_fee: supplier.default_delivery_fee ?? null, delivery_verified: supplier.default_delivery_fee != null }],
+      suppliers: [{
+        id: supplier.id,
+        name: supplier.name,
+        delivery_fee: requestRow.delivery_mode === "delivery" ? delivery.fee : 0,
+        delivery_verified: requestRow.delivery_mode !== "delivery" || delivery.verified,
+        quote_reference: delivery.quote_reference,
+        valid_until: delivery.valid_until,
+        evidence_url: delivery.evidence_url,
+      }],
     });
   }
 
@@ -441,6 +524,12 @@ Deno.serve(async (req) => {
   if (plans.length) {
     const { error: planError } = await admin.from("material_price_plans").insert(plans);
     if (planError) return json({ error: planError.message }, 500);
+    await admin.from("material_price_plans")
+      .update({ is_selected: false })
+      .eq("workspace_id", workspaceId)
+      .eq("request_id", requestId)
+      .neq("run_id", run.id)
+      .eq("is_selected", true);
   }
 
   const coveredItems = requestItems.filter((ri) => (byRequestItem.get(ri.id) || []).length > 0).length;

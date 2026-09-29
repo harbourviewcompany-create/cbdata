@@ -20,7 +20,7 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
   const params = await searchParams;
   const defaultEstimateId = typeof params.estimate_id === "string" ? params.estimate_id : "";
   const s = await createClient();
-  const [{ data: requests, error }, { data: estimates }] = await Promise.all([
+  const [{ data: requests, error }, { data: estimates }, { data: sourceProducts }] = await Promise.all([
     (s as any)
       .from("v_material_request_summary")
       .select("*")
@@ -34,6 +34,11 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
       .in("status", ["draft", "sent", "accepted"])
       .order("created_at", { ascending: false })
       .limit(250),
+    (s as any)
+      .from("material_supplier_products")
+      .select("id,pricing_mode,product_url,last_checked_at,last_error")
+      .eq("workspace_id", ctx.workspaceId)
+      .eq("active", true),
   ]);
 
   const rows = requests ?? [];
@@ -42,6 +47,10 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
   const bestCurrent = rows
     .filter((r: any) => r.best_total != null)
     .reduce((sum: number, r: any) => sum + Number(r.best_total || 0), 0);
+  const sourceRows = sourceProducts ?? [];
+  const liveSources = sourceRows.filter((p: any) => p.pricing_mode === "live_page").length;
+  const sourceErrors = sourceRows.filter((p: any) => Boolean(p.last_error)).length;
+  const checkedSources = sourceRows.filter((p: any) => Boolean(p.last_checked_at)).length;
 
   return (
     <>
@@ -61,6 +70,22 @@ export default async function MaterialsPage({ searchParams }: { searchParams: Pr
         <div className="metric"><span>Priced</span><strong>{priced}</strong><small>with supplier coverage</small></div>
         <div className="metric"><span>Approved</span><strong>{approved}</strong><small>buy plans selected</small></div>
         <div className="metric"><span>Current best totals</span><strong>{money(bestCurrent)}</strong><small>across priced requests</small></div>
+      </section>
+
+      <section className="panel" style={{ marginTop: 14 }}>
+        <div className="panel-head">
+          <div><span className="eyebrow">SOURCE HEALTH</span><h3>Retailer price coverage</h3></div>
+          <span className="muted">{sourceRows.length} configured mappings</span>
+        </div>
+        <div className="deck-audit-grid" style={{ marginTop: 14 }}>
+          <div><span>Live product pages</span><strong>{liveSources}</strong></div>
+          <div><span>Checked at least once</span><strong>{checkedSources}</strong></div>
+          <div><span>Current source errors</span><strong>{sourceErrors}</strong></div>
+          <div><span>Manual-only mappings</span><strong>{sourceRows.length - liveSources}</strong></div>
+        </div>
+        <p className="muted" style={{ marginTop: 12 }}>
+          Live pages provide market pricing evidence. Ottawa store availability and contractor-desk quotes can override them in each request.
+        </p>
       </section>
 
       <section className="panel" style={{ marginTop: 14 }}>
