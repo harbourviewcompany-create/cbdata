@@ -75,6 +75,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "activities_contract_id_fkey"
             columns: ["contract_id"]
             isOneToOne: false
@@ -373,6 +380,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "communications_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "communications_contract_id_fkey"
             columns: ["contract_id"]
             isOneToOne: false
@@ -437,6 +451,134 @@ export type Database = {
           },
           {
             foreignKeyName: "communications_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_enrichment_tasks: {
+        Row: {
+          attempt_count: number
+          candidate_email: string | null
+          candidate_name: string | null
+          candidate_phone: string | null
+          candidate_title: string | null
+          confidence: string | null
+          created_at: string
+          evidence_label: string | null
+          evidence_url: string | null
+          id: string
+          last_attempt_at: string | null
+          last_error: string | null
+          missing_role: string
+          next_attempt_at: string | null
+          organization_id: string | null
+          outreach_target_id: string
+          priority_score: number
+          research_query: string | null
+          researcher_metadata: Json
+          status: string
+          updated_at: string
+          verified_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          attempt_count?: number
+          candidate_email?: string | null
+          candidate_name?: string | null
+          candidate_phone?: string | null
+          candidate_title?: string | null
+          confidence?: string | null
+          created_at?: string
+          evidence_label?: string | null
+          evidence_url?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          missing_role: string
+          next_attempt_at?: string | null
+          organization_id?: string | null
+          outreach_target_id: string
+          priority_score?: number
+          research_query?: string | null
+          researcher_metadata?: Json
+          status?: string
+          updated_at?: string
+          verified_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          attempt_count?: number
+          candidate_email?: string | null
+          candidate_name?: string | null
+          candidate_phone?: string | null
+          candidate_title?: string | null
+          confidence?: string | null
+          created_at?: string
+          evidence_label?: string | null
+          evidence_url?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          missing_role?: string
+          next_attempt_at?: string | null
+          organization_id?: string | null
+          outreach_target_id?: string
+          priority_score?: number
+          research_query?: string | null
+          researcher_metadata?: Json
+          status?: string
+          updated_at?: string
+          verified_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_enrichment_tasks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_enrichment_tasks_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_enrichment_tasks_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "contact_enrichment_tasks_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_contact_coverage"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "contact_enrichment_tasks_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_execution_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_enrichment_tasks_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_target_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_enrichment_tasks_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -861,6 +1003,81 @@ export type Database = {
           },
           {
             foreignKeyName: "crews_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deck_estimate_specs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          depth_ft: number
+          estimate_id: string
+          footings: number
+          height_in: number | null
+          id: string
+          include_guards: boolean
+          joist_spacing_in: number
+          landing: string | null
+          site_notes: string | null
+          site_reference: string | null
+          stair_width_ft: number
+          steps: number
+          updated_at: string
+          width_ft: number
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          depth_ft: number
+          estimate_id: string
+          footings?: number
+          height_in?: number | null
+          id?: string
+          include_guards?: boolean
+          joist_spacing_in?: number
+          landing?: string | null
+          site_notes?: string | null
+          site_reference?: string | null
+          stair_width_ft?: number
+          steps?: number
+          updated_at?: string
+          width_ft: number
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          depth_ft?: number
+          estimate_id?: string
+          footings?: number
+          height_in?: number | null
+          id?: string
+          include_guards?: boolean
+          joist_spacing_in?: number
+          landing?: string | null
+          site_notes?: string | null
+          site_reference?: string | null
+          stair_width_ft?: number
+          steps?: number
+          updated_at?: string
+          width_ft?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deck_estimate_specs_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deck_estimate_specs_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -2023,6 +2240,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "leads_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
@@ -2493,6 +2717,8 @@ export type Database = {
           quantity: number
           request_id: string
           sort_order: number
+          source_key: string | null
+          source_type: string
           workspace_id: string
         }
         Insert: {
@@ -2503,6 +2729,8 @@ export type Database = {
           quantity: number
           request_id: string
           sort_order?: number
+          source_key?: string | null
+          source_type?: string
           workspace_id: string
         }
         Update: {
@@ -2513,6 +2741,8 @@ export type Database = {
           quantity?: number
           request_id?: string
           sort_order?: number
+          source_key?: string | null
+          source_type?: string
           workspace_id?: string
         }
         Relationships: [
@@ -3215,6 +3445,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "organization_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "organization_contacts_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
@@ -3398,11 +3635,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "outreach_drafts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "outreach_drafts_outreach_target_id_fkey"
             columns: ["outreach_target_id"]
             isOneToOne: false
             referencedRelation: "outreach_targets"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_drafts_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "outreach_drafts_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_contact_coverage"
+            referencedColumns: ["outreach_target_id"]
           },
           {
             foreignKeyName: "outreach_drafts_outreach_target_id_fkey"
@@ -3492,6 +3750,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "outreach_targets"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_enrollments_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "outreach_enrollments_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_contact_coverage"
+            referencedColumns: ["outreach_target_id"]
           },
           {
             foreignKeyName: "outreach_enrollments_outreach_target_id_fkey"
@@ -3631,6 +3903,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "outreach_targets"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_replies_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "outreach_replies_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_contact_coverage"
+            referencedColumns: ["outreach_target_id"]
           },
           {
             foreignKeyName: "outreach_replies_outreach_target_id_fkey"
@@ -3787,6 +4073,20 @@ export type Database = {
             foreignKeyName: "outreach_target_properties_outreach_target_id_fkey"
             columns: ["outreach_target_id"]
             isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "outreach_target_properties_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_contact_coverage"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "outreach_target_properties_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
             referencedRelation: "v_outreach_execution_queue"
             referencedColumns: ["id"]
           },
@@ -3924,6 +4224,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "outreach_targets_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "outreach_targets_converted_lead_id_fkey"
             columns: ["converted_lead_id"]
             isOneToOne: false
@@ -3991,6 +4298,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "outreach_targets"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_touches_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "outreach_touches_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_contact_coverage"
+            referencedColumns: ["outreach_target_id"]
           },
           {
             foreignKeyName: "outreach_touches_outreach_target_id_fkey"
@@ -4496,6 +4817,13 @@ export type Database = {
             referencedColumns: ["tender_record_id"]
           },
           {
+            foreignKeyName: "procurement_contract_cycles_source_tender_id_fkey"
+            columns: ["source_tender_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
             foreignKeyName: "procurement_contract_cycles_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
@@ -4680,6 +5008,13 @@ export type Database = {
             referencedColumns: ["tender_record_id"]
           },
           {
+            foreignKeyName: "procurement_future_opportunities_linked_tender_id_fkey"
+            columns: ["linked_tender_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
             foreignKeyName: "procurement_future_opportunities_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
@@ -4694,11 +5029,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "procurement_future_opportunities_pursuit_contact_id_fkey"
+            columns: ["pursuit_contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "procurement_future_opportunities_target_id_fkey"
             columns: ["target_id"]
             isOneToOne: false
             referencedRelation: "outreach_targets"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_future_opportunities_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "procurement_future_opportunities_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_contact_coverage"
+            referencedColumns: ["outreach_target_id"]
           },
           {
             foreignKeyName: "procurement_future_opportunities_target_id_fkey"
@@ -4725,8 +5081,14 @@ export type Database = {
       }
       procurement_opportunities: {
         Row: {
+          auto_next_action: string | null
+          auto_next_action_due_at: string | null
+          bid_recommendation: string | null
+          bid_score: number | null
+          bid_score_breakdown: Json
           buyer_key: string | null
           buyer_name: string | null
+          canonical_key: string | null
           category: string | null
           classification_status: string
           closing_at: string | null
@@ -4736,13 +5098,16 @@ export type Database = {
           estimated_value: number | null
           external_id: string
           first_seen_at: string
+          hard_blocker_count: number
           id: string
+          last_decision_at: string | null
           last_seen_at: string
           matched_organization_id: string | null
           matched_target_id: string | null
           opportunity_type: string
           promoted_tender_record_id: string | null
           published_at: string | null
+          qualification_gap_count: number
           raw_payload: Json | null
           region: string | null
           relevance_score: number | null
@@ -4750,13 +5115,20 @@ export type Database = {
           service_fit: string[]
           source_key: string
           source_url: string
+          submission_gap_count: number
           title: string
           updated_at: string
           workspace_id: string
         }
         Insert: {
+          auto_next_action?: string | null
+          auto_next_action_due_at?: string | null
+          bid_recommendation?: string | null
+          bid_score?: number | null
+          bid_score_breakdown?: Json
           buyer_key?: string | null
           buyer_name?: string | null
+          canonical_key?: string | null
           category?: string | null
           classification_status?: string
           closing_at?: string | null
@@ -4766,13 +5138,16 @@ export type Database = {
           estimated_value?: number | null
           external_id: string
           first_seen_at?: string
+          hard_blocker_count?: number
           id?: string
+          last_decision_at?: string | null
           last_seen_at?: string
           matched_organization_id?: string | null
           matched_target_id?: string | null
           opportunity_type?: string
           promoted_tender_record_id?: string | null
           published_at?: string | null
+          qualification_gap_count?: number
           raw_payload?: Json | null
           region?: string | null
           relevance_score?: number | null
@@ -4780,13 +5155,20 @@ export type Database = {
           service_fit?: string[]
           source_key: string
           source_url: string
+          submission_gap_count?: number
           title: string
           updated_at?: string
           workspace_id: string
         }
         Update: {
+          auto_next_action?: string | null
+          auto_next_action_due_at?: string | null
+          bid_recommendation?: string | null
+          bid_score?: number | null
+          bid_score_breakdown?: Json
           buyer_key?: string | null
           buyer_name?: string | null
+          canonical_key?: string | null
           category?: string | null
           classification_status?: string
           closing_at?: string | null
@@ -4796,13 +5178,16 @@ export type Database = {
           estimated_value?: number | null
           external_id?: string
           first_seen_at?: string
+          hard_blocker_count?: number
           id?: string
+          last_decision_at?: string | null
           last_seen_at?: string
           matched_organization_id?: string | null
           matched_target_id?: string | null
           opportunity_type?: string
           promoted_tender_record_id?: string | null
           published_at?: string | null
+          qualification_gap_count?: number
           raw_payload?: Json | null
           region?: string | null
           relevance_score?: number | null
@@ -4810,6 +5195,7 @@ export type Database = {
           service_fit?: string[]
           source_key?: string
           source_url?: string
+          submission_gap_count?: number
           title?: string
           updated_at?: string
           workspace_id?: string
@@ -4828,6 +5214,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "outreach_targets"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_opportunities_matched_target_id_fkey"
+            columns: ["matched_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "procurement_opportunities_matched_target_id_fkey"
+            columns: ["matched_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_contact_coverage"
+            referencedColumns: ["outreach_target_id"]
           },
           {
             foreignKeyName: "procurement_opportunities_matched_target_id_fkey"
@@ -4858,7 +5258,87 @@ export type Database = {
             referencedColumns: ["tender_record_id"]
           },
           {
+            foreignKeyName: "procurement_opportunities_promoted_tender_record_id_fkey"
+            columns: ["promoted_tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
             foreignKeyName: "procurement_opportunities_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      procurement_source_coverage_map: {
+        Row: {
+          coverage_method: string
+          created_at: string
+          executor_source_key: string
+          notes: string | null
+          source_key: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          coverage_method?: string
+          created_at?: string
+          executor_source_key: string
+          notes?: string | null
+          source_key: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          coverage_method?: string
+          created_at?: string
+          executor_source_key?: string
+          notes?: string | null
+          source_key?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_source_coverage_map_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      procurement_source_registration_map: {
+        Row: {
+          created_at: string
+          platform_name: string
+          registration_source_key: string
+          source_key: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          platform_name: string
+          registration_source_key: string
+          source_key: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          platform_name?: string
+          registration_source_key?: string
+          source_key?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_source_registration_map_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -5005,6 +5485,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["contact_id"]
           },
           {
             foreignKeyName: "property_contacts_property_id_fkey"
@@ -5349,6 +5836,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "referral_events_referred_by_contact_id_fkey"
+            columns: ["referred_by_contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "referral_events_referred_by_organization_id_fkey"
             columns: ["referred_by_organization_id"]
             isOneToOne: false
@@ -5589,6 +6083,162 @@ export type Database = {
           },
         ]
       }
+      supplier_document_vault: {
+        Row: {
+          created_at: string
+          document_type: string
+          evidence_url: string | null
+          expires_on: string | null
+          id: string
+          issued_on: string | null
+          issuer: string | null
+          last_verified_at: string | null
+          notes: string | null
+          owner_user_id: string | null
+          reference_number: string | null
+          status: string
+          storage_path: string | null
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          evidence_url?: string | null
+          expires_on?: string | null
+          id?: string
+          issued_on?: string | null
+          issuer?: string | null
+          last_verified_at?: string | null
+          notes?: string | null
+          owner_user_id?: string | null
+          reference_number?: string | null
+          status?: string
+          storage_path?: string | null
+          title: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          evidence_url?: string | null
+          expires_on?: string | null
+          id?: string
+          issued_on?: string | null
+          issuer?: string | null
+          last_verified_at?: string | null
+          notes?: string | null
+          owner_user_id?: string | null
+          reference_number?: string | null
+          status?: string
+          storage_path?: string | null
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_document_vault_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_registration_steps: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          description: string | null
+          evidence_required: boolean
+          evidence_url: string | null
+          id: string
+          notes: string | null
+          phase: string
+          required_for_award: boolean
+          required_for_bid: boolean
+          sensitive: boolean
+          sort_order: number
+          source_url: string | null
+          status: string
+          step_key: string
+          supplier_registration_id: string
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          description?: string | null
+          evidence_required?: boolean
+          evidence_url?: string | null
+          id?: string
+          notes?: string | null
+          phase: string
+          required_for_award?: boolean
+          required_for_bid?: boolean
+          sensitive?: boolean
+          sort_order?: number
+          source_url?: string | null
+          status?: string
+          step_key: string
+          supplier_registration_id: string
+          title: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          description?: string | null
+          evidence_required?: boolean
+          evidence_url?: string | null
+          id?: string
+          notes?: string | null
+          phase?: string
+          required_for_award?: boolean
+          required_for_bid?: boolean
+          sensitive?: boolean
+          sort_order?: number
+          source_url?: string | null
+          status?: string
+          step_key?: string
+          supplier_registration_id?: string
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_registration_steps_supplier_registration_id_fkey"
+            columns: ["supplier_registration_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_registrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_registration_steps_supplier_registration_id_fkey"
+            columns: ["supplier_registration_id"]
+            isOneToOne: false
+            referencedRelation: "v_supplier_registration_readiness"
+            referencedColumns: ["supplier_registration_id"]
+          },
+          {
+            foreignKeyName: "supplier_registration_steps_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_registrations: {
         Row: {
           account_reference: string | null
@@ -5796,6 +6446,20 @@ export type Database = {
             foreignKeyName: "target_opportunity_signals_target_id_fkey"
             columns: ["target_id"]
             isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "target_opportunity_signals_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_contact_coverage"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "target_opportunity_signals_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
             referencedRelation: "v_outreach_execution_queue"
             referencedColumns: ["id"]
           },
@@ -5933,6 +6597,20 @@ export type Database = {
             foreignKeyName: "tasks_outreach_target_id_fkey"
             columns: ["outreach_target_id"]
             isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "tasks_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_contact_coverage"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "tasks_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
             referencedRelation: "v_outreach_execution_queue"
             referencedColumns: ["id"]
           },
@@ -5980,6 +6658,501 @@ export type Database = {
           },
           {
             foreignKeyName: "tasks_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_amendments: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          amendment_number: number
+          change_summary: string | null
+          changed_fields: Json
+          created_at: string
+          effective_at: string | null
+          fingerprint: string | null
+          id: string
+          observed_at: string
+          source_url: string | null
+          tender_record_id: string
+          title: string
+          workspace_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          amendment_number?: number
+          change_summary?: string | null
+          changed_fields?: Json
+          created_at?: string
+          effective_at?: string | null
+          fingerprint?: string | null
+          id?: string
+          observed_at?: string
+          source_url?: string | null
+          tender_record_id: string
+          title: string
+          workspace_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          amendment_number?: number
+          change_summary?: string | null
+          changed_fields?: Json
+          created_at?: string
+          effective_at?: string | null
+          fingerprint?: string | null
+          id?: string
+          observed_at?: string
+          source_url?: string | null
+          tender_record_id?: string
+          title?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_amendments_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_amendments_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_procurement_intelligence"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_amendments_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_amendments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_approvals: {
+        Row: {
+          approval_type: string
+          approved_at: string
+          approved_by: string | null
+          created_at: string
+          id: string
+          note: string | null
+          status: string
+          tender_record_id: string
+          workspace_id: string
+        }
+        Insert: {
+          approval_type: string
+          approved_at?: string
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          note?: string | null
+          status?: string
+          tender_record_id: string
+          workspace_id: string
+        }
+        Update: {
+          approval_type?: string
+          approved_at?: string
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          note?: string | null
+          status?: string
+          tender_record_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_approvals_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_approvals_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_procurement_intelligence"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_approvals_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_approvals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_bid_packs: {
+        Row: {
+          approved_at: string | null
+          created_at: string
+          generated_at: string
+          generated_by: string | null
+          id: string
+          manifest: Json
+          status: string
+          submitted_at: string | null
+          tender_record_id: string
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          created_at?: string
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          manifest?: Json
+          status?: string
+          submitted_at?: string | null
+          tender_record_id: string
+          version: number
+          workspace_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          created_at?: string
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          manifest?: Json
+          status?: string
+          submitted_at?: string | null
+          tender_record_id?: string
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_bid_packs_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_bid_packs_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_procurement_intelligence"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_bid_packs_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_bid_packs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_callups: {
+        Row: {
+          callup_number: string
+          created_at: string
+          delivered_at: string | null
+          direct_cost: number
+          due_at: string | null
+          gross_profit: number | null
+          id: string
+          invoice_number: string | null
+          invoice_sent_at: string | null
+          issued_at: string | null
+          notes: string | null
+          paid_at: string | null
+          revenue: number
+          status: string
+          tender_record_id: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          callup_number: string
+          created_at?: string
+          delivered_at?: string | null
+          direct_cost?: number
+          due_at?: string | null
+          gross_profit?: number | null
+          id?: string
+          invoice_number?: string | null
+          invoice_sent_at?: string | null
+          issued_at?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          revenue?: number
+          status?: string
+          tender_record_id: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          callup_number?: string
+          created_at?: string
+          delivered_at?: string | null
+          direct_cost?: number
+          due_at?: string | null
+          gross_profit?: number | null
+          id?: string
+          invoice_number?: string | null
+          invoice_sent_at?: string | null
+          issued_at?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          revenue?: number
+          status?: string
+          tender_record_id?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_callups_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_callups_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_procurement_intelligence"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_callups_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_callups_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_clarifications: {
+        Row: {
+          answered_at: string | null
+          blocking: boolean
+          created_at: string
+          due_at: string | null
+          id: string
+          owner_user_id: string | null
+          question: string
+          response_text: string | null
+          sent_at: string | null
+          source_url: string | null
+          status: string
+          tender_record_id: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          answered_at?: string | null
+          blocking?: boolean
+          created_at?: string
+          due_at?: string | null
+          id?: string
+          owner_user_id?: string | null
+          question: string
+          response_text?: string | null
+          sent_at?: string | null
+          source_url?: string | null
+          status?: string
+          tender_record_id: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          answered_at?: string | null
+          blocking?: boolean
+          created_at?: string
+          due_at?: string | null
+          id?: string
+          owner_user_id?: string | null
+          question?: string
+          response_text?: string | null
+          sent_at?: string | null
+          source_url?: string | null
+          status?: string
+          tender_record_id?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_clarifications_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_clarifications_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_procurement_intelligence"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_clarifications_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_clarifications_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_cost_models: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          assumptions: string | null
+          cost_expected: number
+          cost_high: number | null
+          cost_low: number | null
+          created_at: string
+          currency: string
+          id: string
+          max_competitive_price: number | null
+          minimum_margin: number
+          payment_lag_days: number | null
+          price_floor: number | null
+          scenario_name: string
+          status: string
+          target_margin: number
+          target_price: number | null
+          tender_record_id: string
+          updated_at: string
+          volume_expected: number | null
+          volume_high: number | null
+          volume_low: number | null
+          working_capital_required: number | null
+          workspace_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          assumptions?: string | null
+          cost_expected?: number
+          cost_high?: number | null
+          cost_low?: number | null
+          created_at?: string
+          currency?: string
+          id?: string
+          max_competitive_price?: number | null
+          minimum_margin?: number
+          payment_lag_days?: number | null
+          price_floor?: number | null
+          scenario_name?: string
+          status?: string
+          target_margin?: number
+          target_price?: number | null
+          tender_record_id: string
+          updated_at?: string
+          volume_expected?: number | null
+          volume_high?: number | null
+          volume_low?: number | null
+          working_capital_required?: number | null
+          workspace_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          assumptions?: string | null
+          cost_expected?: number
+          cost_high?: number | null
+          cost_low?: number | null
+          created_at?: string
+          currency?: string
+          id?: string
+          max_competitive_price?: number | null
+          minimum_margin?: number
+          payment_lag_days?: number | null
+          price_floor?: number | null
+          scenario_name?: string
+          status?: string
+          target_margin?: number
+          target_price?: number | null
+          tender_record_id?: string
+          updated_at?: string
+          volume_expected?: number | null
+          volume_high?: number | null
+          volume_low?: number | null
+          working_capital_required?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_cost_models_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_cost_models_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_procurement_intelligence"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_cost_models_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_cost_models_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -6043,7 +7216,100 @@ export type Database = {
             referencedColumns: ["tender_record_id"]
           },
           {
+            foreignKeyName: "tender_deadlines_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
             foreignKeyName: "tender_deadlines_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_debriefs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          gaps: string | null
+          id: string
+          lessons_learned: string | null
+          next_rebid_date: string | null
+          received_at: string | null
+          requested_at: string | null
+          result_summary: string | null
+          source_url: string | null
+          strengths: string | null
+          tender_record_id: string
+          updated_at: string
+          winning_supplier: string | null
+          winning_value: number | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          gaps?: string | null
+          id?: string
+          lessons_learned?: string | null
+          next_rebid_date?: string | null
+          received_at?: string | null
+          requested_at?: string | null
+          result_summary?: string | null
+          source_url?: string | null
+          strengths?: string | null
+          tender_record_id: string
+          updated_at?: string
+          winning_supplier?: string | null
+          winning_value?: number | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          gaps?: string | null
+          id?: string
+          lessons_learned?: string | null
+          next_rebid_date?: string | null
+          received_at?: string | null
+          requested_at?: string | null
+          result_summary?: string | null
+          source_url?: string | null
+          strengths?: string | null
+          tender_record_id?: string
+          updated_at?: string
+          winning_supplier?: string | null
+          winning_value?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_debriefs_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: true
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_debriefs_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: true
+            referencedRelation: "v_procurement_intelligence"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_debriefs_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: true
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_debriefs_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -6119,7 +7385,271 @@ export type Database = {
             referencedColumns: ["tender_record_id"]
           },
           {
+            foreignKeyName: "tender_documents_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
             foreignKeyName: "tender_documents_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_line_items: {
+        Row: {
+          created_at: string
+          description: string
+          extended_price: number | null
+          id: string
+          item_number: string
+          mandatory: boolean
+          portal_snapshot_id: string | null
+          quantity: number | null
+          response_value: string | null
+          source_reference: string | null
+          specification: string | null
+          status: string
+          tender_record_id: string
+          unit: string | null
+          unit_price: number | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          extended_price?: number | null
+          id?: string
+          item_number: string
+          mandatory?: boolean
+          portal_snapshot_id?: string | null
+          quantity?: number | null
+          response_value?: string | null
+          source_reference?: string | null
+          specification?: string | null
+          status?: string
+          tender_record_id: string
+          unit?: string | null
+          unit_price?: number | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          extended_price?: number | null
+          id?: string
+          item_number?: string
+          mandatory?: boolean
+          portal_snapshot_id?: string | null
+          quantity?: number | null
+          response_value?: string | null
+          source_reference?: string | null
+          specification?: string | null
+          status?: string
+          tender_record_id?: string
+          unit?: string | null
+          unit_price?: number | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_line_items_portal_snapshot_id_fkey"
+            columns: ["portal_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "tender_portal_snapshots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_line_items_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_line_items_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_procurement_intelligence"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_line_items_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_line_items_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_portal_snapshots: {
+        Row: {
+          capture_method: string
+          captured_at: string
+          captured_by: string | null
+          content_hash: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          portal_name: string
+          raw_payload: Json
+          response_deadline_at: string | null
+          response_status: string | null
+          source_url: string | null
+          tender_record_id: string
+          workspace_id: string
+        }
+        Insert: {
+          capture_method?: string
+          captured_at?: string
+          captured_by?: string | null
+          content_hash?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          portal_name: string
+          raw_payload?: Json
+          response_deadline_at?: string | null
+          response_status?: string | null
+          source_url?: string | null
+          tender_record_id: string
+          workspace_id: string
+        }
+        Update: {
+          capture_method?: string
+          captured_at?: string
+          captured_by?: string | null
+          content_hash?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          portal_name?: string
+          raw_payload?: Json
+          response_deadline_at?: string | null
+          response_status?: string | null
+          source_url?: string | null
+          tender_record_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_portal_snapshots_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_portal_snapshots_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_procurement_intelligence"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_portal_snapshots_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_portal_snapshots_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_price_years: {
+        Row: {
+          bid_price: number
+          cost_model_id: string
+          created_at: string
+          escalation_rate: number
+          id: string
+          notes: string | null
+          projected_cost: number
+          projected_margin: number | null
+          tender_record_id: string
+          updated_at: string
+          workspace_id: string
+          year_number: number
+        }
+        Insert: {
+          bid_price?: number
+          cost_model_id: string
+          created_at?: string
+          escalation_rate?: number
+          id?: string
+          notes?: string | null
+          projected_cost?: number
+          projected_margin?: number | null
+          tender_record_id: string
+          updated_at?: string
+          workspace_id: string
+          year_number: number
+        }
+        Update: {
+          bid_price?: number
+          cost_model_id?: string
+          created_at?: string
+          escalation_rate?: number
+          id?: string
+          notes?: string | null
+          projected_cost?: number
+          projected_margin?: number | null
+          tender_record_id?: string
+          updated_at?: string
+          workspace_id?: string
+          year_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_price_years_cost_model_id_fkey"
+            columns: ["cost_model_id"]
+            isOneToOne: false
+            referencedRelation: "tender_cost_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_price_years_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_price_years_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_procurement_intelligence"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_price_years_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_price_years_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -6198,6 +7728,13 @@ export type Database = {
             columns: ["tender_record_id"]
             isOneToOne: false
             referencedRelation: "v_procurement_intelligence"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_properties_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
             referencedColumns: ["tender_record_id"]
           },
           {
@@ -6283,6 +7820,13 @@ export type Database = {
             referencedColumns: ["tender_record_id"]
           },
           {
+            foreignKeyName: "tender_pursuit_intelligence_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: true
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
             foreignKeyName: "tender_pursuit_intelligence_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
@@ -6295,15 +7839,21 @@ export type Database = {
         Row: {
           action_state: string
           addenda_count: number
+          award_date: string | null
+          award_supplier_name: string | null
+          award_value: number | null
           bid_decision_at: string | null
           bid_decision_by: string | null
           buyer_name: string | null
           category: string | null
           closing_date: string | null
+          commercial_model_required: boolean
           contract_end_date: string | null
           contract_start_date: string | null
           created_at: string
           currency: string
+          debrief_notes: string | null
+          debrief_requested_at: string | null
           estimate_id: string | null
           estimated_value: number | null
           expected_rebid_date: string | null
@@ -6346,15 +7896,21 @@ export type Database = {
         Insert: {
           action_state?: string
           addenda_count?: number
+          award_date?: string | null
+          award_supplier_name?: string | null
+          award_value?: number | null
           bid_decision_at?: string | null
           bid_decision_by?: string | null
           buyer_name?: string | null
           category?: string | null
           closing_date?: string | null
+          commercial_model_required?: boolean
           contract_end_date?: string | null
           contract_start_date?: string | null
           created_at?: string
           currency?: string
+          debrief_notes?: string | null
+          debrief_requested_at?: string | null
           estimate_id?: string | null
           estimated_value?: number | null
           expected_rebid_date?: string | null
@@ -6397,15 +7953,21 @@ export type Database = {
         Update: {
           action_state?: string
           addenda_count?: number
+          award_date?: string | null
+          award_supplier_name?: string | null
+          award_value?: number | null
           bid_decision_at?: string | null
           bid_decision_by?: string | null
           buyer_name?: string | null
           category?: string | null
           closing_date?: string | null
+          commercial_model_required?: boolean
           contract_end_date?: string | null
           contract_start_date?: string | null
           created_at?: string
           currency?: string
+          debrief_notes?: string | null
+          debrief_requested_at?: string | null
           estimate_id?: string | null
           estimated_value?: number | null
           expected_rebid_date?: string | null
@@ -6495,12 +8057,14 @@ export type Database = {
           created_at: string
           description: string | null
           due_at: string | null
+          evidence_required: boolean
           evidence_url: string | null
           id: string
           mandatory: boolean
           notes: string | null
           owner_user_id: string | null
           requirement_type: string
+          source_reference: string | null
           status: string
           tender_record_id: string
           title: string
@@ -6511,12 +8075,14 @@ export type Database = {
           created_at?: string
           description?: string | null
           due_at?: string | null
+          evidence_required?: boolean
           evidence_url?: string | null
           id?: string
           mandatory?: boolean
           notes?: string | null
           owner_user_id?: string | null
           requirement_type?: string
+          source_reference?: string | null
           status?: string
           tender_record_id: string
           title: string
@@ -6527,12 +8093,14 @@ export type Database = {
           created_at?: string
           description?: string | null
           due_at?: string | null
+          evidence_required?: boolean
           evidence_url?: string | null
           id?: string
           mandatory?: boolean
           notes?: string | null
           owner_user_id?: string | null
           requirement_type?: string
+          source_reference?: string | null
           status?: string
           tender_record_id?: string
           title?: string
@@ -6555,7 +8123,88 @@ export type Database = {
             referencedColumns: ["tender_record_id"]
           },
           {
+            foreignKeyName: "tender_requirements_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
             foreignKeyName: "tender_requirements_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_risks: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          impact: number
+          mitigation: string | null
+          owner_user_id: string | null
+          probability: number
+          status: string
+          tender_record_id: string
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          impact?: number
+          mitigation?: string | null
+          owner_user_id?: string | null
+          probability?: number
+          status?: string
+          tender_record_id: string
+          title: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          impact?: number
+          mitigation?: string | null
+          owner_user_id?: string | null
+          probability?: number
+          status?: string
+          tender_record_id?: string
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_risks_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_risks_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_procurement_intelligence"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_risks_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_risks_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -6740,6 +8389,13 @@ export type Database = {
             referencedColumns: ["tender_record_id"]
           },
           {
+            foreignKeyName: "tender_stage_history_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
             foreignKeyName: "tender_stage_history_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
@@ -6813,7 +8469,238 @@ export type Database = {
             referencedColumns: ["tender_record_id"]
           },
           {
+            foreignKeyName: "tender_subtrade_opportunities_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
             foreignKeyName: "tender_subtrade_opportunities_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_supplier_quote_lines: {
+        Row: {
+          created_at: string
+          deposit_per_unit: number
+          description: string
+          freight_per_unit: number
+          id: string
+          item_code: string | null
+          notes: string | null
+          quantity: number
+          quote_id: string
+          tender_record_id: string
+          unit: string
+          unit_cost: number
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          deposit_per_unit?: number
+          description: string
+          freight_per_unit?: number
+          id?: string
+          item_code?: string | null
+          notes?: string | null
+          quantity?: number
+          quote_id: string
+          tender_record_id: string
+          unit?: string
+          unit_cost?: number
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          deposit_per_unit?: number
+          description?: string
+          freight_per_unit?: number
+          id?: string
+          item_code?: string | null
+          notes?: string | null
+          quantity?: number
+          quote_id?: string
+          tender_record_id?: string
+          unit?: string
+          unit_cost?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_supplier_quote_lines_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "tender_supplier_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_supplier_quote_lines_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_supplier_quote_lines_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_procurement_intelligence"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_supplier_quote_lines_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_supplier_quote_lines_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tender_supplier_quotes: {
+        Row: {
+          capacity_score: number | null
+          contingency_cost: number
+          created_at: string
+          currency: string
+          delivery_verified: boolean
+          deposits_cost: number
+          distance_km: number | null
+          emergency_delivery: boolean | null
+          emergency_score: number | null
+          evidence_url: string | null
+          financing_cost: number
+          freight_cost: number
+          handling_cost: number
+          id: string
+          landed_cost: number | null
+          lead_time: string | null
+          local_fulfillment_score: number | null
+          minimum_order: string | null
+          notes: string | null
+          product_cost: number
+          quote_reference: string | null
+          received_at: string | null
+          reliability_score: number | null
+          sent_at: string | null
+          service_region: string | null
+          status: string
+          supplier_contact_name: string | null
+          supplier_email: string | null
+          supplier_name: string
+          supplier_phone: string | null
+          tender_record_id: string
+          updated_at: string
+          valid_until: string | null
+          workspace_id: string
+        }
+        Insert: {
+          capacity_score?: number | null
+          contingency_cost?: number
+          created_at?: string
+          currency?: string
+          delivery_verified?: boolean
+          deposits_cost?: number
+          distance_km?: number | null
+          emergency_delivery?: boolean | null
+          emergency_score?: number | null
+          evidence_url?: string | null
+          financing_cost?: number
+          freight_cost?: number
+          handling_cost?: number
+          id?: string
+          landed_cost?: number | null
+          lead_time?: string | null
+          local_fulfillment_score?: number | null
+          minimum_order?: string | null
+          notes?: string | null
+          product_cost?: number
+          quote_reference?: string | null
+          received_at?: string | null
+          reliability_score?: number | null
+          sent_at?: string | null
+          service_region?: string | null
+          status?: string
+          supplier_contact_name?: string | null
+          supplier_email?: string | null
+          supplier_name: string
+          supplier_phone?: string | null
+          tender_record_id: string
+          updated_at?: string
+          valid_until?: string | null
+          workspace_id: string
+        }
+        Update: {
+          capacity_score?: number | null
+          contingency_cost?: number
+          created_at?: string
+          currency?: string
+          delivery_verified?: boolean
+          deposits_cost?: number
+          distance_km?: number | null
+          emergency_delivery?: boolean | null
+          emergency_score?: number | null
+          evidence_url?: string | null
+          financing_cost?: number
+          freight_cost?: number
+          handling_cost?: number
+          id?: string
+          landed_cost?: number | null
+          lead_time?: string | null
+          local_fulfillment_score?: number | null
+          minimum_order?: string | null
+          notes?: string | null
+          product_cost?: number
+          quote_reference?: string | null
+          received_at?: string | null
+          reliability_score?: number | null
+          sent_at?: string | null
+          service_region?: string | null
+          status?: string
+          supplier_contact_name?: string | null
+          supplier_email?: string | null
+          supplier_name?: string
+          supplier_phone?: string | null
+          tender_record_id?: string
+          updated_at?: string
+          valid_until?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_supplier_quotes_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tender_supplier_quotes_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_procurement_intelligence"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_supplier_quotes_tender_record_id_fkey"
+            columns: ["tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "tender_supplier_quotes_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -7764,6 +9651,84 @@ export type Database = {
           },
         ]
       }
+      v_contact_enrichment_queue: {
+        Row: {
+          candidate_email: string | null
+          candidate_name: string | null
+          candidate_phone: string | null
+          candidate_title: string | null
+          confidence: string | null
+          contact_count: number | null
+          contact_coverage_score: number | null
+          created_at: string | null
+          evidence_label: string | null
+          evidence_url: string | null
+          id: string | null
+          last_attempt_at: string | null
+          missing_role: string | null
+          organization_id: string | null
+          organization_name: string | null
+          outreach_target_id: string | null
+          priority_score: number | null
+          research_query: string | null
+          status: string | null
+          target_score: number | null
+          updated_at: string | null
+          verified_at: string | null
+          workspace_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_enrichment_tasks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_enrichment_tasks_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_enrichment_tasks_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "contact_enrichment_tasks_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_contact_coverage"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "contact_enrichment_tasks_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_execution_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_enrichment_tasks_outreach_target_id_fkey"
+            columns: ["outreach_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_target_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_enrichment_tasks_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_material_request_summary: {
         Row: {
           best_delivery_total: number | null
@@ -7840,6 +9805,64 @@ export type Database = {
         }
         Relationships: []
       }
+      v_outreach_buying_committee: {
+        Row: {
+          buying_role: string | null
+          contact_id: string | null
+          contact_name: string | null
+          contact_score: number | null
+          email: string | null
+          job_title: string | null
+          linkedin_url: string | null
+          organization_id: string | null
+          outreach_target_id: string | null
+          phone: string | null
+          source_confidence: string | null
+          source_label: string | null
+          source_url: string | null
+          source_verified_at: string | null
+          workspace_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_targets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_targets_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_outreach_contact_coverage: {
+        Row: {
+          best_contact_score: number | null
+          contact_count: number | null
+          contact_coverage_score: number | null
+          email_contact_count: number | null
+          has_decision_maker: boolean | null
+          has_operations: boolean | null
+          has_procurement: boolean | null
+          outreach_target_id: string | null
+          phone_contact_count: number | null
+          workspace_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_targets_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_outreach_execution_queue: {
         Row: {
           buildings_managed: number | null
@@ -7901,6 +9924,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_targets_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["contact_id"]
           },
           {
             foreignKeyName: "outreach_targets_converted_lead_id_fkey"
@@ -7979,6 +10009,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "outreach_targets_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "outreach_targets_converted_lead_id_fkey"
             columns: ["converted_lead_id"]
             isOneToOne: false
@@ -8049,6 +10086,123 @@ export type Database = {
           },
           {
             foreignKeyName: "procurement_buyers_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_procurement_inbox: {
+        Row: {
+          auto_next_action: string | null
+          auto_next_action_due_at: string | null
+          bid_recommendation: string | null
+          bid_score: number | null
+          bid_score_breakdown: Json | null
+          buyer_key: string | null
+          buyer_name: string | null
+          canonical_key: string | null
+          canonical_rank: number | null
+          category: string | null
+          classification_status: string | null
+          closing_at: string | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          duplicate_count: number | null
+          estimated_value: number | null
+          external_id: string | null
+          first_seen_at: string | null
+          hard_blocker_count: number | null
+          id: string | null
+          inbox_bucket: string | null
+          last_decision_at: string | null
+          last_seen_at: string | null
+          matched_organization_id: string | null
+          matched_target_id: string | null
+          opportunity_type: string | null
+          promoted_tender_record_id: string | null
+          published_at: string | null
+          qualification_gap_count: number | null
+          raw_payload: Json | null
+          region: string | null
+          relevance_score: number | null
+          score_breakdown: Json | null
+          service_fit: string[] | null
+          source_key: string | null
+          source_url: string | null
+          submission_gap_count: number | null
+          title: string | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "procurement_opportunities_matched_organization_id_fkey"
+            columns: ["matched_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_opportunities_matched_target_id_fkey"
+            columns: ["matched_target_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_opportunities_matched_target_id_fkey"
+            columns: ["matched_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "procurement_opportunities_matched_target_id_fkey"
+            columns: ["matched_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_contact_coverage"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "procurement_opportunities_matched_target_id_fkey"
+            columns: ["matched_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_execution_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_opportunities_matched_target_id_fkey"
+            columns: ["matched_target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_target_queue"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_opportunities_promoted_tender_record_id_fkey"
+            columns: ["promoted_tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "tender_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_opportunities_promoted_tender_record_id_fkey"
+            columns: ["promoted_tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_procurement_intelligence"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "procurement_opportunities_promoted_tender_record_id_fkey"
+            columns: ["promoted_tender_record_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
+            foreignKeyName: "procurement_opportunities_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -8146,11 +10300,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "procurement_future_opportunities_pursuit_contact_id_fkey"
+            columns: ["pursuit_contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["contact_id"]
+          },
+          {
             foreignKeyName: "procurement_future_opportunities_target_id_fkey"
             columns: ["target_id"]
             isOneToOne: false
             referencedRelation: "outreach_targets"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "procurement_future_opportunities_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_buying_committee"
+            referencedColumns: ["outreach_target_id"]
+          },
+          {
+            foreignKeyName: "procurement_future_opportunities_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "v_outreach_contact_coverage"
+            referencedColumns: ["outreach_target_id"]
           },
           {
             foreignKeyName: "procurement_future_opportunities_target_id_fkey"
@@ -8234,6 +10409,13 @@ export type Database = {
             referencedColumns: ["tender_record_id"]
           },
           {
+            foreignKeyName: "procurement_future_opportunities_linked_tender_id_fkey"
+            columns: ["linked_tender_id"]
+            isOneToOne: false
+            referencedRelation: "v_tender_bid_readiness"
+            referencedColumns: ["tender_record_id"]
+          },
+          {
             foreignKeyName: "procurement_future_opportunities_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
@@ -8242,6 +10424,35 @@ export type Database = {
           },
           {
             foreignKeyName: "procurement_future_opportunities_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_procurement_source_health: {
+        Row: {
+          adapter_status: string | null
+          buyer_scope: string | null
+          coverage_method: string | null
+          coverage_tier: string | null
+          display_name: string | null
+          executor_source_key: string | null
+          health_status: string | null
+          hours_since_success: number | null
+          ingestion_mode: string | null
+          last_error: string | null
+          last_run_at: string | null
+          last_success_at: string | null
+          last_verified_at: string | null
+          source_key: string | null
+          source_url: string | null
+          workspace_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_sources_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -8320,6 +10531,68 @@ export type Database = {
           },
           {
             foreignKeyName: "properties_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_supplier_registration_readiness: {
+        Row: {
+          account_reference: string | null
+          award_complete_count: number | null
+          award_gap_count: number | null
+          award_ready: boolean | null
+          award_required_count: number | null
+          bid_complete_count: number | null
+          bid_gap_count: number | null
+          bid_ready: boolean | null
+          bid_required_count: number | null
+          evidence_url: string | null
+          expires_on: string | null
+          next_open_sort: number | null
+          notes: string | null
+          registration_name: string | null
+          source_key: string | null
+          status: string | null
+          step_count: number | null
+          supplier_registration_id: string | null
+          workspace_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_registrations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_tender_bid_readiness: {
+        Row: {
+          accepted_supplier_quotes: number | null
+          bid_pack_ready: boolean | null
+          blocking_clarifications: number | null
+          commercial_approved: boolean | null
+          commercial_model_approved: boolean | null
+          compliance_approved: boolean | null
+          estimate_linked: boolean | null
+          evidence_gaps: number | null
+          final_approved: boolean | null
+          high_open_risks: number | null
+          line_item_gaps: number | null
+          mandatory_requirement_gaps: number | null
+          ready_to_submit: boolean | null
+          supplier_quotes_received: number | null
+          tender_record_id: string | null
+          unacknowledged_amendments: number | null
+          workspace_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tender_records_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -8472,12 +10745,28 @@ export type Database = {
         Args: { p_limit?: number; p_workspace_id: string }
         Returns: number
       }
+      procurement_canonical_key: {
+        Args: { p_buyer: string; p_closing: string; p_title: string }
+        Returns: string
+      }
+      promote_verified_contact_candidate: {
+        Args: { p_task_id: string }
+        Returns: string
+      }
+      refresh_contact_research_queue: {
+        Args: { p_workspace: string }
+        Returns: number
+      }
       refresh_outreach_target_score: {
         Args: { p_target_id: string }
         Returns: number
       }
       refresh_outreach_target_scores_for_list: {
         Args: { p_list_id: string }
+        Returns: number
+      }
+      refresh_procurement_sales_engine: {
+        Args: { p_workspace?: string }
         Returns: number
       }
       refresh_workspace_ops_snapshot: {
@@ -8504,6 +10793,10 @@ export type Database = {
         Args: { p_plan_id: string; p_request_id: string }
         Returns: undefined
       }
+      select_outreach_contact: {
+        Args: { p_target_id: string }
+        Returns: string
+      }
       storage_workspace_id: { Args: { object_name: string }; Returns: string }
       target_is_reachable: { Args: { p_target_id: string }; Returns: boolean }
       update_deck_estimate_draft: {
@@ -8514,6 +10807,10 @@ export type Database = {
           p_valid_until: string
         }
         Returns: undefined
+      }
+      verify_procurement_scout_cron_token: {
+        Args: { p_token: string }
+        Returns: boolean
       }
     }
     Enums: {
