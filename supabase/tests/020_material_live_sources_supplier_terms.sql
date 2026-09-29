@@ -5,6 +5,7 @@ declare
   w uuid;
   live_count int;
   view_cols int;
+  approval_def text;
 begin
   if not exists (
     select 1 from information_schema.columns
@@ -88,6 +89,21 @@ begin
       and not tgisinternal
   ) then
     raise exception 'material request input invalidation trigger missing';
+  end if;
+
+  select pg_get_functiondef(p.oid) into approval_def
+  from pg_proc p
+  join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='private'
+    and p.proname='select_material_price_plan'
+    and pg_get_function_identity_arguments(p.oid)='p_request_id uuid, p_plan_id uuid';
+
+  if approval_def is null
+     or position('material_price_observations' in approval_def)=0
+     or position('material_request_supplier_terms' in approval_def)=0
+     or position('Reprice this material request before approving a plan' in approval_def)=0
+     or position('America/Toronto' in approval_def)=0 then
+    raise exception 'material plan approval does not revalidate current price/delivery evidence';
   end if;
 
   if has_function_privilege('authenticated','private.invalidate_material_request_inputs()','EXECUTE')
