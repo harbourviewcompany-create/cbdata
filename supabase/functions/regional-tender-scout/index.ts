@@ -18,7 +18,7 @@ const FIT_RULES:FitRule[]=[
 {label:"electrical",weight:8,terms:["electrical contractor","electrical upgrade","lighting replacement","fire alarm replacement"]},
 {label:"construction",weight:10,terms:["construction","building addition","capital renewal","school renewal"]}
 ];
-const EXCLUSION_TERMS=["software maintenance","software management","document management software","logiciel","gestion documentaire","informatique","it maintenance","network maintenance","vehicle maintenance","fleet maintenance","aircraft maintenance","marine maintenance","medical equipment","laboratory equipment","training services","consulting services","engineering services only","architectural services only","survey services","office supplies","food services"];
+const EXCLUSION_TERMS=["software maintenance","software management","document management software","logiciel","gestion documentaire","informatique","it maintenance","network maintenance","vehicle maintenance","fleet maintenance","vehicle upfitting","vehicle modification","aircraft maintenance","marine maintenance","medical equipment","laboratory equipment","training services","consulting services","professional services","project delivery services","architecture and engineering","engineering services only","architectural services only","survey services","data subscription","database subscription","economic data","macroeconomic data","application program interface","application programming interface","analytics subscription","office supplies","food services"];
 const FACILITY_CONTEXT=["building","facility","facilities","property","school","housing","campus","hospital","roof","site","grounds","parking","washroom","mechanical","construction","renovation","maintenance"];
 
 const SOURCES=[
@@ -47,16 +47,16 @@ type Source=(typeof SOURCES)[number];
 type Candidate={externalId:string;title:string;buyer:string;category?:string|null;publishedDate?:string|null;closingDate?:string|null;url:string;region:string;detail?:string;raw?:unknown};
 
 function cleanHtml(v:string){return v.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;/gi,'"').replace(/&#39;/gi,"'").replace(/\s+/g," ").trim();}
-function norm(v:string){return v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();}
+function norm(v:string){return v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();}\nfunction containsPhrase(text:string,term:string){const n=" "+norm(text)+" ";const needle=" "+norm(term)+" ";return n.includes(needle);}
 function classifyFit(v:string){
  const n=norm(v);
- const matched=FIT_RULES.filter(r=>r.terms.some(t=>n.includes(norm(t))));
+ const matched=FIT_RULES.filter(r=>r.terms.some(t=>containsPhrase(v,t)));
  const services=Array.from(new Set(matched.map(r=>r.label)));
  const hasCore=matched.some(r=>r.core);
- const hasContext=FACILITY_CONTEXT.some(t=>n.includes(norm(t)));
- const excluded=EXCLUSION_TERMS.some(t=>n.includes(norm(t)));
+ const hasContext=FACILITY_CONTEXT.some(t=>containsPhrase(v,t));
+ const excluded=EXCLUSION_TERMS.some(t=>containsPhrase(v,t));
  let score=30+matched.reduce((sum,r)=>sum+r.weight,0)+(hasCore?12:0)+(hasContext?8:0);
- if(excluded&&!hasCore)score-=28;
+ if(excluded&&!hasCore)score-=35; else if(excluded&&hasCore)score-=18;
  score=Math.max(0,Math.min(98,score));
  const tier=score>=82?"core":score>=62?"strong_adjacent":score>=45?"adjacent":"skip";
  return {services,score,tier,excluded,hasCore};
