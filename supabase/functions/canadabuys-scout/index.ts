@@ -10,7 +10,7 @@ const SEARCH_TERMS = [
 "landscaping","grounds maintenance","snow removal","winter maintenance","janitorial services","cleaning services",
 "facility maintenance","building maintenance","property maintenance","roofing","roof replacement","hvac","mechanical contractor",
 "ventilation","sheet metal","ductwork","building envelope","renovation","general contractor","paving","asphalt","concrete",
-"fencing","site work","déneigement","entretien paysager","nettoyage","conciergerie","entretien bâtiment",
+"fencing","site work","structural steel","steel fabrication","metal fabrication","welding","miscellaneous metals","architectural metals","pre-engineered metal","metal roofing","roof flashing","soffit","fascia","coping","roof curb","mechanical insulation","duct insulation","fire damper","smoke damper","air balancing","standing offer","request for standing offer","source list","prequalification","contractor prequalification","vendor of record","déneigement","entretien paysager","nettoyage","conciergerie","entretien bâtiment",
 "CHEO","Children's Hospital of Eastern Ontario","The Ottawa Hospital","Royal Ottawa","Hôpital Montfort","Bruyère",
 "University of Ottawa","Carleton University","Algonquin College","La Cité","CECCE","CEPEO","Ottawa Community Housing","Hydro Ottawa"
 ];
@@ -35,6 +35,10 @@ const FIT_RULES:FitRule[]=[
 {label:"painting & finishes",weight:16,terms:["painting","flooring","carpet","tile replacement","millwork","carpentry","drywall"]},
 {label:"plumbing",weight:10,terms:["plumbing","plumber","domestic water","sanitary piping"]},
 {label:"electrical",weight:8,terms:["electrical contractor","electrical upgrade","lighting replacement","fire alarm replacement"]},
+{label:"metals & fabrication",weight:30,core:true,terms:["structural steel","steel fabrication","metal fabrication","welding","miscellaneous metals","architectural metals","pre-engineered metal","metal stairs","metal railing"]},
+{label:"roof sheet metal",weight:30,core:true,terms:["metal roofing","roof flashing","sheet metal flashing","soffit","fascia","coping","roof curb"]},
+{label:"mechanical accessories",weight:26,core:true,terms:["fire damper","smoke damper","volume damper","roof curb","exhaust hood","mechanical insulation","duct insulation","air balancing"]},
+{label:"standing offers & prequalification",weight:18,terms:["standing offer","request for standing offer","rfso","source list","prequalification","pre-qualification","contractor prequalification","vendor of record"]},
 {label:"construction",weight:10,terms:["construction","building addition","capital renewal","school renewal"]}
 ];
 const EXCLUSION_TERMS=["software maintenance","software management","document management software","logiciel","gestion documentaire","informatique","it maintenance","network maintenance","vehicle maintenance","fleet maintenance","vehicle upfitting","vehicle modification","aircraft maintenance","marine maintenance","medical equipment","laboratory equipment","training services","consulting services","professional services","project delivery services","architecture and engineering","engineering services only","architectural services only","survey services","data subscription","database subscription","economic data","macroeconomic data","application program interface","application programming interface","analytics subscription","office supplies","food services"];
@@ -366,8 +370,8 @@ Deno.serve(async(req)=>{
      last_decision_at:new Date().toISOString()
    }).eq("workspace_id",workspaceId).eq("source_key","canadabuys").lt("last_seen_at",run.started_at);
   }
-  const {error:decisionError}=await admin.rpc("refresh_procurement_sales_engine",{p_workspace:workspaceId});
-  if(decisionError) errorCount++;
+  const {data:routing,error:routingError}=await admin.rpc("route_procurement_pursuits",{p_workspace:workspaceId});
+  if(routingError) errorCount++;
   const finishedAt=new Date().toISOString();
   await admin.from("canadabuys_runs").update({finished_at:finishedAt,status:errorCount?"partial":"completed",fetched_count:fetchedCount,qualifying_count:qualifyingCount,inserted_count:insertedCount,updated_count:updatedCount,lead_created_count:leadCreatedCount,error_count:errorCount}).eq("id",run.id);
   await admin.from("tender_sources").update({
@@ -377,7 +381,7 @@ Deno.serve(async(req)=>{
     ingestion_mode:"live",
     updated_at:finishedAt
   }).eq("workspace_id",workspaceId).eq("source_key","canadabuys");
-  return Response.json({ok:errorCount===0,run_id:run.id,fetched_count:fetchedCount,qualifying_count:qualifyingCount,inserted_count:insertedCount,updated_count:updatedCount,lead_created_count:leadCreatedCount,error_count:errorCount});
+  return Response.json({ok:errorCount===0,run_id:run.id,fetched_count:fetchedCount,qualifying_count:qualifyingCount,inserted_count:insertedCount,updated_count:updatedCount,lead_created_count:leadCreatedCount,error_count:errorCount,routing:routing||null,routing_error:routingError?.message||null});
  }catch(error){
    const finishedAt=new Date().toISOString();
    const message=error instanceof Error?error.message:"unknown_error";
