@@ -82,6 +82,24 @@ async function invokePriceScout(
   return payload;
 }
 
+async function recalculateIfReady(
+  s: Awaited<ReturnType<typeof createClient>>,
+  workspaceId: string,
+  requestId: string,
+  refresh: boolean,
+) {
+  const { count, error } = await (s as any)
+    .from("material_request_items")
+    .select("id", { count: "exact", head: true })
+    .eq("workspace_id", workspaceId)
+    .eq("request_id", requestId);
+  if (error) throw new Error(error.message);
+  if ((count ?? 0) > 0) {
+    return invokePriceScout(s, workspaceId, requestId, refresh);
+  }
+  return null;
+}
+
 export async function createMaterialRequest(f: FormData) {
   const { ctx, s } = await context();
   const name = textValue(f, "name");
@@ -291,7 +309,7 @@ export async function saveMaterialSupplierTerms(f: FormData) {
     );
   if (error) throw new Error(error.message);
 
-  await invokePriceScout(s, ctx.workspaceId, requestId, false);
+  await recalculateIfReady(s, ctx.workspaceId, requestId, false);
   revalidatePath(`/materials/${requestId}`);
   revalidatePath("/materials");
   revalidatePath("/estimates");
@@ -325,7 +343,7 @@ export async function updateMaterialRequestSettings(f: FormData) {
     .eq("id", requestId);
   if (error) throw new Error(error.message);
 
-  await invokePriceScout(s, ctx.workspaceId, requestId, false);
+  await recalculateIfReady(s, ctx.workspaceId, requestId, false);
   revalidatePath(`/materials/${requestId}`);
   revalidatePath("/materials");
   revalidatePath("/estimates");
