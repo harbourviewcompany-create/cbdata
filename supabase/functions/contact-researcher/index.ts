@@ -6,9 +6,15 @@ const ROLE_TERMS:Record<string,string[]>={
  procurement:["procurement","purchasing","buyer","sourcing","contracts","supply chain"]
 };
 const PATHS=["","/team","/our-team","/about","/about-us","/leadership","/staff","/contact","/contact-us","/directory"];
+const DIRECTORY_SOURCES=[
+ {match:/city of ottawa/i,url:"https://ottawa.ca/en/business/procurement/contact-supply-services",label:"City of Ottawa Supply Services directory"},
+ {match:/public services and procurement canada|pspc|spac/i,url:"https://geds-sage.gc.ca/en/GEDS/?dn=T1U9TkNSTy1PUkNOLE9VPVJQU0ItREdTSSxPVT1QU1BDLVNQQUMsTz1HQyxDPUNB&pgid=014",label:"Government Electronic Directory Services (GEDS)"},
+ {match:/university of ottawa|uottawa/i,url:"https://www.uottawa.ca/about-us/administration-services",label:"University of Ottawa administration directory"}
+];
 function clean(s:string){return s.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/&nbsp;|&#160;/g," ").replace(/&amp;/g,"&").replace(/\s+/g," ").trim();}
 function absolute(base:string,path:string){try{return new URL(path,base).toString()}catch{return null}}
 function sameHost(a:string,b:string){try{return new URL(a).hostname.replace(/^www\./,"")===new URL(b).hostname.replace(/^www\./,"")}catch{return false}}
+function hrefs(html:string,base:string){const out:string[]=[]; for(const m of html.matchAll(/href=["']([^"'#]+)["']/gi)){try{const u=new URL(m[1],base); if(sameHost(base,u.toString())&&!out.includes(u.toString()))out.push(u.toString())}catch{}} return out;}
 const INVALID_NAME=/^(first name|last name|full name|your name|contact us|learn more|read more|property management|facility management|vice president|executive director|privacy policy|terms conditions)$/i;
 function candidateFromPage(html:string,url:string,role:string){
  const text=clean(html); const terms=ROLE_TERMS[role]||[]; const lower=text.toLowerCase();
@@ -43,23 +49,37 @@ Deno.serve(async(req)=>{
  if(error) return Response.json({error:error.message},{status:500});
  const results:any[]=[];
  for(const task of tasks||[]){
-  const site=(task as any).organizations?.website; if(!site){await admin.from("contact_enrichment_tasks").update({status:"not_found",attempt_count:task.attempt_count+1,last_error:"organization website missing",next_attempt_at:new Date(Date.now()+7*86400000).toISOString(),last_attempt_at:new Date().toISOString()}).eq("id",task.id);continue}
-  let found:any=null; let pages=0;
+  const org=(task as any).organizations||{}; const site=org.website; const orgName=String(org.operating_name||org.legal_name||"");
+  let found:any=null; let pages=0; let evidenceLabel="Official organization website";
   for(const path of PATHS){
    const page=absolute(site,path); if(!page||!sameHost(site,page)) continue;
    try{const res=await fetch(page,{headers:{"User-Agent":"CBDataContactResearch/1.0 (+business-contact-enrichment)","Accept":"text/html"},redirect:"follow",signal:AbortSignal.timeout(8000)});
     if(!res.ok||!(res.headers.get("content-type")||"").includes("text/html"))continue; pages++; const html=(await res.text()).slice(0,600000); found=candidateFromPage(html,res.url,task.missing_role); if(found)break;
    }catch{/* retry other official paths */}
   }
+  if(!found){
+   const sources=DIRECTORY_SOURCES.filter(s=>s.match.test(orgName));
+   for(const source of sources){
+    try{
+     const res=await fetch(source.url,{headers:{"User-Agent":"CBDataContactResearch/1.1 (+business-contact-enrichment)","Accept":"text/html"},redirect:"follow",signal:AbortSignal.timeout(8000)});
+     if(!res.ok)continue; pages++; const html=(await res.text()).slice(0,800000); found=candidateFromPage(html,res.url,task.missing_role);
+     if(!found && /geds-sage\.gc\.ca/i.test(res.url)){
+      const people=hrefs(html,res.url).filter(u=>/pgid=015/i.test(u)).slice(0,12);
+      for(const person of people){try{const pr=await fetch(person,{headers:{"User-Agent":"CBDataContactResearch/1.1 (+business-contact-enrichment)"},signal:AbortSignal.timeout(6000)}); if(!pr.ok)continue; pages++; found=candidateFromPage((await pr.text()).slice(0,300000),pr.url,task.missing_role); if(found)break}catch{}}
+     }
+     if(found){evidenceLabel=source.label;break}
+    }catch{}
+   }
+  }
   if(found){
    await admin.from("contact_enrichment_tasks").update({status:"found",candidate_name:found.name,candidate_title:found.title,candidate_email:found.email,candidate_phone:found.phone,
-    evidence_url:found.url,evidence_label:"Official organization website",confidence:"high",last_attempt_at:new Date().toISOString(),attempt_count:task.attempt_count+1,last_error:null,
-    researcher_metadata:{pages_checked:pages,evidence_snippet:found.snippet,method:"official_site_role_contact"}}).eq("id",task.id);
+    evidence_url:found.url,evidence_label:evidenceLabel,confidence:"high",last_attempt_at:new Date().toISOString(),attempt_count:task.attempt_count+1,last_error:null,
+    researcher_metadata:{pages_checked:pages,evidence_snippet:found.snippet,method:evidenceLabel==="Official organization website"?"official_site_role_contact":"authoritative_public_directory",source_type:evidenceLabel}}).eq("id",task.id);
    const {data:contactId,error:promoteError}=await admin.rpc("promote_verified_contact_candidate",{p_task_id:task.id});
    results.push({task_id:task.id,status:promoteError?"found":"verified",contact_id:contactId||null,error:promoteError?.message||null});
   }else{
    const attempts=task.attempt_count+1; await admin.from("contact_enrichment_tasks").update({status:attempts>=3?"not_found":"queued",attempt_count:attempts,last_attempt_at:new Date().toISOString(),
-    next_attempt_at:new Date(Date.now()+(attempts>=3?14:2)*86400000).toISOString(),last_error:"no high-confidence named contact on official pages",researcher_metadata:{pages_checked:pages,method:"official_site_role_contact"}}).eq("id",task.id);
+    next_attempt_at:new Date(Date.now()+(attempts>=3?14:2)*86400000).toISOString(),last_error:"no high-confidence named contact on official or authoritative directory pages",researcher_metadata:{pages_checked:pages,method:"official_plus_authoritative_directory"}}).eq("id",task.id);
    results.push({task_id:task.id,status:"not_found"});
   }
  }
