@@ -113,6 +113,16 @@ export async function classifyReply(formData: FormData) {
   refresh(targetId);
 }
 
+export async function generateAdaptiveFollowup(formData: FormData) {
+  const { s, workspaceId } = await client();
+  const targetId = String(formData.get("target_id") ?? "");
+  const channel = String(formData.get("channel") ?? "email");
+  await assertTargetInWorkspace(s, targetId, workspaceId);
+  const { error } = await s.rpc("generate_adaptive_followup" as never, { p_target_id: targetId, p_channel: channel } as never);
+  if (error) throw new Error(error.message);
+  refresh(targetId);
+}
+
 export async function enrollDefaultSequence(formData: FormData) {
   const { s, workspaceId } = await client();
   const targetId = String(formData.get("target_id") ?? "");
