@@ -99,6 +99,11 @@ begin
     raise exception 'private.capture_tender_amendment must be SECURITY INVOKER';
   end if;
 
+  if has_function_privilege('authenticated','private.capture_tender_amendment()','EXECUTE')
+     or has_function_privilege('anon','private.capture_tender_amendment()','EXECUTE') then
+    raise exception 'Tender amendment trigger function must not be directly executable by API roles';
+  end if;
+
   if not exists (
     select 1 from public.supplier_document_vault
     where document_type='insurance'
