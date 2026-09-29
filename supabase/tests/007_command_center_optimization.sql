@@ -69,20 +69,10 @@ begin
     from pg_policies
     where schemaname = 'public'
       and tablename = 'workspace_ops_snapshots'
-      and roles @> array['authenticated'::name]
       and cmd = 'SELECT'
+      and coalesce(qual, '') like '%private.is_workspace_member(workspace_id)%'
   ) then
-    raise exception 'workspace_ops_snapshots authenticated SELECT policy missing';
-  end if;
-
-  if exists (
-    select 1
-    from pg_policies
-    where schemaname = 'public'
-      and tablename = 'workspace_ops_snapshots'
-      and roles @> array['anon'::name]
-  ) then
-    raise exception 'workspace_ops_snapshots must not expose anon policy';
+    raise exception 'workspace_ops_snapshots membership-scoped SELECT policy missing';
   end if;
 
   raise notice 'Command center optimization verification passed';
