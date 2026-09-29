@@ -512,13 +512,15 @@ export async function addTenderSupplierQuote(formData: FormData) {
   const supplierName = String(formData.get("supplier_name") || "").trim();
   if (!tenderId || !supplierName) throw new Error("Tender and supplier are required");
   const validUntil = String(formData.get("valid_until") || "");
+  const status = String(formData.get("status") || "received");
+  if (!["invited","sent","received","shortlisted","accepted","rejected"].includes(status)) throw new Error("Invalid supplier quote status");
   const { error } = await (s as any).from("tender_supplier_quotes").insert({
     workspace_id: ctx.workspaceId,
     tender_record_id: tenderId,
     supplier_name: supplierName,
     supplier_contact_name: String(formData.get("supplier_contact_name") || "").trim() || null,
     supplier_email: String(formData.get("supplier_email") || "").trim() || null,
-    status: String(formData.get("status") || "received"),
+    status,
     product_cost: numberField(formData,"product_cost"),
     freight_cost: numberField(formData,"freight_cost"),
     deposits_cost: numberField(formData,"deposits_cost"),
@@ -653,12 +655,14 @@ export async function addSupplierVaultDocument(formData: FormData) {
   const documentType = String(formData.get("document_type") || "other").trim();
   if (!title) throw new Error("Document title is required");
   const expiresOn = String(formData.get("expires_on") || "");
+  const status = String(formData.get("status") || "active");
+  if (!["active","expiring","expired","draft"].includes(status)) throw new Error("Invalid vault document status");
   const { data: userData } = await s.auth.getUser();
   const { error } = await (s as any).from("supplier_document_vault").upsert({
     workspace_id: ctx.workspaceId,
     document_type: documentType,
     title,
-    status: String(formData.get("status") || "active"),
+    status,
     issuer: String(formData.get("issuer") || "").trim() || null,
     reference_number: String(formData.get("reference_number") || "").trim() || null,
     expires_on: expiresOn || null,
