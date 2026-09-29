@@ -149,5 +149,5 @@ revoke all on function private.invalidate_material_request_pricing_from_spec() f
 
 drop trigger if exists invalidate_material_pricing_from_deck_spec on public.deck_estimate_specs;
 create trigger invalidate_material_pricing_from_deck_spec
-after update on public.deck_estimate_specs
+after insert or update on public.deck_estimate_specs
 for each row execute function private.invalidate_material_request_pricing_from_spec();
