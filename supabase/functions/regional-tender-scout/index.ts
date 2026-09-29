@@ -97,9 +97,18 @@ async function parseGatineau(source:Source):Promise<Candidate[]>{
 Deno.serve(async(req)=>{
  if(req.method!=="POST")return new Response("method_not_allowed",{status:405});
  const supabaseUrl=Deno.env.get("SUPABASE_URL"),serviceRoleKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");if(!supabaseUrl||!serviceRoleKey)return Response.json({error:"not_configured"},{status:500});
- const token=(req.headers.get("authorization")||"").replace(/^Bearer\s+/,""),admin=createClient(supabaseUrl,serviceRoleKey);const {data:userData,error:userError}=await admin.auth.getUser(token);if(userError||!userData.user)return Response.json({error:"unauthorized"},{status:401});
- const body=await req.json().catch(()=>({})),requestedWorkspace=typeof body.workspace_id==="string"?body.workspace_id:null;const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id").eq("user_id",userData.user.id).eq("status","active");const membership=(memberships||[]).find((m:any)=>!requestedWorkspace||m.workspace_id===requestedWorkspace);if(!membership)return Response.json({error:"workspace_access_denied"},{status:403});
- const workspaceId=membership.workspace_id;
+ const token=(req.headers.get("authorization")||"").replace(/^Bearer\s+/,""),cronToken=req.headers.get("x-cbdata-cron-token")||"",admin=createClient(supabaseUrl,serviceRoleKey);
+ const body=await req.json().catch(()=>({})),requestedWorkspace=typeof body.workspace_id==="string"?body.workspace_id:null;
+ let workspaceId:string|null=null;
+ if(cronToken){
+  const {data:cronAllowed,error:cronError}=await admin.rpc("verify_procurement_scout_cron_token",{p_token:cronToken});if(cronError||cronAllowed!==true)return Response.json({error:"unauthorized_cron"},{status:401});
+  if(!requestedWorkspace)return Response.json({error:"workspace_required"},{status:400});
+  const {data:workspace}=await admin.from("workspaces").select("id").eq("id",requestedWorkspace).eq("status","active").maybeSingle();if(!workspace)return Response.json({error:"workspace_not_active"},{status:404});workspaceId=workspace.id;
+ }else{
+  const {data:userData,error:userError}=await admin.auth.getUser(token);if(userError||!userData.user)return Response.json({error:"unauthorized"},{status:401});
+  const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id").eq("user_id",userData.user.id).eq("status","active");const membership=(memberships||[]).find((m:any)=>!requestedWorkspace||m.workspace_id===requestedWorkspace);if(!membership)return Response.json({error:"workspace_access_denied"},{status:403});workspaceId=membership.workspace_id;
+ }
+ if(!workspaceId)return Response.json({error:"workspace_unresolved"},{status:400});
  await admin.from("tender_sources").upsert(
    SOURCES.map(source=>({workspace_id:workspaceId,source_key:source.key,display_name:source.name,source_url:source.url,ingestion_mode:"live",enabled:true,updated_at:new Date().toISOString()})),
    {onConflict:"workspace_id,source_key",ignoreDuplicates:true}
