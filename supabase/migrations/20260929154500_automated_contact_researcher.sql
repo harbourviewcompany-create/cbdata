@@ -38,7 +38,7 @@ begin
    insert into public.organization_contacts(workspace_id,organization_id,contact_id,relationship_type,is_primary)
    values(e.workspace_id,e.organization_id,v_contact,e.missing_role,false) on conflict do nothing;
  else
-   update public.contacts set job_title=coalesce(candidate_title,job_title),email=coalesce(candidate_email,email),phone=coalesce(candidate_phone,phone),
+   update public.contacts set job_title=coalesce(e.candidate_title,job_title),email=coalesce(e.candidate_email,email),phone=coalesce(e.candidate_phone,phone),
     source_url=e.evidence_url,source_label=e.evidence_label,source_confidence='high',source_verified_at=now(),updated_at=now()
    where id=v_contact;
  end if;
