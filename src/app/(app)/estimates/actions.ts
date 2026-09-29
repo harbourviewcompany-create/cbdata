@@ -118,6 +118,25 @@ export async function createDeckEstimate(f: FormData) {
   if (error) throw new Error(error.message);
   if (!id || typeof id !== "string") throw new Error("Estimate could not be created");
 
+  const { data: userData } = await s.auth.getUser();
+  const { error: specError } = await (s as any).from("deck_estimate_specs").insert({
+    workspace_id: ctx.workspaceId,
+    estimate_id: id,
+    width_ft: width,
+    depth_ft: depth,
+    stair_width_ft: stairWidth,
+    steps,
+    footings,
+    height_in: height,
+    include_guards: includeGuards,
+    site_reference: site,
+    landing: landing || null,
+    site_notes: notes || null,
+    joist_spacing_in: 16,
+    created_by: userData.user?.id ?? null,
+  });
+  if (specError) throw new Error(`Estimate created, but deck specification could not be saved: ${specError.message}`);
+
   revalidatePath("/estimates");
   redirect(`/estimates/${id}`);
 }
@@ -194,6 +213,24 @@ export async function updateDeckEstimate(f: FormData) {
   const propertyId = text(f, "property_id");
   await validateProperty(s, ctx.workspaceId, estimate.organization_id, propertyId);
 
+  const width = dimension(f, "width_ft", 4, 80);
+  const depth = dimension(f, "depth_ft", 4, 80);
+  const stairWidth = dimension(f, "stair_width_ft", 2, 16);
+  const steps = dimension(f, "steps", 0, 30);
+  const footings = dimension(f, "footings", 1, 40);
+  const height = text(f, "height_in") ? dimension(f, "height_in", 0, 180) : null;
+  const joistSpacing = dimension(f, "joist_spacing_in", 8, 24);
+  if (!Number.isInteger(steps) || !Number.isInteger(footings)) {
+    throw new Error("Steps and footings must be whole numbers");
+  }
+  const siteReference = text(f, "site_reference");
+  const landing = text(f, "landing");
+  const siteNotes = text(f, "site_notes");
+  const includeGuards = f.get("include_guards") === "on" || f.get("add_guards") === "on";
+  if (siteReference.length > 180 || landing.length > 80 || siteNotes.length > 600) {
+    throw new Error("Invalid site details");
+  }
+
   const validUntil = text(f, "valid_until");
   validateExpiry(validUntil);
   const count = Number(text(f, "count"));
@@ -229,8 +266,33 @@ export async function updateDeckEstimate(f: FormData) {
   } as never);
   if (error) throw new Error(error.message);
 
+  const { data: userData } = await s.auth.getUser();
+  const { error: specError } = await (s as any)
+    .from("deck_estimate_specs")
+    .upsert(
+      {
+        workspace_id: ctx.workspaceId,
+        estimate_id: id,
+        width_ft: width,
+        depth_ft: depth,
+        stair_width_ft: stairWidth,
+        steps,
+        footings,
+        height_in: height,
+        include_guards: includeGuards,
+        site_reference: siteReference || null,
+        landing: landing || null,
+        site_notes: siteNotes || null,
+        joist_spacing_in: joistSpacing,
+        created_by: userData.user?.id ?? null,
+      },
+      { onConflict: "workspace_id,estimate_id" },
+    );
+  if (specError) throw new Error(`Estimate revised, but deck specification could not be saved: ${specError.message}`);
+
   revalidatePath("/estimates");
   revalidatePath(`/estimates/${id}`);
+  revalidatePath("/materials");
   redirect(`/estimates/${id}`);
 }
 
