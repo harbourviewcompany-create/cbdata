@@ -42,7 +42,7 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
     {data:reqs},{data:deadlines},{data:docs},{data:history},{data:links},{data:estimate},
     {data:amendments},{data:clarifications},{data:quotes},{data:costModels},{data:risks},
     {data:approvals},{data:readiness},{data:vaultDocs},{data:awards},{data:callups},
-    {data:portalSnapshots},{data:lineItems},{data:priceYears},{data:debrief},
+    {data:portalSnapshots},{data:lineItems},{data:priceYears},{data:debrief},{data:bidPacks},
   ]=await Promise.all([
     (s as any).from("tender_requirements").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("mandatory",{ascending:false}).order("created_at"),
     (s as any).from("tender_deadlines").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("due_at"),
@@ -64,6 +64,7 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
     (s as any).from("tender_line_items").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("item_number"),
     (s as any).from("tender_price_years").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("year_number"),
     (s as any).from("tender_debriefs").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).maybeSingle(),
+    (s as any).from("tender_bid_packs").select("*").eq("workspace_id",ctx.workspaceId).eq("tender_record_id",id).order("version",{ascending:false}),
   ]);
 
   const mandatory=(reqs??[]).filter((r:any)=>r.mandatory);
@@ -241,6 +242,7 @@ export default async function TenderDetailPage({params}:{params:Promise<{id:stri
       lineItems={lineItems??[]}
       priceYears={priceYears??[]}
       debrief={debrief}
+      bidPacks={bidPacks??[]}
     />
 
     <section className="tender-detail-grid">
