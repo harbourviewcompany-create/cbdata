@@ -15,7 +15,7 @@ function clean(s:string){return s.replace(/<script[\s\S]*?<\/script>/gi," ").rep
 function absolute(base:string,path:string){try{return new URL(path,base).toString()}catch{return null}}
 function sameHost(a:string,b:string){try{return new URL(a).hostname.replace(/^www\./,"")===new URL(b).hostname.replace(/^www\./,"")}catch{return false}}
 function hrefs(html:string,base:string){const out:string[]=[]; for(const m of html.matchAll(/href=["']([^"'#]+)["']/gi)){try{const u=new URL(m[1],base); if(sameHost(base,u.toString())&&!out.includes(u.toString()))out.push(u.toString())}catch{}} return out;}
-const INVALID_NAME=/^(first name|last name|full name|your name|contact us|learn more|read more|property management|facility management|vice president|executive director|privacy policy|terms conditions)$/i;
+const INVALID_NAME=/^(first name|last name|full name|your name|contact us|learn more|read more|property management|facility management|vice president|executive director|privacy policy|terms conditions|stay connected|canada administrative|administrative assistant)$/i;
 function candidateFromPage(html:string,url:string,role:string){
  const text=clean(html); const terms=ROLE_TERMS[role]||[]; const lower=text.toLowerCase();
  for(const term of terms){
@@ -25,8 +25,10 @@ function candidateFromPage(html:string,url:string,role:string){
    const email=snippet.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]||null;
    const phone=snippet.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/)?.[0]||null;
    const names=[...snippet.matchAll(/\b([A-Z][a-zÀ-ÿ'’-]{1,30})\s+([A-Z][a-zÀ-ÿ'’-]{1,30})\b/g)]
-     .map(m=>m[0]).filter(n=>!INVALID_NAME.test(n.trim()) && !/^(First|Last|Full|Your|Contact|Learn|Read|Property|Facility|Privacy|Terms)\b/i.test(n));
-   const name=names.length?names[names.length-1]:null;
+      .map(m=>({name:m[0],index:m.index??0})).filter(x=>!INVALID_NAME.test(x.name.trim()) && !/^(First|Last|Full|Your|Contact|Learn|Read|Property|Facility|Privacy|Terms|Stay|Canada|Administrative)\b/i.test(x.name));
+   const roleAt=Math.max(0,at-Math.max(0,at-100));
+   names.sort((a,b)=>Math.abs(a.index-roleAt)-Math.abs(b.index-roleAt));
+   const name=names.length?names[0].name:null;
    if(name && email) return {name,title:term,email,phone,url,snippet:snippet.slice(0,320)};
    at=lower.indexOf(term,at+term.length);
   }
