@@ -74,6 +74,17 @@ begin
     raise exception 'generated material item uniqueness guard missing';
   end if;
 
+  if not exists (
+    select 1
+    from pg_trigger
+    where tgrelid='public.deck_estimate_specs'::regclass
+      and tgname='invalidate_material_pricing_from_deck_spec'
+      and not tgisinternal
+      and pg_get_triggerdef(oid) ilike '%AFTER INSERT OR UPDATE%'
+  ) then
+    raise exception 'Deck spec invalidation trigger must cover insert and update';
+  end if;
+
   if has_function_privilege('authenticated','private.guard_deck_estimate_spec()','EXECUTE')
      or has_function_privilege('anon','private.guard_deck_estimate_spec()','EXECUTE')
      or has_function_privilege('authenticated','private.invalidate_material_request_pricing_from_spec()','EXECUTE')
