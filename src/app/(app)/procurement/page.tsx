@@ -188,7 +188,7 @@ export default async function ProcurementPage(){
         <div className="targets-grid-row targets-grid-head"><div>Window</div><div>Opportunity</div><div>Buyer</div><div>Fit</div><div>Readiness</div><div>Pre-position action</div></div>
         {(futureRows??[]).map((x:any)=><div className="targets-grid-row" key={x.id}>
           <div><strong>{fmtDate(x.expected_publish_start)}</strong><span className="status-meta">to {fmtDate(x.expected_publish_end)}</span></div>
-          <div><strong>{x.title}</strong><span className="status-meta">{x.service_category} · {x.signal_type.replaceAll("_"," ")}</span></div>
+          <div><strong>{x.title}</strong><span className="status-meta">{x.service_category}{x.incumbent_name?` · incumbent ${x.incumbent_name}`:""}</span></div>
           <div>{x.buyer_name}</div>
           <div><span className="score-chip score-high">{x.fit_score}</span></div>
           <div><span className="pill">{x.pursuit_priority||x.confidence}</span><span className="status-meta">contact {x.contact_readiness_status||"unknown"} · vendor {x.vendor_readiness_status||"unknown"}</span><span className="status-meta">registration {x.supplier_registration_status||"unknown"} · {x.target_id?"target routed":"target pending"}</span>{x.registration_url&&x.vendor_readiness_status!=="ready"?<a href={x.registration_url} target="_blank" rel="noreferrer">Open registration</a>:null}<form action={updateFutureOpportunityStatus} className="inline-form"><input type="hidden" name="future_id" value={x.id}/><select name="status" defaultValue={x.status}>{["watch","research","pre_position","published","converted","closed"].map(v=><option key={v} value={v}>{v.replaceAll("_"," ")}</option>)}</select><button className="button" type="submit">Update</button></form></div>
