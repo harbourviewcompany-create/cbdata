@@ -42,7 +42,7 @@ export default async function ProcurementPage(){
   const [{data:intelligenceRows},{data:subtradeRows},{data:futureRows},{data:cycleRows}]=await Promise.all([
     (s as any).from("tender_pursuit_intelligence").select("tender_record_id,pursuit_mode,scope_fit,eligibility,commercial_attractiveness,geographic_fit,timing,competition,strategic_value,subtrade_potential,overall_score,rationale,next_best_action").eq("workspace_id",ctx.workspaceId),
     (s as any).from("tender_subtrade_opportunities").select("id,tender_record_id,trade,package_title,scope_summary,fit_score,pursuit_status,suggested_action,due_at,target_primes").eq("workspace_id",ctx.workspaceId).in("pursuit_status",["identified","researching_primes","outreach","pricing"]).order("fit_score",{ascending:false}).limit(100),
-    (s as any).from("procurement_future_opportunities").select("id,buyer_name,title,service_category,signal_type,expected_publish_start,expected_publish_end,fit_score,confidence,status,next_action,next_action_at,source_url,linked_tender_id").eq("workspace_id",ctx.workspaceId).in("status",["watch","research","pre_position"]).order("expected_publish_start",{ascending:true}).limit(100),
+    (s as any).from("procurement_future_opportunities").select("id,buyer_name,title,service_category,signal_type,expected_publish_start,expected_publish_end,fit_score,confidence,status,next_action,next_action_at,source_url,linked_tender_id,target_id,pursuit_priority,contact_readiness_status,vendor_readiness_status,pursuit_contact_id,routed_at").eq("workspace_id",ctx.workspaceId).in("status",["watch","research","pre_position"]).order("expected_publish_start",{ascending:true}).limit(100),
     (s as any).from("procurement_contract_cycles").select("id,buyer_name,service_category,incumbent_name,award_value,currency,contract_end_date,expected_rebid_date,confidence,status,evidence_url").eq("workspace_id",ctx.workspaceId).order("expected_rebid_date",{ascending:true}).limit(100),
   ]);
   const intelligenceByTender=new Map<string,any>((intelligenceRows??[]).map((x:any)=>[x.tender_record_id,x]));
@@ -185,13 +185,13 @@ export default async function ProcurementPage(){
     <section className="table-panel" style={{marginBottom:18}}>
       <div className="panel-head"><div><span className="eyebrow">FUTURE OPPORTUNITIES</span><h3>Contract cycles and predicted rebids</h3></div><span className="muted">{(futureRows??[]).length} pre-tender signals · {(cycleRows??[]).length} tracked cycles</span></div>
       <div className="table-wrap"><div className="targets-grid procurement-grid">
-        <div className="targets-grid-row targets-grid-head"><div>Window</div><div>Opportunity</div><div>Buyer</div><div>Fit</div><div>Confidence</div><div>Pre-position action</div></div>
+        <div className="targets-grid-row targets-grid-head"><div>Window</div><div>Opportunity</div><div>Buyer</div><div>Fit</div><div>Readiness</div><div>Pre-position action</div></div>
         {(futureRows??[]).map((x:any)=><div className="targets-grid-row" key={x.id}>
           <div><strong>{fmtDate(x.expected_publish_start)}</strong><span className="status-meta">to {fmtDate(x.expected_publish_end)}</span></div>
           <div><strong>{x.title}</strong><span className="status-meta">{x.service_category} · {x.signal_type.replaceAll("_"," ")}</span></div>
           <div>{x.buyer_name}</div>
           <div><span className="score-chip score-high">{x.fit_score}</span></div>
-          <div><span className="pill">{x.confidence}</span><form action={updateFutureOpportunityStatus} className="inline-form"><input type="hidden" name="future_id" value={x.id}/><select name="status" defaultValue={x.status}>{["watch","research","pre_position","published","converted","closed"].map(v=><option key={v} value={v}>{v.replaceAll("_"," ")}</option>)}</select><button className="button" type="submit">Update</button></form></div>
+          <div><span className="pill">{x.pursuit_priority||x.confidence}</span><span className="status-meta">contact {x.contact_readiness_status||"unknown"} · vendor {x.vendor_readiness_status||"unknown"}</span><span className="status-meta">{x.target_id?"target routed":"target pending"}</span><form action={updateFutureOpportunityStatus} className="inline-form"><input type="hidden" name="future_id" value={x.id}/><select name="status" defaultValue={x.status}>{["watch","research","pre_position","published","converted","closed"].map(v=><option key={v} value={v}>{v.replaceAll("_"," ")}</option>)}</select><button className="button" type="submit">Update</button></form></div>
           <div><strong>{x.next_action||"Research buyer and incumbent"}</strong>{x.next_action_at?<span className="status-meta">start {fmtDate(x.next_action_at)}</span>:null}</div>
         </div>)}
         {!(futureRows??[]).length?<div className="targets-grid-row"><div className="muted">Award and contract-cycle data will populate pre-tender opportunities here.</div></div>:null}
