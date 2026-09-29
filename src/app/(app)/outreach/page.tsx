@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { generateDraft, approveDraft, markSent, classifyReply, enrollDefaultSequence, runDueSequences } from "./actions";
+import { generateDraft, generateAdaptiveFollowup, approveDraft, markSent, classifyReply, enrollDefaultSequence, runDueSequences } from "./actions";
 
 type QueueRow = {
   id:string; organization_display_name:string|null; contact_display_name:string|null;
@@ -38,6 +38,7 @@ export default async function OutreachPage({
   else if(action) query=query.eq("recommended_action",action);
   const {data,error}=await query;
   const rows=(data ?? []) as QueueRow[];
+  const {data:commandRows}=await (s as any).rpc("get_daily_outreach_command_queue",{p_limit:20});
   const targetIds=rows.map(r=>r.id);
   const {data:coverageRows}=await (s as any).from("v_outreach_contact_coverage").select("*").in("outreach_target_id",targetIds.length?targetIds:["00000000-0000-0000-0000-000000000000"]);
   const {data:gapRows}=await (s as any).from("v_contact_enrichment_queue").select("*").order("priority_score",{ascending:false}).limit(50);
@@ -57,6 +58,19 @@ export default async function OutreachPage({
         Evidence-driven queue: who to contact, why now, what to send, and the next action after every touch.
       </p>
     </header>
+
+    <section className="panel" style={{marginBottom:18}}>
+      <div className="panel-head"><div><span className="eyebrow">TODAY</span><h3>Outreach Command Queue</h3></div><span className="muted">{commandRows?.length??0} highest-value actions</span></div>
+      <div style={{display:"grid",gap:8}}>
+        {(commandRows??[]).slice(0,10).map((r:any)=><div key={r.outreach_target_id} style={{display:"grid",gridTemplateColumns:"64px minmax(180px,1fr) 130px minmax(180px,1.2fr) auto",gap:12,alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--line)"}}>
+          <strong style={{fontSize:22}}>{r.command_score}</strong>
+          <div><Link href={`/targets/${r.outreach_target_id}` as Route}><strong>{r.organization_display_name}</strong></Link><div className="muted" style={{fontSize:11}}>{r.contact_display_name??"No named contact"} · {r.priority_reason}</div></div>
+          <span className="pill">{String(r.next_touch_type).replaceAll("_"," ")}</span>
+          <span className="muted" style={{fontSize:11}}>{r.why_now??"Account readiness"}</span>
+          {r.next_touch_type==="introduction"?<form action={generateDraft}><input type="hidden" name="target_id" value={r.outreach_target_id}/><input type="hidden" name="channel" value="email"/><input type="hidden" name="objective" value="introduction"/><button className="primary" type="submit">Draft</button></form>:<form action={generateAdaptiveFollowup}><input type="hidden" name="target_id" value={r.outreach_target_id}/><input type="hidden" name="channel" value="email"/><button className="primary" type="submit">Draft next touch</button></form>}
+        </div>)}
+      </div>
+    </section>
 
     <section className="metrics" style={{marginBottom:18}}>
       <div className="metric"><span>Ready ≥80</span><strong>{ready}</strong></div>
