@@ -17,7 +17,7 @@ const FIT_RULES:FitRule[]=[
 {label:"electrical",weight:8,terms:["electrical contractor","electrical upgrade","lighting replacement","fire alarm replacement"]},
 {label:"construction",weight:10,terms:["construction","building addition","capital renewal","school renewal"]}
 ];
-const EXCLUSION_TERMS=["software maintenance","it maintenance","network maintenance","vehicle maintenance","fleet maintenance","aircraft maintenance","marine maintenance","medical equipment","laboratory equipment","training services","consulting services","engineering services only","architectural services only","survey services","office supplies","food services"];
+const EXCLUSION_TERMS=["software maintenance","software management","document management software","logiciel","gestion documentaire","informatique","it maintenance","network maintenance","vehicle maintenance","fleet maintenance","aircraft maintenance","marine maintenance","medical equipment","laboratory equipment","training services","consulting services","engineering services only","architectural services only","survey services","office supplies","food services"];
 const FACILITY_CONTEXT=["building","facility","facilities","property","school","housing","campus","hospital","roof","site","grounds","parking","washroom","mechanical","construction","renovation","maintenance"];
 
 const SOURCES=[

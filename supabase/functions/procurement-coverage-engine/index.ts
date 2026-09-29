@@ -27,6 +27,9 @@ function opportunityType(v:string){
 function localGeo(v:string){const n=norm(v);return ["ottawa","gatineau","hull","outaouais","national capital","ncr","kanata","nepean","orleans","gloucester","stittsville"].some(x=>n.includes(norm(x)));}
 function scoreOpportunity(o:any,buyer:any){
   const text=[o.title,o.description,o.category,o.buyer_name,o.region].filter(Boolean).join(" ");
+  const n=norm(text);
+  const digitalOnly=["software","logiciel","gestion documentaire","informatique","information technology","network maintenance","fleet maintenance","vehicle maintenance"].some(x=>n.includes(norm(x)));
+  const directTrade=["sheet metal","ductwork","roof","snow","janitorial","cleaning","landscap","grounds","hvac","mechanical contractor","paving","concrete"].some(x=>n.includes(norm(x)));
   const fit=services(text);
   const geography=localGeo(text)||buyer?.region ? 20 : 0;
   const service=Math.min(30,fit.length*8);
@@ -35,8 +38,9 @@ function scoreOpportunity(o:any,buyer:any){
   const form=["standing_offer","prequalification","vendor_roster","rfq","tender"].includes(opportunityType(text))?10:0;
   const close=o.closing_at?new Date(o.closing_at).getTime():null;
   const deadline=close===null?5:(close>=Date.now()?10:0);
-  const total=Math.min(100,geography+service+buyerScore+recurring+form+deadline);
-  return {fit,total,breakdown:{geography,service,buyer:buyerScore,recurring,form,deadline},type:opportunityType(text)};
+  const exclusionPenalty=digitalOnly&&!directTrade?60:0;
+  const total=Math.max(0,Math.min(100,geography+service+buyerScore+recurring+form+deadline-exclusionPenalty));
+  return {fit,total,breakdown:{geography,service,buyer:buyerScore,recurring,form,deadline,exclusionPenalty},type:opportunityType(text)};
 }
 
 Deno.serve(async(req)=>{
@@ -49,6 +53,7 @@ Deno.serve(async(req)=>{
   if(userError||!userData.user) return Response.json({error:"unauthorized"},{status:401});
   const body=await req.json().catch(()=>({}));
   const requestedWorkspace=typeof body.workspace_id==="string"?body.workspace_id:null;
+  const skipScouts=body.skip_scouts===true;
   const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id").eq("user_id",userData.user.id).eq("status","active");
   const membership=(memberships||[]).find((m:any)=>!requestedWorkspace||m.workspace_id===requestedWorkspace);
   if(!membership) return Response.json({error:"workspace_access_denied"},{status:403});
@@ -58,13 +63,15 @@ Deno.serve(async(req)=>{
   if(runError||!run) return Response.json({error:runError?.message||"run_create_failed"},{status:500});
 
   const sourceErrors:any[]=[];
-  const scouts=["canadabuys-scout","regional-tender-scout","canadabuys-award-scout"];
-  await Promise.all(scouts.map(async slug=>{
-    try{
-      const r=await fetch(supabaseUrl+"/functions/v1/"+slug,{method:"POST",headers:{Authorization:auth,"Content-Type":"application/json"},body:JSON.stringify({workspace_id:workspaceId})});
-      if(!r.ok){const p=await r.json().catch(()=>({}));sourceErrors.push({source:slug,error:p.error||("http_"+r.status)});}
-    }catch(e){sourceErrors.push({source:slug,error:e instanceof Error?e.message:"request_failed"});}
-  }));
+  if(!skipScouts){
+    const scouts=["canadabuys-scout","regional-tender-scout","canadabuys-award-scout"];
+    await Promise.all(scouts.map(async slug=>{
+      try{
+        const r=await fetch(supabaseUrl+"/functions/v1/"+slug,{method:"POST",headers:{Authorization:auth,"Content-Type":"application/json"},body:JSON.stringify({workspace_id:workspaceId})});
+        if(!r.ok){const p=await r.json().catch(()=>({}));sourceErrors.push({source:slug,error:p.error||("http_"+r.status)});}
+      }catch(e){sourceErrors.push({source:slug,error:e instanceof Error?e.message:"request_failed"});}
+    }));
+  }
 
   try{
     const [{data:buyers},{data:sources},{data:tenders},{data:listRows},{data:organizationRows}]=await Promise.all([
@@ -143,7 +150,8 @@ Deno.serve(async(req)=>{
       }
 
       let tenderId=o.promoted_tender_record_id||null;
-      if(status==="actionable"&&!tenderId){
+      const promotable=["tender","rfq","standing_offer","prequalification","vendor_roster"].includes(scored.type);
+      if(status==="actionable"&&promotable&&!tenderId){
         const sourceName=(sources||[]).find((s:any)=>s.source_key===o.source_key)?.display_name||o.source_key;
         const {data:existingTender}=await admin.from("tender_records").select("id").eq("workspace_id",workspaceId).eq("source",sourceName).eq("external_id",o.external_id).maybeSingle();
         if(existingTender?.id)tenderId=existingTender.id;
