@@ -327,15 +327,25 @@ export async function runCanadaBuysScout() {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!base) throw new Error("Supabase URL is not configured");
 
-  const response = await fetch(base + "/functions/v1/canadabuys-scout", {
-    method: "POST",
-    headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
-    body: JSON.stringify({ workspace_id: ctx.workspaceId }),
-    cache: "no-store",
-  });
+  const [noticeResponse, awardResponse] = await Promise.all([
+    fetch(base + "/functions/v1/canadabuys-scout", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+      body: JSON.stringify({ workspace_id: ctx.workspaceId }),
+      cache: "no-store",
+    }),
+    fetch(base + "/functions/v1/canadabuys-award-scout", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + accessToken, "Content-Type": "application/json" },
+      body: JSON.stringify({ workspace_id: ctx.workspaceId }),
+      cache: "no-store",
+    }),
+  ]);
 
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || "CanadaBuys scout failed");
+  const noticePayload = await noticeResponse.json().catch(() => ({}));
+  const awardPayload = await awardResponse.json().catch(() => ({}));
+  if (!noticeResponse.ok) throw new Error(noticePayload.error || "CanadaBuys notice scout failed");
+  if (!awardResponse.ok) throw new Error(awardPayload.error || "CanadaBuys award scout failed");
 
   await (s as any).from("tender_sources").update({
     last_run_at: new Date().toISOString(),
