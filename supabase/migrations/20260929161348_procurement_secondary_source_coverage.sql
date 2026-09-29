@@ -1,0 +1,54 @@
+-- Mark OCA as a live direct source and use it as explicitly secondary coverage for selected institutional watch rows.
+insert into public.procurement_source_coverage_map (workspace_id,source_key,executor_source_key,coverage_method,notes)
+select workspace_id,'oca','oca_link2build','alias','Legacy OCA catalog row is covered by the live OCA Bid Closing Calendar adapter.'
+from public.tender_sources where source_key='oca'
+on conflict (workspace_id,source_key) do update
+set executor_source_key=excluded.executor_source_key,coverage_method=excluded.coverage_method,notes=excluded.notes,updated_at=now();
+
+insert into public.procurement_source_coverage_map (workspace_id,source_key,executor_source_key,coverage_method,notes)
+select workspace_id,'cecce_merx_watch','oca_link2build','portal','Secondary public-project coverage through OCA / Link2Build; direct CECCE portal coverage remains separate.'
+from public.tender_sources where source_key='cecce_merx_watch'
+on conflict (workspace_id,source_key) do update
+set executor_source_key=excluded.executor_source_key,coverage_method=excluded.coverage_method,notes=excluded.notes,updated_at=now();
+
+insert into public.procurement_source_coverage_map (workspace_id,source_key,executor_source_key,coverage_method,notes)
+select workspace_id,'ottawa_hospital_procurement','oca_link2build','portal','Secondary construction/facilities coverage through OCA / Link2Build; direct hospital procurement coverage remains separate.'
+from public.tender_sources where source_key='ottawa_hospital_procurement'
+on conflict (workspace_id,source_key) do update
+set executor_source_key=excluded.executor_source_key,coverage_method=excluded.coverage_method,notes=excluded.notes,updated_at=now();
+
+insert into public.procurement_source_coverage_map (workspace_id,source_key,executor_source_key,coverage_method,notes)
+select workspace_id,'institutions','oca_link2build','portal','Secondary public construction/facilities coverage through OCA / Link2Build; individual institutional portals remain tracked separately.'
+from public.tender_sources where source_key='institutions'
+on conflict (workspace_id,source_key) do update
+set executor_source_key=excluded.executor_source_key,coverage_method=excluded.coverage_method,notes=excluded.notes,updated_at=now();
+
+create or replace view public.v_procurement_source_health
+with (security_invoker = true)
+as
+select
+  s.workspace_id,s.source_key,s.display_name,s.source_url,s.ingestion_mode,s.coverage_tier,s.adapter_status,s.buyer_scope,
+  coalesce(exec.last_run_at,s.last_run_at) as last_run_at,
+  coalesce(exec.last_success_at,s.last_success_at) as last_success_at,
+  coalesce(exec.last_error,s.last_error) as last_error,
+  coalesce(exec.last_verified_at,s.last_verified_at) as last_verified_at,
+  case
+    when m.executor_source_key is null and s.adapter_status='manual_only' then 'manual_only'
+    when coalesce(exec.last_error,s.last_error) is not null
+      and (coalesce(exec.last_success_at,s.last_success_at) is null
+        or coalesce(exec.last_run_at,s.last_run_at) > coalesce(exec.last_success_at,s.last_success_at)) then 'failing'
+    when coalesce(exec.last_success_at,s.last_success_at) is null then 'never_scanned'
+    when coalesce(exec.last_success_at,s.last_success_at) < now() - interval '36 hours' then 'stale'
+    when m.coverage_method='portal' then 'secondary_coverage'
+    else 'healthy'
+  end as health_status,
+  extract(epoch from (now() - coalesce(exec.last_success_at,s.last_success_at,exec.created_at,s.created_at)))/3600 as hours_since_success,
+  m.executor_source_key,m.coverage_method
+from public.tender_sources s
+left join public.procurement_source_coverage_map m
+  on m.workspace_id=s.workspace_id and m.source_key=s.source_key
+left join public.tender_sources exec
+  on exec.workspace_id=s.workspace_id and exec.source_key=m.executor_source_key
+where s.enabled;
+
+grant select on public.v_procurement_source_health to authenticated;
