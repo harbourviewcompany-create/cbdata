@@ -1840,3 +1840,29 @@ where handled_at is not null
 -- Function grants are explicit; views rely on security_invoker + underlying RLS.
 grant execute on function public.outreach_account_key(uuid,text,uuid) to authenticated,service_role;
 grant execute on function public.derive_outreach_contact_role(text,text) to authenticated,service_role;
+
+
+-- Canonical performance invariant: every public foreign key has a non-partial
+-- index whose leading columns cover the FK columns.
+create index if not exists outreach_targets_pursuit_fk_idx
+  on public.outreach_targets(pursuit_id);
+create index if not exists outreach_pursuits_organization_fk_idx
+  on public.outreach_pursuits(organization_id);
+create index if not exists outreach_pursuits_owner_fk_idx
+  on public.outreach_pursuits(owner_user_id);
+create index if not exists outreach_pursuits_next_action_owner_fk_idx
+  on public.outreach_pursuits(next_action_owner_user_id);
+create index if not exists outreach_pursuits_primary_property_fk_idx
+  on public.outreach_pursuits(primary_property_id);
+create index if not exists outreach_pursuits_opportunity_fk_idx
+  on public.outreach_pursuits(opportunity_id);
+create index if not exists outreach_replies_pursuit_fk_idx
+  on public.outreach_replies(pursuit_id);
+create index if not exists outreach_replies_handled_by_fk_idx
+  on public.outreach_replies(handled_by);
+create index if not exists outreach_suppressions_contact_fk_idx
+  on public.outreach_suppressions(contact_id);
+create index if not exists outreach_suppressions_source_reply_fk_idx
+  on public.outreach_suppressions(source_reply_id);
+create index if not exists outreach_suppressions_created_by_fk_idx
+  on public.outreach_suppressions(created_by);
