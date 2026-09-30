@@ -126,7 +126,7 @@ on conflict(workspace_id,account_key) do update set
 update public.outreach_targets t
 set pursuit_id=p.id
 from public.outreach_pursuits p
-left join public.organizations o on o.id=t.organization_id
+left join public.organizations o on o.id=p.organization_id
 where p.workspace_id=t.workspace_id
   and p.account_key=public.outreach_account_key(
     t.organization_id,
