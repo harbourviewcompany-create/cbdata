@@ -139,6 +139,11 @@ export function customerNowScore(candidate: CustomerNowCandidate) {
 
 export function rankCustomerNow<T extends CustomerNowCandidate>(candidates: T[]) {
   return [...candidates].sort((a, b) => {
+    const aLane = customerNowLane(a);
+    const bLane = customerNowLane(b);
+    if (aLane === "reply_now" && bLane !== "reply_now") return -1;
+    if (bLane === "reply_now" && aLane !== "reply_now") return 1;
+
     const scoreDelta = customerNowScore(b) - customerNowScore(a);
     if (scoreDelta !== 0) return scoreDelta;
 
@@ -150,6 +155,6 @@ export function rankCustomerNow<T extends CustomerNowCandidate>(candidates: T[])
       draft_now: 4,
       research: 5,
     };
-    return laneOrder[customerNowLane(a)] - laneOrder[customerNowLane(b)];
+    return laneOrder[aLane] - laneOrder[bLane];
   });
 }
