@@ -1730,15 +1730,35 @@ grant select on public.v_outreach_conversion_facts to authenticated;
 create or replace view public.v_outreach_conversion_analytics
 with (security_invoker=true) as
 with dims as (
-  select workspace_id,'target'::text dimension,target_name dimension_key,* from public.v_outreach_conversion_facts
+  select
+    f.workspace_id,'target'::text as dimension,f.target_name as dimension_key,
+    f.pursuit_id,f.sent_count,f.reply_count,f.positive_reply_count,f.opportunity_id,
+    f.estimate_count,f.opportunity_value,f.won_value
+  from public.v_outreach_conversion_facts f
   union all
-  select workspace_id,'property',coalesce(property_name,'Unassigned property'),* from public.v_outreach_conversion_facts
+  select
+    f.workspace_id,'property',coalesce(f.property_name,'Unassigned property'),
+    f.pursuit_id,f.sent_count,f.reply_count,f.positive_reply_count,f.opportunity_id,
+    f.estimate_count,f.opportunity_value,f.won_value
+  from public.v_outreach_conversion_facts f
   union all
-  select workspace_id,'service',coalesce(service,'Unclassified service'),* from public.v_outreach_conversion_facts
+  select
+    f.workspace_id,'service',coalesce(f.service,'Unclassified service'),
+    f.pursuit_id,f.sent_count,f.reply_count,f.positive_reply_count,f.opportunity_id,
+    f.estimate_count,f.opportunity_value,f.won_value
+  from public.v_outreach_conversion_facts f
   union all
-  select workspace_id,'contact_role',coalesce(contact_role,'unknown'),* from public.v_outreach_conversion_facts
+  select
+    f.workspace_id,'contact_role',coalesce(f.contact_role,'unknown'),
+    f.pursuit_id,f.sent_count,f.reply_count,f.positive_reply_count,f.opportunity_id,
+    f.estimate_count,f.opportunity_value,f.won_value
+  from public.v_outreach_conversion_facts f
   union all
-  select workspace_id,'message',coalesce(message,'unclassified'),* from public.v_outreach_conversion_facts
+  select
+    f.workspace_id,'message',coalesce(f.message,'unclassified'),
+    f.pursuit_id,f.sent_count,f.reply_count,f.positive_reply_count,f.opportunity_id,
+    f.estimate_count,f.opportunity_value,f.won_value
+  from public.v_outreach_conversion_facts f
 )
 select
   workspace_id,dimension,dimension_key,
