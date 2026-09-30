@@ -238,7 +238,7 @@ export default async function OutreachPage({
           const emailLink=mailto(p.contact_email,p.latest_draft_subject,p.latest_draft_body);
           const positiveReply=["interested","request_quote","request_call","site_visit_request","referral","send_information"].includes(p.latest_reply_classification??"");
           return <article key={p.pursuit_id} className="outreach-queue-card">
-            <div style={{display:"grid",gridTemplateColumns:"70px minmax(220px,1.3fr) minmax(220px,1fr) minmax(240px,1.2fr)",gap:18,alignItems:"start"}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:18,alignItems:"start"}}>
               <div>
                 <span className="eyebrow">#{index+1}</span>
                 <strong style={{display:"block",fontSize:30}}>{nowScore}</strong>
