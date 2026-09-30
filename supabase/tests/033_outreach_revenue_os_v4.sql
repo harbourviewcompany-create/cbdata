@@ -122,6 +122,17 @@ begin
     raise exception 'unknown confidence should normalize to null';
   end if;
 
+  if exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public'
+      and p.proname in ('outreach_account_key','derive_outreach_contact_role','classify_outreach_reply_text')
+      and not ('search_path=pg_catalog, public'=any(coalesce(p.proconfig,array[]::text[])))
+  ) then
+    raise exception 'outreach helper search_path hardening missing';
+  end if;
+
   -- New Outreach mutations must enforce sales authorization in SQL, not only in
   -- Next.js server actions, so direct Data API calls fail closed.
   if position('private.has_workspace_role' in pg_get_functiondef(
