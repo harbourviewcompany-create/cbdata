@@ -144,6 +144,6 @@ begin
       and coalesce(with_check,'') like '%has_workspace_role%'
   ) then raise exception 'outreach pursuit mutation RLS is not role gated'; end if;
 
-end $;
+end $$;
 
 rollback;
