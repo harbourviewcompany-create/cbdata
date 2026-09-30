@@ -2,12 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { requireWorkspace } from "@/lib/workspace";
+import { requireWorkspaceWithRole } from "@/lib/workspace";
+import { ROLES } from "@/lib/authz";
 
 type DbClient = Awaited<ReturnType<typeof createClient>>;
 
 async function client() {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.sales);
   const s = await createClient();
   return { s, user: ctx.user, workspaceId: ctx.workspaceId };
 }
