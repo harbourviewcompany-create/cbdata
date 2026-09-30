@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { requireTargetRole, requireWorkspaceRole, ROLES } from "@/lib/authz";
+import { requireWorkspaceWithRole } from "@/lib/workspace";
 
 type TouchChannel = "call" | "email" | "sms" | "door_knock" | "mail" | "other";
 type TargetStatus =
@@ -12,18 +14,15 @@ type TargetStatus =
   | "rejected"
   | "do_not_contact";
 
-async function requireUser() {
+async function salesClientForTarget(targetId: string) {
   const s = await createClient();
-  const {
-    data: { user },
-  } = await s.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
-  return { s, user };
+  await requireTargetRole(s, targetId, ROLES.sales);
+  return s;
 }
 
 export async function logTouch(formData: FormData) {
-  const { s } = await requireUser();
   const targetId = String(formData.get("target_id") ?? "");
+  const s = await salesClientForTarget(targetId);
   const channel = String(formData.get("channel") ?? "call") as TouchChannel;
   const outcome = String(formData.get("outcome") ?? "") || null;
   const notes = String(formData.get("notes") ?? "") || null;
@@ -47,8 +46,8 @@ export async function logTouch(formData: FormData) {
 }
 
 export async function updateTargetStatus(formData: FormData) {
-  const { s } = await requireUser();
   const targetId = String(formData.get("target_id") ?? "");
+  const s = await salesClientForTarget(targetId);
   const status = String(formData.get("status") ?? "") as TargetStatus;
   const nextAction = String(formData.get("next_action") ?? "") || null;
   const nextDue = String(formData.get("next_action_due_at") ?? "") || null;
@@ -71,8 +70,8 @@ export async function updateTargetStatus(formData: FormData) {
 }
 
 export async function convertTarget(formData: FormData) {
-  const { s } = await requireUser();
   const targetId = String(formData.get("target_id") ?? "");
+  const s = await salesClientForTarget(targetId);
 
   const { data, error } = await s.rpc("convert_outreach_target_to_lead" as never, {
     p_target_id: targetId,
@@ -85,9 +84,17 @@ export async function convertTarget(formData: FormData) {
 }
 
 export async function refreshScores(formData: FormData) {
-  const { s } = await requireUser();
+  const s = await createClient();
   const listId = String(formData.get("list_id") ?? "");
   if (!listId) throw new Error("list_id required");
+  const { data: list, error: listError } = await s
+    .from("outreach_lists")
+    .select("workspace_id")
+    .eq("id", listId)
+    .maybeSingle();
+  if (listError) throw new Error(listError.message);
+  if (!list) throw new Error("List not found");
+  await requireWorkspaceRole(s, list.workspace_id, ROLES.sales);
 
   const { error } = await s.rpc("refresh_outreach_target_scores_for_list" as never, {
     p_list_id: listId,
@@ -98,14 +105,8 @@ export async function refreshScores(formData: FormData) {
 }
 
 export async function ensurePmSequence() {
-  const { s, user } = await requireUser();
-  const { data: memberships } = await s
-    .from("workspace_memberships")
-    .select("workspace_id")
-    .eq("user_id", user.id)
-    .limit(1);
-  const workspaceId = memberships?.[0]?.workspace_id;
-  if (!workspaceId) throw new Error("No workspace");
+  const { workspaceId } = await requireWorkspaceWithRole(ROLES.sales);
+  const s = await createClient();
   const { data, error } = await s.rpc("ensure_default_pm_sequence" as never, {
     p_workspace_id: workspaceId,
   } as never);
@@ -115,8 +116,8 @@ export async function ensurePmSequence() {
 }
 
 export async function enrollTarget(formData: FormData) {
-  const { s } = await requireUser();
   const targetId = String(formData.get("target_id") ?? "");
+  const s = await salesClientForTarget(targetId);
   const sequenceId = String(formData.get("sequence_id") ?? "");
   const { data: target, error: targetError } = await s
     .from("outreach_targets")
@@ -136,14 +137,8 @@ export async function enrollTarget(formData: FormData) {
 }
 
 export async function processSequences() {
-  const { s, user } = await requireUser();
-  const { data: memberships } = await s
-    .from("workspace_memberships")
-    .select("workspace_id")
-    .eq("user_id", user.id)
-    .limit(1);
-  const workspaceId = memberships?.[0]?.workspace_id;
-  if (!workspaceId) throw new Error("No workspace");
+  const { workspaceId } = await requireWorkspaceWithRole(ROLES.sales);
+  const s = await createClient();
   const { data, error } = await s.rpc("process_due_sequence_steps" as never, {
     p_workspace_id: workspaceId,
     p_limit: 50,

@@ -40,6 +40,23 @@ export async function requireWorkspaceRole(
   return role;
 }
 
+/** Resolve a row's workspace from the caller's RLS view, then require a role in that workspace. */
+export async function requireTargetRole(
+  supabase: SupabaseClient<Database>,
+  targetId: string,
+  allowedRoles: readonly WorkspaceRole[],
+) {
+  if (!targetId) throw new Error("Target is required");
+  const { data, error } = await supabase
+    .from("outreach_targets")
+    .select("workspace_id")
+    .eq("id", targetId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Target not found");
+  return requireWorkspaceRole(supabase, data.workspace_id, allowedRoles);
+}
+
 export const ROLES = {
   admin: ["owner", "administrator"] as const,
   operations: ["owner", "administrator", "operations_manager", "operations_supervisor"] as const,
@@ -49,4 +66,6 @@ export const ROLES = {
   contracts: ["owner", "administrator", "operations_manager", "sales_manager"] as const,
   finance: ["owner", "administrator", "finance", "operations_manager"] as const,
   people: ["owner", "administrator", "operations_manager"] as const,
+  procurement: ["owner", "administrator", "operations_manager", "sales_manager", "sales_rep"] as const,
+  procurementLead: ["owner", "administrator", "operations_manager", "sales_manager"] as const,
 } satisfies Record<string, readonly WorkspaceRole[]>;
