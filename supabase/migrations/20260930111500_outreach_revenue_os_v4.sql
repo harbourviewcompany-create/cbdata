@@ -178,7 +178,7 @@ language sql
 immutable
 parallel safe
 set search_path=pg_catalog,public
-as $
+as $normalize$
   select case lower(btrim(coalesce(p_confidence,'')))
     when 'high' then 'high'
     when 'verified' then 'high'
@@ -187,7 +187,7 @@ as $
     when 'low' then 'low'
     else null
   end
-$;
+$normalize$;
 revoke all on function public.normalize_outreach_evidence_confidence(text) from public,anon;
 grant execute on function public.normalize_outreach_evidence_confidence(text) to authenticated;
 
