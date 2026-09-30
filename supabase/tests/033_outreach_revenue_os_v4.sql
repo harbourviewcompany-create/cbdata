@@ -109,6 +109,41 @@ begin
   if not has_function_privilege('authenticated','public.queue_contact_research_task(uuid)','EXECUTE') then
     raise exception 'authenticated cannot queue contact research';
   end if;
-end $$;
+  -- New Outreach mutations must enforce sales authorization in SQL, not only in
+  -- Next.js server actions, so direct Data API calls fail closed.
+  if position('private.has_workspace_role' in pg_get_functiondef(
+    'public.ingest_outreach_reply(uuid,text,text,text,text,text,text,date,text,jsonb)'::regprocedure
+  ))=0 then raise exception 'reply ingestion is not sales-role gated'; end if;
+  if position('private.has_workspace_role' in pg_get_functiondef(
+    'public.handle_outreach_reply(uuid,text,boolean)'::regprocedure
+  ))=0 then raise exception 'reply handling is not sales-role gated'; end if;
+  if position('private.has_workspace_role' in pg_get_functiondef(
+    'public.ensure_outreach_opportunity(uuid,uuid,numeric)'::regprocedure
+  ))=0 then raise exception 'opportunity creation is not sales-role gated'; end if;
+  if position('private.has_workspace_role' in pg_get_functiondef(
+    'public.link_estimate_to_outreach_pursuit(uuid,uuid)'::regprocedure
+  ))=0 then raise exception 'estimate linkage is not sales-role gated'; end if;
+  if position('private.has_workspace_role' in pg_get_functiondef(
+    'public.queue_contact_research_task(uuid)'::regprocedure
+  ))=0 then raise exception 'research queue is not sales-role gated'; end if;
+  if position('private.has_workspace_role' in pg_get_functiondef(
+    'public.accept_contact_research_candidate(uuid)'::regprocedure
+  ))=0 then raise exception 'research promotion is not sales-role gated'; end if;
+  if position('private.has_workspace_role' in pg_get_functiondef(
+    'public.approve_outreach_draft(uuid)'::regprocedure
+  ))=0 then raise exception 'draft approval is not sales-role gated'; end if;
+  if position('private.has_workspace_role' in pg_get_functiondef(
+    'public.run_safe_due_sequences(uuid,integer)'::regprocedure
+  ))=0 then raise exception 'sequence executor is not sales-role gated'; end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname='public' and tablename='outreach_pursuits'
+      and policyname='outreach_pursuits_member_update'
+      and coalesce(qual,'') like '%has_workspace_role%'
+      and coalesce(with_check,'') like '%has_workspace_role%'
+  ) then raise exception 'outreach pursuit mutation RLS is not role gated'; end if;
+
+end $;
 
 rollback;
