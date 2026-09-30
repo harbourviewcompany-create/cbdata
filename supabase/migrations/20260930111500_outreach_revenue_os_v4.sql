@@ -92,6 +92,8 @@ select distinct on (
   t.owner_user_id,
   t.owner_user_id,
   case
+    when t.status::text='converted' then 'won'
+    when t.status::text='rejected' then 'lost'
     when t.status::text='responded' then 'engaged'
     when t.status::text='contacted' then 'outreach'
     when t.contact_id is not null then 'contact_ready'
@@ -405,6 +407,12 @@ alter table public.outreach_replies
 
 create index if not exists outreach_replies_pursuit_inbox_idx
   on public.outreach_replies(workspace_id,pursuit_id,needs_response,received_at desc);
+
+drop policy if exists outreach_replies_member_update on public.outreach_replies;
+create policy outreach_replies_member_update on public.outreach_replies for update to authenticated
+  using (private.is_workspace_member(workspace_id))
+  with check (private.is_workspace_member(workspace_id));
+grant update on public.outreach_replies to authenticated;
 create unique index if not exists outreach_replies_provider_message_uidx
   on public.outreach_replies(workspace_id,provider,provider_message_id)
   where provider_message_id is not null;
@@ -1528,6 +1536,8 @@ select
   coalesce(d.quality_score,0) latest_draft_quality_score,
   coalesce(d.quality_passed,false) latest_draft_quality_passed,
   d.quality_notes as latest_draft_quality_notes,
+  d.evidence as latest_draft_evidence,
+  d.strategy as latest_draft_strategy,
   coalesce(pc.contact_count,0) contact_count,
   coalesce(pc.contact_coverage_score,0) contact_coverage_score,
   coalesce(pc.has_decision_maker,false) has_decision_maker,
