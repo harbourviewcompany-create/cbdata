@@ -172,6 +172,25 @@ as $$
   end
 $$;
 
+create or replace function public.normalize_outreach_evidence_confidence(p_confidence text)
+returns text
+language sql
+immutable
+parallel safe
+set search_path=pg_catalog,public
+as $
+  select case lower(btrim(coalesce(p_confidence,'')))
+    when 'high' then 'high'
+    when 'verified' then 'high'
+    when 'medium' then 'medium'
+    when 'reported' then 'medium'
+    when 'low' then 'low'
+    else null
+  end
+$;
+revoke all on function public.normalize_outreach_evidence_confidence(text) from public,anon;
+grant execute on function public.normalize_outreach_evidence_confidence(text) to authenticated;
+
 create table if not exists public.outreach_pursuit_contacts (
   id uuid primary key default extensions.uuid_generate_v4(),
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -217,7 +236,7 @@ select distinct
   public.derive_outreach_contact_role(c.job_title,null),
   true,
   c.source_url,
-  c.source_confidence,
+  public.normalize_outreach_evidence_confidence(c.source_confidence),
   c.source_verified_at
 from public.outreach_targets t
 join public.contacts c on c.id=t.contact_id
@@ -239,7 +258,7 @@ select distinct
   public.derive_outreach_contact_role(c.job_title,oc.relationship_type),
   oc.is_primary,
   c.source_url,
-  c.source_confidence,
+  public.normalize_outreach_evidence_confidence(c.source_confidence),
   c.source_verified_at
 from public.outreach_pursuits p
 join public.organization_contacts oc
@@ -316,7 +335,7 @@ begin
   )
   values(
     new.workspace_id,new.pursuit_id,c.id,public.derive_outreach_contact_role(c.job_title,null),true,
-    c.source_url,c.source_confidence,c.source_verified_at
+    c.source_url,public.normalize_outreach_evidence_confidence(c.source_confidence),c.source_verified_at
   )
   on conflict(pursuit_id,contact_id,buying_role) do update set
     is_primary=true,
@@ -351,7 +370,7 @@ begin
   )
   select
     p.workspace_id,p.id,c.id,public.derive_outreach_contact_role(c.job_title,new.relationship_type),
-    new.is_primary,c.source_url,c.source_confidence,c.source_verified_at
+    new.is_primary,c.source_url,public.normalize_outreach_evidence_confidence(c.source_confidence),c.source_verified_at
   from public.outreach_pursuits p
   where p.workspace_id=new.workspace_id and p.organization_id=new.organization_id
   on conflict(pursuit_id,contact_id,buying_role) do update set
