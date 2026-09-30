@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { requireWorkspace } from "@/lib/workspace";
+import { requireWorkspaceWithRole } from "@/lib/workspace";
+import { ROLES } from "@/lib/authz";
 
 export async function addManualTender(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const externalId = String(formData.get("external_id") || "").trim();
   const title = String(formData.get("title") || "").trim();
@@ -86,7 +87,7 @@ const STAGES: Record<string, string> = {
 };
 
 export async function updateTenderStage(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const stage = String(formData.get("stage") || "");
@@ -147,7 +148,7 @@ export async function updateTenderStage(formData: FormData) {
 }
 
 export async function updateTenderRequirement(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const id = String(formData.get("requirement_id") || "");
   const tenderId = String(formData.get("tender_id") || "");
@@ -165,7 +166,7 @@ export async function updateTenderRequirement(formData: FormData) {
 }
 
 export async function updateTenderDeadline(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const id = String(formData.get("deadline_id") || "");
   const tenderId = String(formData.get("tender_id") || "");
@@ -178,7 +179,7 @@ export async function updateTenderDeadline(formData: FormData) {
 
 
 export async function addTenderRequirement(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const title = String(formData.get("title") || "").trim();
@@ -199,7 +200,7 @@ export async function addTenderRequirement(formData: FormData) {
 }
 
 export async function addTenderDeadline(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const title = String(formData.get("title") || "").trim();
@@ -220,7 +221,7 @@ export async function addTenderDeadline(formData: FormData) {
 }
 
 export async function createEstimateFromTender(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   if (!tenderId) throw new Error("Tender is required");
@@ -280,7 +281,7 @@ export async function createEstimateFromTender(formData: FormData) {
 
 
 export async function saveTenderScorecard(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   if (!tenderId) throw new Error("Tender is required");
@@ -319,7 +320,7 @@ export async function saveTenderScorecard(formData: FormData) {
 }
 
 export async function saveNoBidReason(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const reason = String(formData.get("no_bid_reason") || "").trim();
@@ -336,7 +337,7 @@ export async function saveNoBidReason(formData: FormData) {
 }
 
 export async function confirmTenderSubmission(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurementLead);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const reference = String(formData.get("submission_reference") || "").trim();
@@ -370,7 +371,7 @@ export async function confirmTenderSubmission(formData: FormData) {
 }
 
 export async function markAddendaChecked(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const count = Math.max(0, Number(formData.get("addenda_count") || 0));
@@ -392,7 +393,7 @@ export async function markAddendaChecked(formData: FormData) {
 }
 
 export async function updateSupplierRegistration(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const id = String(formData.get("registration_id") || "");
   const status = String(formData.get("status") || "");
@@ -417,7 +418,7 @@ export async function updateSupplierRegistration(formData: FormData) {
 }
 
 export async function updateSupplierRegistrationStep(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const id = String(formData.get("step_id") || "");
   const status = String(formData.get("status") || "");
@@ -469,7 +470,7 @@ export async function updateSupplierRegistrationStep(formData: FormData) {
 }
 
 export async function runCanadaBuysScout() {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurementLead);
   const s = await createClient();
 
   const { data: sessionData } = await s.auth.getSession();
@@ -535,7 +536,7 @@ export async function runCanadaBuysScout() {
 
 
 export async function runRegionalTenderScout() {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurementLead);
   const s = await createClient();
 
   const { data: sessionData } = await s.auth.getSession();
@@ -570,7 +571,7 @@ export async function runRegionalTenderScout() {
 
 
 export async function runProcurementCoverageEngine() {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurementLead);
   const s = await createClient();
 
   const { data: sessionData } = await s.auth.getSession();
@@ -607,7 +608,7 @@ export async function runProcurementCoverageEngine() {
 
 
 export async function runTenderIntelligence(formData?: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurementLead);
   const s = await createClient();
 
   const { data: sessionData } = await s.auth.getSession();
@@ -633,7 +634,7 @@ export async function runTenderIntelligence(formData?: FormData) {
 }
 
 export async function runTenderDocumentIntelligence(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurementLead);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   if (!tenderId) throw new Error("Tender is required");
@@ -658,7 +659,7 @@ export async function runTenderDocumentIntelligence(formData: FormData) {
 }
 
 export async function saveTenderContractCycle(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   if (!tenderId) throw new Error("Tender is required");
@@ -683,7 +684,7 @@ export async function saveTenderContractCycle(formData: FormData) {
 }
 
 export async function updateSubtradeStatus(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const id = String(formData.get("subtrade_id") || "");
   const tenderId = String(formData.get("tender_id") || "");
@@ -700,7 +701,7 @@ export async function updateSubtradeStatus(formData: FormData) {
 }
 
 export async function updateFutureOpportunityStatus(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const id = String(formData.get("future_id") || "");
   const status = String(formData.get("status") || "");
@@ -720,7 +721,7 @@ function numberField(formData: FormData, key: string, fallback = 0) {
 }
 
 export async function acknowledgeTenderAmendment(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const amendmentId = String(formData.get("amendment_id") || "");
@@ -736,7 +737,7 @@ export async function acknowledgeTenderAmendment(formData: FormData) {
 }
 
 export async function addTenderClarification(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const question = String(formData.get("question") || "").trim();
@@ -756,7 +757,7 @@ export async function addTenderClarification(formData: FormData) {
 }
 
 export async function updateTenderClarification(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const id = String(formData.get("clarification_id") || "");
@@ -776,7 +777,7 @@ export async function updateTenderClarification(formData: FormData) {
 }
 
 export async function addTenderSupplierQuote(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const supplierName = String(formData.get("supplier_name") || "").trim();
@@ -814,7 +815,7 @@ export async function addTenderSupplierQuote(formData: FormData) {
 }
 
 export async function updateTenderSupplierQuote(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const id = String(formData.get("quote_id") || "");
@@ -830,7 +831,7 @@ export async function updateTenderSupplierQuote(formData: FormData) {
 }
 
 export async function saveTenderCostModel(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const scenarioName = String(formData.get("scenario_name") || "Base").trim() || "Base";
@@ -871,7 +872,7 @@ export async function saveTenderCostModel(formData: FormData) {
 }
 
 export async function addTenderRisk(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const title = String(formData.get("title") || "").trim();
@@ -890,7 +891,7 @@ export async function addTenderRisk(formData: FormData) {
 }
 
 export async function updateTenderRisk(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const id = String(formData.get("risk_id") || "");
@@ -903,7 +904,7 @@ export async function updateTenderRisk(formData: FormData) {
 }
 
 export async function approveTenderGate(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurementLead);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const approvalType = String(formData.get("approval_type") || "");
@@ -923,7 +924,7 @@ export async function approveTenderGate(formData: FormData) {
 }
 
 export async function addSupplierVaultDocument(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const title = String(formData.get("title") || "").trim();
@@ -953,7 +954,7 @@ export async function addSupplierVaultDocument(formData: FormData) {
 }
 
 export async function addTenderCallup(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const callupNumber = String(formData.get("callup_number") || "").trim();
@@ -975,7 +976,7 @@ export async function addTenderCallup(formData: FormData) {
 
 
 export async function saveTenderPortalSnapshot(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const portalName = String(formData.get("portal_name") || "").trim();
@@ -1014,7 +1015,7 @@ export async function saveTenderPortalSnapshot(formData: FormData) {
 }
 
 export async function addTenderLineItem(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const itemNumber = String(formData.get("item_number") || "").trim();
@@ -1042,7 +1043,7 @@ export async function addTenderLineItem(formData: FormData) {
 }
 
 export async function updateTenderLineItem(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const id = String(formData.get("line_item_id") || "");
@@ -1059,7 +1060,7 @@ export async function updateTenderLineItem(formData: FormData) {
 }
 
 export async function saveTenderPriceYear(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const costModelId = String(formData.get("cost_model_id") || "");
@@ -1081,7 +1082,7 @@ export async function saveTenderPriceYear(formData: FormData) {
 }
 
 export async function saveTenderDebrief(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   if (!tenderId) throw new Error("Tender is required");
@@ -1130,7 +1131,7 @@ export async function saveTenderDebrief(formData: FormData) {
 
 
 export async function generateTenderBidPack(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   if (!tenderId) throw new Error("Tender is required");
@@ -1213,7 +1214,7 @@ export async function generateTenderBidPack(formData: FormData) {
 }
 
 export async function updateTenderCallup(formData: FormData) {
-  const ctx = await requireWorkspace();
+  const ctx = await requireWorkspaceWithRole(ROLES.procurement);
   const s = await createClient();
   const tenderId = String(formData.get("tender_id") || "");
   const id = String(formData.get("callup_id") || "");
