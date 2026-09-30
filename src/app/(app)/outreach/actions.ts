@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireWorkspaceWithRole } from "@/lib/workspace";
 import { ROLES } from "@/lib/authz";
+import { customerNowAction, customerNowLane, rankCustomerNow } from "@/lib/customer-now";
 
 type DbClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -318,5 +319,101 @@ export async function runDueSequences() {
     { p_workspace_id: workspaceId, p_limit: 50 } as never,
   );
   if (error) throw new Error(error.message);
+  refresh();
+}
+
+
+export async function activateCustomerNowSprint(formData: FormData) {
+  const { s, user, workspaceId } = await client();
+  const requested = Number(String(formData.get("limit") ?? "10"));
+  const limit = Math.min(20, Math.max(1, Number.isFinite(requested) ? Math.trunc(requested) : 10));
+
+  const { data, error } = await (s as any)
+    .from("v_outreach_pursuit_queue")
+    .select(
+      "pursuit_id,primary_target_id,organization_display_name,stage,pursuit_status,next_action,why_now,contact_email,contact_phone,contact_coverage_score,high_signal_property_count,open_signal_count,service_fit,total_score,command_score,needs_response_count,latest_reply_classification,latest_draft_id,latest_draft_state,latest_draft_quality_passed,latest_draft_channel,opportunity_id",
+    )
+    .eq("workspace_id", workspaceId)
+    .in("pursuit_status", ["active", "paused"])
+    .limit(150);
+
+  if (error) throw new Error(error.message);
+
+  const candidates = rankCustomerNow((data ?? []) as any[]).slice(0, limit);
+  if (!candidates.length) throw new Error("No active outreach pursuits are ready for a Customer Now sprint");
+
+  const dueAt = new Date().toISOString();
+
+  for (const candidate of candidates) {
+    const lane = customerNowLane(candidate);
+    let nextAction = customerNowAction(candidate);
+
+    const needsFreshDraft =
+      candidate.primary_target_id &&
+      (
+        (lane === "draft_now" && !["draft", "approved"].includes(candidate.latest_draft_state ?? "")) ||
+        (
+          lane === "call_now" &&
+          !(candidate.latest_draft_state === "draft" && candidate.latest_draft_channel === "call")
+        )
+      );
+
+    if (needsFreshDraft) {
+      const channel = lane === "call_now" ? "call" : "email";
+      const objective = lane === "call_now" ? "site_walk" : "quote";
+
+      const { error: contactError } = await s.rpc(
+        "select_outreach_contact" as never,
+        { p_target_id: candidate.primary_target_id } as never,
+      );
+
+      if (!contactError) {
+        const { error: draftError } = await s.rpc(
+          "generate_outreach_draft" as never,
+          {
+            p_target_id: candidate.primary_target_id,
+            p_channel: channel,
+            p_objective: objective,
+          } as never,
+        );
+        if (!draftError) {
+          nextAction = lane === "call_now"
+            ? "Use the prepared call opener now and ask for one current small job or a same-week site walk."
+            : "Review the prepared one-site quote/site-walk email and send it today.";
+        }
+      }
+    }
+
+    if (lane === "research" && candidate.primary_target_id) {
+      const { data: task } = await (s as any)
+        .from("contact_enrichment_tasks")
+        .select("id")
+        .eq("workspace_id", workspaceId)
+        .eq("outreach_target_id", candidate.primary_target_id)
+        .in("status", ["queued", "not_found", "researching"])
+        .order("research_priority_score", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (task?.id) {
+        await s.rpc("queue_contact_research_task" as never, { p_task_id: task.id } as never);
+        nextAction = "Contact research queued. Promote the first verified operations/property/facilities contact and call them today.";
+      }
+    }
+
+    const { error: updateError } = await (s as any)
+      .from("outreach_pursuits")
+      .update({
+        next_action: "CUSTOMER NOW: " + nextAction,
+        next_action_due_at: dueAt,
+        next_action_owner_user_id: user.id,
+        updated_at: dueAt,
+      })
+      .eq("id", candidate.pursuit_id)
+      .eq("workspace_id", workspaceId);
+
+    if (updateError) throw new Error(updateError.message);
+  }
+
   refresh();
 }
