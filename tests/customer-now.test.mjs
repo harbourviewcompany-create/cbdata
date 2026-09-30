@@ -26,7 +26,7 @@ test("positive inbound replies are first priority", () => {
     service_fit: ["snow"],
   };
   assert.equal(customerNowLane(hot), "reply_now");
-  assert.ok(customerNowScore(hot) > customerNowScore(cold));
+  assert.equal(rankCustomerNow([cold, hot])[0].organization_display_name, "Hot account");
 });
 
 test("approved and quality-passed drafts become immediate send work", () => {
