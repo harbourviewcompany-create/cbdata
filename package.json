@@ -2,7 +2,7 @@
   "name":"cbdata",
   "private":true,
   "version":"0.1.0",
-  "scripts":{"dev":"next dev","build":"next build","start":"next start","typecheck":"tsc --noEmit","types:supabase":"npx supabase gen types typescript --linked --schema public > src/lib/database.types.ts"},
+  "scripts":{"dev":"next dev","build":"next build","start":"next start","typecheck":"tsc --noEmit","test:authz":"node --test --experimental-strip-types --no-warnings tests/authz.test.mjs","types:supabase":"npx supabase gen types typescript --linked --schema public > src/lib/database.types.ts"},
   "dependencies":{
     "@supabase/ssr":"0.12.7",
     "@supabase/supabase-js":"2.117.1",
