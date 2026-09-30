@@ -66,10 +66,10 @@ drop policy if exists outreach_pursuits_member_update on public.outreach_pursuit
 create policy outreach_pursuits_member_select on public.outreach_pursuits for select to authenticated
   using (private.is_workspace_member(workspace_id));
 create policy outreach_pursuits_member_insert on public.outreach_pursuits for insert to authenticated
-  with check (private.is_workspace_member(workspace_id));
+  with check (private.has_workspace_role(workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]));
 create policy outreach_pursuits_member_update on public.outreach_pursuits for update to authenticated
-  using (private.is_workspace_member(workspace_id))
-  with check (private.is_workspace_member(workspace_id));
+  using (private.has_workspace_role(workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]))
+  with check (private.has_workspace_role(workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]));
 grant select,insert,update on public.outreach_pursuits to authenticated;
 
 alter table public.outreach_targets
@@ -201,10 +201,10 @@ drop policy if exists outreach_pursuit_contacts_member_update on public.outreach
 create policy outreach_pursuit_contacts_member_select on public.outreach_pursuit_contacts for select to authenticated
   using (private.is_workspace_member(workspace_id));
 create policy outreach_pursuit_contacts_member_insert on public.outreach_pursuit_contacts for insert to authenticated
-  with check (private.is_workspace_member(workspace_id));
+  with check (private.has_workspace_role(workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]));
 create policy outreach_pursuit_contacts_member_update on public.outreach_pursuit_contacts for update to authenticated
-  using (private.is_workspace_member(workspace_id))
-  with check (private.is_workspace_member(workspace_id));
+  using (private.has_workspace_role(workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]))
+  with check (private.has_workspace_role(workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]));
 grant select,insert,update on public.outreach_pursuit_contacts to authenticated;
 
 insert into public.outreach_pursuit_contacts(
@@ -410,8 +410,8 @@ create index if not exists outreach_replies_pursuit_inbox_idx
 
 drop policy if exists outreach_replies_member_update on public.outreach_replies;
 create policy outreach_replies_member_update on public.outreach_replies for update to authenticated
-  using (private.is_workspace_member(workspace_id))
-  with check (private.is_workspace_member(workspace_id));
+  using (private.has_workspace_role(workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]))
+  with check (private.has_workspace_role(workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]));
 grant update on public.outreach_replies to authenticated;
 create unique index if not exists outreach_replies_provider_message_uidx
   on public.outreach_replies(workspace_id,provider,provider_message_id)
@@ -499,10 +499,10 @@ drop policy if exists outreach_suppressions_member_update on public.outreach_sup
 create policy outreach_suppressions_member_select on public.outreach_suppressions for select to authenticated
   using (private.is_workspace_member(workspace_id));
 create policy outreach_suppressions_member_insert on public.outreach_suppressions for insert to authenticated
-  with check (private.is_workspace_member(workspace_id));
+  with check (private.has_workspace_role(workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]));
 create policy outreach_suppressions_member_update on public.outreach_suppressions for update to authenticated
-  using (private.is_workspace_member(workspace_id))
-  with check (private.is_workspace_member(workspace_id));
+  using (private.has_workspace_role(workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]))
+  with check (private.has_workspace_role(workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]));
 grant select,insert,update on public.outreach_suppressions to authenticated;
 
 alter table public.outreach_enrollments
@@ -535,7 +535,7 @@ begin
 
   select * into p from public.outreach_pursuits where id=p_pursuit_id for update;
   if not found then raise exception 'pursuit not found'; end if;
-  if not private.is_workspace_member(p.workspace_id) then raise exception 'not a member of workspace'; end if;
+  if not private.has_workspace_role(p.workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]) then raise exception 'pursuit unavailable'; end if;
   if p.organization_id is null then raise exception 'Link an organization before creating an opportunity'; end if;
 
   if p.opportunity_id is not null then return p.opportunity_id; end if;
@@ -598,7 +598,7 @@ declare
 begin
   if auth.uid() is null then raise exception 'Authentication required'; end if;
   select * into p from public.outreach_pursuits where id=p_pursuit_id for update;
-  if not found or not private.is_workspace_member(p.workspace_id) then raise exception 'pursuit unavailable'; end if;
+  if not found or not private.has_workspace_role(p.workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]) then raise exception 'pursuit unavailable'; end if;
 
   select * into e from public.estimates where id=p_estimate_id;
   if not found or e.workspace_id<>p.workspace_id then raise exception 'estimate unavailable'; end if;
@@ -792,7 +792,7 @@ begin
   for update;
 
   if not found then raise exception 'draft not found'; end if;
-  if not private.is_workspace_member(d.workspace_id) then raise exception 'not a member of workspace'; end if;
+  if not private.has_workspace_role(d.workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]) then raise exception 'draft unavailable'; end if;
   if d.state <> 'draft' then
     raise exception 'invalid outreach draft transition: % -> approved', d.state using errcode='22023';
   end if;
@@ -869,7 +869,7 @@ begin
 
   select * into t from public.outreach_targets where id=p_target_id for update;
   if not found then raise exception 'target not found'; end if;
-  if not private.is_workspace_member(t.workspace_id) then raise exception 'not a member of workspace'; end if;
+  if not private.has_workspace_role(t.workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]) then raise exception 'target unavailable'; end if;
   select * into c from public.contacts where id=t.contact_id;
   select * into p from public.outreach_pursuits where id=t.pursuit_id for update;
 
@@ -1057,7 +1057,7 @@ declare
 begin
   if auth.uid() is null then raise exception 'Authentication required'; end if;
   select * into r from public.outreach_replies where id=p_reply_id for update;
-  if not found or not private.is_workspace_member(r.workspace_id) then raise exception 'reply unavailable'; end if;
+  if not found or not private.has_workspace_role(r.workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]) then raise exception 'reply unavailable'; end if;
   select * into t from public.outreach_targets where id=r.outreach_target_id;
 
   update public.outreach_replies
@@ -1151,7 +1151,7 @@ declare e public.contact_enrichment_tasks%rowtype;
 begin
   if auth.uid() is null then raise exception 'Authentication required'; end if;
   select * into e from public.contact_enrichment_tasks where id=p_task_id for update;
-  if not found or not private.is_workspace_member(e.workspace_id) then raise exception 'research task unavailable'; end if;
+  if not found or not private.has_workspace_role(e.workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]) then raise exception 'research task unavailable'; end if;
   update public.contact_enrichment_tasks
   set status='queued',next_attempt_at=now(),last_error=null,
       researcher_metadata=coalesce(researcher_metadata,'{}'::jsonb)||jsonb_build_object('queued_by',auth.uid(),'queued_at',now()),
@@ -1178,7 +1178,7 @@ declare
 begin
   if auth.uid() is null then raise exception 'Authentication required'; end if;
   select * into e from public.contact_enrichment_tasks where id=p_task_id for update;
-  if not found or not private.is_workspace_member(e.workspace_id) then raise exception 'research task unavailable'; end if;
+  if not found or not private.has_workspace_role(e.workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]) then raise exception 'research task unavailable'; end if;
   if e.status not in ('found','verified') or e.confidence<>'high' or e.evidence_url is null or e.candidate_name is null then
     raise exception 'candidate is not eligible for verified promotion';
   end if;
@@ -1425,7 +1425,7 @@ declare
   v_processed integer:=0;
 begin
   if auth.uid() is null then raise exception 'Authentication required'; end if;
-  if not private.is_workspace_member(p_workspace_id) then raise exception 'not a member of workspace'; end if;
+  if not private.has_workspace_role(p_workspace_id,array['owner','administrator','sales_manager','sales_rep']::public.membership_role[]) then raise exception 'outreach automation unavailable'; end if;
 
   update public.outreach_enrollments e
   set status='paused',paused_at=now(),paused_reason=s.block_reason,last_guard_check_at=now()
