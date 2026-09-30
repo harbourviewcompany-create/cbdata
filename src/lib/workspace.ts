@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { requireWorkspaceRole, type WorkspaceRole } from "@/lib/authz";
 
 export type WorkspaceContext = {
   user: { id: string; email?: string | null };
@@ -86,5 +87,16 @@ export async function requireWorkspace(): Promise<WorkspaceContext> {
   if (!ctx) {
     redirect("/dashboard");
   }
+  return ctx;
+}
+
+
+/** Active workspace + a caller-scoped role check. Use for mutating server actions. */
+export async function requireWorkspaceWithRole(
+  allowedRoles: readonly WorkspaceRole[],
+): Promise<WorkspaceContext> {
+  const ctx = await requireWorkspace();
+  const supabase = await createClient();
+  await requireWorkspaceRole(supabase, ctx.workspaceId, allowedRoles);
   return ctx;
 }
