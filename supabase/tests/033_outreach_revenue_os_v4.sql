@@ -109,6 +109,19 @@ begin
   if not has_function_privilege('authenticated','public.queue_contact_research_task(uuid)','EXECUTE') then
     raise exception 'authenticated cannot queue contact research';
   end if;
+  if public.normalize_outreach_evidence_confidence('verified') <> 'high' then
+    raise exception 'legacy verified confidence normalization failed';
+  end if;
+  if public.normalize_outreach_evidence_confidence('reported') <> 'medium' then
+    raise exception 'legacy reported confidence normalization failed';
+  end if;
+  if public.normalize_outreach_evidence_confidence('high') <> 'high' then
+    raise exception 'high confidence normalization regressed';
+  end if;
+  if public.normalize_outreach_evidence_confidence('unknown') is not null then
+    raise exception 'unknown confidence should normalize to null';
+  end if;
+
   -- New Outreach mutations must enforce sales authorization in SQL, not only in
   -- Next.js server actions, so direct Data API calls fail closed.
   if position('private.has_workspace_role' in pg_get_functiondef(
