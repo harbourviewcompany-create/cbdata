@@ -51,6 +51,12 @@ function hrefs(html:string,base:string){
 }
 const INVALID_NAME=/^(first name|last name|full name|your name|contact us|learn more|read more|property management|facility management|vice president|executive director|privacy policy|terms conditions|stay connected|canada administrative|administrative assistant)$/i;
 
+function emailMatchesName(name:string,email:string){
+ const local=normalize(email.split("@")[0]||"").replaceAll(" ","");
+ const parts=normalize(name).split(" ").filter(p=>p.length>=3);
+ return parts.some(part=>local.includes(part));
+}
+
 function candidateFromPage(html:string,url:string,role:string){
  const text=clean(html);
  const terms=ROLE_TERMS[role]||[];
@@ -59,7 +65,7 @@ function candidateFromPage(html:string,url:string,role:string){
   let at=lower.indexOf(term);
   while(at>=0){
    const snippet=text.slice(Math.max(0,at-100),Math.min(text.length,at+220));
-   const email=snippet.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]||null;
+   const nearbyEmail=snippet.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]||null;
    const phone=snippet.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/)?.[0]||null;
    const names=[...snippet.matchAll(/\b([A-Z][a-zÀ-ÿ'’-]{1,30})\s+([A-Z][a-zÀ-ÿ'’-]{1,30})\b/g)]
     .map(m=>({name:m[0],index:m.index??0}))
@@ -67,6 +73,11 @@ function candidateFromPage(html:string,url:string,role:string){
    const roleAt=Math.max(0,at-Math.max(0,at-100));
    names.sort((a,b)=>Math.abs(a.index-roleAt)-Math.abs(b.index-roleAt));
    const name=names.length?names[0].name:null;
+   const pageEmails=Array.from(new Set(
+    [...text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0])
+   ));
+   const matchedEmail=name?pageEmails.find(e=>emailMatchesName(name,e))||null:null;
+   const email=nearbyEmail||matchedEmail;
    if(name&&email)return{name,title:term,email,phone,url,snippet:snippet.slice(0,320)};
    at=lower.indexOf(term,at+term.length);
   }
