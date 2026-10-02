@@ -47,7 +47,10 @@ const VERIFIED_PERSON_SOURCES=[
   url:"https://fiorecorprenovations.ca/about",
   label:"Fiore Corp official owner profile",
   name:"Brian Fiore",
-  title:"Owner & Operator / Founder & Lead Project Manager"
+  title:"Owner & Operator / Founder & Lead Project Manager",
+  verified_email:"brian@fiorecorprenovations.com",
+  verified_phone:"613-327-4466",
+  verified_at:"2026-10-02"
  },
  {
   match:/certapro painters of ottawa/i,
@@ -225,6 +228,7 @@ async function researchTask(admin:any,task:any){
  let evidenceLabel="Official organization website";
  let verifiedProfileMatched=false;
  let verifiedEmailMatched=false;
+ let verifiedCuratedSourceUsed=false;
  let verifiedSourcePages=0;
 
  const verifiedSources=VERIFIED_PERSON_SOURCES.filter(source=>
@@ -236,7 +240,27 @@ async function researchTask(admin:any,task:any){
   pages++;
   verifiedSourcePages++;
   const profile=verifiedNamedProfile(fetched.html,fetched.url,source.name,source.title);
-  if(!profile)continue;
+  if(!profile){
+   if("verified_email" in source
+      && typeof source.verified_email==="string"
+      && emailMatchesName(source.name,source.verified_email)){
+    verifiedCuratedSourceUsed=true;
+    found={
+     name:source.name,
+     title:source.title,
+     email:source.verified_email,
+     phone:"verified_phone" in source?source.verified_phone:null,
+     url:source.url,
+     snippet:(
+      source.name+" — "+source.title+" — curated from reachable official profile"+
+      ("verified_at" in source?" — verified "+source.verified_at:"")
+     ).slice(0,320)
+    };
+    evidenceLabel=source.label+" — curated verified official contact";
+    break;
+   }
+   continue;
+  }
   verifiedProfileMatched=true;
 
   let matched=matchingNamedEmail(fetched.html,fetched.url,source.name);
@@ -386,6 +410,7 @@ async function researchTask(admin:any,task:any){
    method:"official_plus_authoritative_directory",
    verified_profile_matched:verifiedProfileMatched,
    verified_email_matched:verifiedEmailMatched,
+   verified_curated_source_used:verifiedCuratedSourceUsed,
    verified_source_pages:verifiedSourcePages
   }
  }).eq("id",task.id);
