@@ -6,24 +6,18 @@ import { getWorkspaceContext } from "@/lib/workspace";
 import { rankCustomerNow } from "@/lib/customer-now";
 import OutreachFocus from "./focus-home";
 import {
-  activateCustomerNowSprint,
   acceptResearchCandidate,
   approveDraft,
-  classifyReply,
   createOpportunityFromPursuit,
-  enrollDefaultSequence,
   generateDraft,
   handleReply,
   linkEstimateToPursuit,
-  markSent,
   promoteWorkLead,
   dismissWorkLead,
   scanWorkLeads,
   toggleWorkLeadSource,
   queueContactResearch,
   resolveInboundEvent,
-  runDueSequences,
-  updatePursuitNextAction,
 } from "./actions";
 
 type PursuitRow = {
