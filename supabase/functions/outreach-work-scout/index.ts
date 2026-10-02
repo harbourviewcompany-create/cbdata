@@ -268,19 +268,31 @@ Deno.serve(async(req)=>{
   }
 
   let upserted=0,writeErrors=0;
+  const currentLeadIds:string[]=[];
   for(const lead of leads){
-    const {error}=await admin.from("outreach_work_leads").upsert({
+    const {data:stored,error}=await admin.from("outreach_work_leads").upsert({
       workspace_id:workspaceId,...lead,last_seen_at:observedAt,updated_at:observedAt
-    },{onConflict:"workspace_id,source_key,external_id"});
+    },{onConflict:"workspace_id,source_key,external_id"}).select("id").single();
     if(error){writeErrors++;sourceResults.push({source:lead.source_key,external_id:lead.external_id,write_error:error.message});}
-    else upserted++;
+    else{
+      upserted++;
+      if(stored?.id)currentLeadIds.push(stored.id);
+    }
   }
 
   const {data:routing,error:routingError}=await admin.rpc("route_outreach_work_leads",{p_workspace:workspaceId,p_limit:20});
+  const drafts:any[]=[];
+  if(!routingError){
+    for(const leadId of currentLeadIds){
+      const {data:draftId,error:draftError}=await admin.rpc("prepare_direct_work_lead_draft",{p_lead_id:leadId});
+      if(draftId||draftError)drafts.push({lead_id:leadId,draft_id:draftId||null,error:draftError?.message||null});
+    }
+  }
   return Response.json({
-    ok:writeErrors===0&&!routingError,
+    ok:writeErrors===0&&!routingError&&drafts.every(d=>!d.error),
     discovered:leads.length,upserted,write_errors:writeErrors,
     routing:routing||null,routing_error:routingError?.message||null,
+    drafts,
     sources:sourceResults
   });
 });
