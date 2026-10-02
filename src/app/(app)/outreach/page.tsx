@@ -18,6 +18,7 @@ import {
   promoteWorkLead,
   dismissWorkLead,
   scanWorkLeads,
+  toggleWorkLeadSource,
   queueContactResearch,
   resolveInboundEvent,
   runDueSequences,
@@ -108,6 +109,18 @@ type WorkLeadRow = {
   inbox_bucket:string; recommended_next_action:string; last_seen_at:string;
 };
 
+type WorkSourceHealthRow = {
+  id:string; source_key:string; display_name:string; source_url:string; source_kind:string;
+  enabled:boolean; last_run_at:string|null; last_success_at:string|null; last_error:string|null;
+  consecutive_failures:number; last_result_count:number; health_state:string; health_reason:string;
+};
+
+type WorkScoutRunRow = {
+  id:string; started_at:string; finished_at:string|null; status:string;
+  discovered_count:number; upserted_count:number; promoted_count:number;
+  draft_count:number; error_count:number;
+};
+
 function due(v:string|null|undefined) {
   if (!v) return "—";
   return new Intl.DateTimeFormat("en-CA",{month:"short",day:"numeric",year:"numeric"}).format(new Date(v));
@@ -154,7 +167,7 @@ export default async function OutreachPage({
   const ws=ctx.workspaceId;
 
   const [
-    pursuitResult,replyResult,inboundResult,researchResult,timelineResult,analyticsResult,safetyResult,estimateResult,workLeadResult,
+    pursuitResult,replyResult,inboundResult,researchResult,timelineResult,analyticsResult,safetyResult,estimateResult,workLeadResult,workSourceResult,workRunResult,
   ]=await Promise.all([
     (s as any).from("v_outreach_pursuit_queue").select("*")
       .eq("workspace_id",ws).order("command_score",{ascending:false}).limit(250),
@@ -175,6 +188,10 @@ export default async function OutreachPage({
       .eq("workspace_id",ws).order("created_at",{ascending:false}).limit(250),
     (s as any).from("v_outreach_work_lead_inbox").select("*")
       .eq("workspace_id",ws).order("conversion_score",{ascending:false}).order("deadline_at",{ascending:true,nullsFirst:false}).limit(250),
+    (s as any).from("v_outreach_work_source_health").select("*")
+      .eq("workspace_id",ws).order("display_name",{ascending:true}),
+    (s as any).from("outreach_work_scout_runs").select("id,started_at,finished_at,status,discovered_count,upserted_count,promoted_count,draft_count,error_count")
+      .eq("workspace_id",ws).order("started_at",{ascending:false}).limit(1).maybeSingle(),
   ]);
 
   const pursuits=(pursuitResult.data??[]) as PursuitRow[];
@@ -186,6 +203,8 @@ export default async function OutreachPage({
   const safety=(safetyResult.data??[]) as any[];
   const estimates=(estimateResult.data??[]) as EstimateRow[];
   const workLeads=(workLeadResult.data??[]) as WorkLeadRow[];
+  const workSources=(workSourceResult.data??[]) as WorkSourceHealthRow[];
+  const latestWorkRun=(workRunResult.data??null) as WorkScoutRunRow|null;
   const timelineByPursuit=new Map<string,TimelineRow[]>();
   for(const event of timeline){
     if(!timelineByPursuit.has(event.pursuit_id)) timelineByPursuit.set(event.pursuit_id,[]);
@@ -231,9 +250,11 @@ export default async function OutreachPage({
     const ms=new Date(l.deadline_at).getTime()-Date.now();
     return ms>=0 && ms<=7*24*60*60*1000;
   }).length;
+  const workHealthySources=workSources.filter(source=>source.health_state==="healthy").length;
+  const workProblemSources=workSources.filter(source=>["degraded","failing","stale"].includes(source.health_state)).length;
   const errors=[
     pursuitResult.error,replyResult.error,inboundResult.error,researchResult.error,timelineResult.error,
-    analyticsResult.error,safetyResult.error,estimateResult.error,workLeadResult.error,
+    analyticsResult.error,safetyResult.error,estimateResult.error,workLeadResult.error,workSourceResult.error,workRunResult.error,
   ].filter(Boolean);
 
   return <main className="list-shell">
@@ -291,7 +312,39 @@ export default async function OutreachPage({
         <div className="metric"><span>Drafts ready</span><strong>{workDraftsReady}</strong><small>review before send</small></div>
         <div className="metric"><span>Needs research</span><strong>{workResearch}</strong><small>contact gap</small></div>
         <div className="metric"><span>Closing ≤7d</span><strong>{workClosingSoon}</strong><small>deadline pressure</small></div>
+        <div className="metric"><span>Source health</span><strong>{workHealthySources}/{workSources.filter(s=>s.enabled).length}</strong><small>{workProblemSources} need attention</small></div>
       </section>
+
+      <details style={{marginBottom:16}}>
+        <summary className="button" style={{cursor:"pointer",display:"inline-flex"}}>
+          Source health{workProblemSources?" · "+workProblemSources+" issue"+(workProblemSources===1?"":"s"):""}
+        </summary>
+        <div style={{display:"grid",gap:8,marginTop:10}}>
+          {latestWorkRun?<div className="muted" style={{fontSize:11}}>
+            Latest scan {moment(latestWorkRun.started_at)} · {human(latestWorkRun.status)} · {latestWorkRun.discovered_count} discovered · {latestWorkRun.promoted_count} promoted · {latestWorkRun.draft_count} drafts · {latestWorkRun.error_count} errors
+          </div>:<div className="muted" style={{fontSize:11}}>No persisted Work Lead scan has completed yet.</div>}
+          {workSources.map(source=><div key={source.id} style={{display:"grid",gridTemplateColumns:"minmax(220px,1fr) auto",gap:12,alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--line)"}}>
+            <div>
+              <div style={{display:"flex",gap:7,alignItems:"center",flexWrap:"wrap"}}>
+                <strong style={{fontSize:12}}>{source.display_name}</strong>
+                <span className="pill">{human(source.health_state)}</span>
+              </div>
+              <div className="muted" style={{fontSize:11,marginTop:3}}>
+                {source.health_reason} · last results {source.last_result_count} · last success {moment(source.last_success_at)}
+              </div>
+            </div>
+            <div style={{display:"flex",gap:7,alignItems:"center"}}>
+              <a className="button" href={source.source_url} target="_blank" rel="noreferrer">Source</a>
+              <form action={toggleWorkLeadSource}>
+                <input type="hidden" name="source_id" value={source.id}/>
+                <input type="hidden" name="enabled" value={source.enabled?"false":"true"}/>
+                <button className="button" type="submit">{source.enabled?"Disable":"Enable"}</button>
+              </form>
+            </div>
+          </div>)}
+        </div>
+      </details>
+
       <div style={{display:"grid",gap:12,marginTop:16}}>
         {workLeads.length?workLeads.map(lead=>{
           const score=Math.round(Number(lead.conversion_score??0));
