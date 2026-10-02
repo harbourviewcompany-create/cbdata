@@ -174,7 +174,7 @@ export default async function OutreachPage({
     (s as any).from("v_outreach_reply_inbox").select("*")
       .eq("workspace_id",ws).order("needs_response",{ascending:false}).order("received_at",{ascending:false}).limit(250),
     (s as any).from("outreach_inbound_events").select("*")
-      .eq("workspace_id",ws).in("status",["unmatched","ambiguous","error"])
+      .eq("workspace_id",ws).in("status",["unmatched","ambiguous","pending_content","error"])
       .order("received_at",{ascending:false}).limit(100),
     (s as any).from("v_contact_enrichment_queue").select("*")
       .eq("workspace_id",ws).order("research_priority_score",{ascending:false}).order("research_urgency_rank",{ascending:false}).limit(150),
@@ -212,7 +212,7 @@ export default async function OutreachPage({
   }
 
   const unhandledReplies=replies.filter(r=>r.needs_response);
-  const unresolvedInbound=inboundEvents.filter(e=>["unmatched","ambiguous","error"].includes(e.status));
+  const unresolvedInbound=inboundEvents.filter(e=>["unmatched","ambiguous","pending_content","error"].includes(e.status));
   const candidateIds=[...new Set(unresolvedInbound.flatMap(e=>{
     const ids=e.raw_metadata?.candidate_target_ids;
     return Array.isArray(ids)?ids.filter((id):id is string=>typeof id==="string"):[];
@@ -705,13 +705,13 @@ export default async function OutreachPage({
     {view==="replies"?<section className="table-panel">
       <div className="panel-head">
         <div><span className="eyebrow">REPLY INBOX</span><h3>Replies requiring decisions</h3></div>
-        <span className="muted">{unhandledReplies.length} matched · {unresolvedInbound.length} need matching</span>
+        <span className="muted">{unhandledReplies.length} classified · {unresolvedInbound.length} inbound pending</span>
       </div>
 
       {unresolvedInbound.length?<section style={{marginTop:12,padding:14,border:"1px solid var(--line)",borderRadius:12}}>
         <div className="panel-head">
-          <div><span className="eyebrow">AUTOMATIC INBOUND</span><h3>Needs matching</h3></div>
-          <span className="muted">{unresolvedInbound.length} unresolved</span>
+          <div><span className="eyebrow">AUTOMATIC INBOUND</span><h3>Pending inbound</h3></div>
+          <span className="muted">{unresolvedInbound.length} awaiting content or matching</span>
         </div>
         <div style={{display:"grid",gap:10,marginTop:12}}>
           {unresolvedInbound.map(e=>{
@@ -732,20 +732,27 @@ export default async function OutreachPage({
                   <div className="muted" style={{fontSize:11,marginTop:7}}>Match: {human(e.match_reason)}</div>
                 </div>
                 <div>
-                  <span className="eyebrow">ATTACH TO PURSUIT</span>
-                  <div style={{display:"flex",gap:7,flexWrap:"wrap",marginTop:8}}>
-                    {candidates.map(candidate=><form key={candidate.id} action={resolveInboundEvent}>
-                      <input type="hidden" name="event_id" value={e.id}/>
-                      <input type="hidden" name="target_id" value={candidate.id}/>
-                      <button className="button">
-                        {candidate.organization_name??candidate.contact_name??candidate.email??"Candidate"}
-                      </button>
-                    </form>)}
-                    {!candidates.length?<>
-                      <span className="muted" style={{fontSize:11}}>No exact CBData target candidate. Verify the sender/contact record before attaching.</span>
-                      <Link className="button" href={"/outreach?view=research" as Route}>Open Research</Link>
-                    </>:null}
-                  </div>
+                  <span className="eyebrow">{e.status==="pending_content"?"AUTOMATION STATUS":"ATTACH TO PURSUIT"}</span>
+                  {e.status==="pending_content"?
+                    <div style={{marginTop:8}}>
+                      <strong style={{display:"block",fontSize:12}}>Full message content is being retrieved</strong>
+                      <div className="muted" style={{fontSize:11,marginTop:4}}>
+                        {e.matched_target_id?"The matched canonical pursuit is paused now. Classification will run when the message body is available.":"Sender matching will be retried after content retrieval."}
+                      </div>
+                    </div>:
+                    <div style={{display:"flex",gap:7,flexWrap:"wrap",marginTop:8}}>
+                      {candidates.map(candidate=><form key={candidate.id} action={resolveInboundEvent}>
+                        <input type="hidden" name="event_id" value={e.id}/>
+                        <input type="hidden" name="target_id" value={candidate.id}/>
+                        <button className="button">
+                          {candidate.organization_name??candidate.contact_name??candidate.email??"Candidate"}
+                        </button>
+                      </form>)}
+                      {!candidates.length?<>
+                        <span className="muted" style={{fontSize:11}}>No exact CBData target candidate. Verify the sender/contact record before attaching.</span>
+                        <Link className="button" href={"/outreach?view=research" as Route}>Open Research</Link>
+                      </>:null}
+                    </div>}
                 </div>
               </div>
             </article>;
