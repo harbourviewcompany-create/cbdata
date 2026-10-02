@@ -1,12 +1,33 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.1";
 
 const ROLE_TERMS:Record<string,string[]>={
- decision_maker:["president","owner","principal","chief","vice president","vp","executive director","director"],
- operations:["operations","facilities","facility","property manager","building manager","maintenance"],
- procurement:["procurement","purchasing","buyer","sourcing","contracts","supply chain","estimating","estimator"]
+ decision_maker:[
+  "president","owner","principal","chief","vice president","vp","executive director","director",
+  "managing partner","managing director","general manager","broker of record","partner"
+ ],
+ operations:[
+  "operations","director of operations","operations manager","facilities","facility","facilities manager",
+  "facility manager","property manager","commercial property manager","building manager","building operator",
+  "maintenance","construction manager","project manager","capital projects"
+ ],
+ procurement:[
+  "procurement","purchasing","buyer","sourcing","strategic sourcing","contracts","contract manager",
+  "supply chain","vendor management","estimating","estimator"
+ ]
 };
 
-const PATHS=["","/team","/our-team","/our-people","/about","/about-us","/leadership","/staff","/contact","/contact-us","/directory"];
+const PATHS=[
+ "","/team","/our-team","/our-people","/people","/management","/leadership","/executive-team",
+ "/about","/about-us","/who-we-are","/our-company","/staff","/staff-directory","/directory",
+ "/contact","/contact-us","/property-management","/commercial-property-management","/facilities",
+ "/operations","/procurement","/projects","/construction"
+];
+
+const LINK_KEYWORDS=[
+ "team","people","staff","directory","leadership","management","manager","operations","facilities",
+ "property","commercial","construction","project","procurement","purchasing","supply","contract",
+ "estimating","contact","about","executive"
+];
 const DIRECTORY_SOURCES=[
  {match:/city of ottawa/i,url:"https://ottawa.ca/en/business/procurement/contact-supply-services",label:"City of Ottawa Supply Services directory"},
  {match:/public services and procurement canada|pspc|spac/i,url:"https://geds-sage.gc.ca/en/GEDS/?dn=T1U9TkNSTy1PUkNOLE9VPVJQU0ItREdTSSxPVT1QU1BDLVNQQUMsTz1HQyxDPUNB&pgid=014",label:"Government Electronic Directory Services (GEDS)"},
@@ -38,7 +59,7 @@ const VERIFIED_PERSON_SOURCES=[
  }
 ] as const;
 
-const USER_AGENT="CBDataContactResearch/1.2 (+business-contact-enrichment)";
+const USER_AGENT="CBDataContactResearch/1.3 (+business-contact-enrichment)";
 const CONCURRENCY=4;
 const FETCH_TIMEOUT_MS=6500;
 
@@ -67,6 +88,18 @@ function hrefs(html:string,base:string){
  }
  return out;
 }
+function prioritizedLinks(html:string,base:string){
+ return hrefs(html,base)
+  .map(url=>{
+   let score=0;
+   const token=url.toLowerCase();
+   for(const keyword of LINK_KEYWORDS) if(token.includes(keyword)) score+=1;
+   return {url,score};
+  })
+  .filter(x=>x.score>0)
+  .sort((a,b)=>b.score-a.score)
+  .map(x=>x.url);
+}
 const INVALID_NAME=/^(first name|last name|full name|your name|contact us|learn more|read more|property management|facility management|vice president|executive director|privacy policy|terms conditions|stay connected|canada administrative|administrative assistant)$/i;
 
 function normalizeToken(v:string){
@@ -77,12 +110,21 @@ function emailMatchesName(name:string,email:string){
  const parts=normalizeToken(name).split(" ").filter(p=>p.length>=3);
  return parts.some(part=>local.includes(part));
 }
+function isGenericMailbox(email:string){
+ const local=normalizeToken(email.split("@")[0]||"").replaceAll(" ","");
+ return /^(info|contact|hello|office|admin|administration|reception|leasing|rentals|sales|support|service|services|operations|facilities|maintenance|propertymanagement|projectmanagement|procurement|purchasing|estimating|careers|jobs|accounts|accounting|ap|ar|corporaterecords|records|communications|marketing|hr|humanresources)$/.test(local);
+}
+const NON_PERSON_NAME=/\b(corporate|records|department|services?|management|office|team|support|facilit(?:y|ies)|leasing|procurement|purchasing|maintenance|construction|property|properties|company|group|administration|administrative|communications?|marketing|sales|careers?|resources?|reception|information|president|director|manager|chief|owner|partner|vice)\b/i;
+function looksLikePersonName(name:string){
+ const parts=name.trim().split(/\s+/).filter(Boolean);
+ return parts.length>=2 && parts.length<=4 && !NON_PERSON_NAME.test(name);
+}
 function verifiedNamedCandidate(html:string,url:string,name:string,title:string){
  const text=clean(html);
  const lower=normalizeToken(text);
  const nameToken=normalizeToken(name);
  const titleWords=normalizeToken(title).split(" ").filter(w=>w.length>=4);
- if(!lower.includes(nameToken) || !titleWords.some(word=>lower.includes(word))) return null;
+ if(!looksLikePersonName(name) || !lower.includes(nameToken) || !titleWords.some(word=>lower.includes(word))) return null;
  const emails=Array.from(new Set(
   [...text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0])
  ));
@@ -90,6 +132,27 @@ function verifiedNamedCandidate(html:string,url:string,name:string,title:string)
  if(!email) return null;
  const phone=text.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/)?.[0]||null;
  return {name,title,email,phone,url,snippet:(name+" — "+title+" — "+email).slice(0,320)};
+}
+
+function candidateFromMailtoPage(html:string,url:string,role:string){
+ const terms=ROLE_TERMS[role]||[];
+ for(const m of html.matchAll(/href=["']mailto:([^"'?]+)(?:\?[^"']*)?["']/gi)){
+  const email=decodeURIComponent(m[1]||"").trim();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))continue;
+  const at=m.index??0;
+  const snippet=clean(html.slice(Math.max(0,at-900),Math.min(html.length,at+900)));
+  const lower=snippet.toLowerCase();
+  const title=terms.find(term=>lower.includes(term))||null;
+  if(!title)continue;
+  const names=[...snippet.matchAll(/\b([A-Z][a-zÀ-ÿ'’-]{1,30})\s+([A-Z][a-zÀ-ÿ'’-]{1,30})\b/g)]
+   .map(match=>match[0])
+   .filter(name=>!INVALID_NAME.test(name.trim())&&!/^(First|Last|Full|Your|Contact|Learn|Read|Property|Facility|Privacy|Terms|Stay|Canada|Administrative)\b/i.test(name));
+  if(isGenericMailbox(email))continue;
+  const name=names.find(n=>looksLikePersonName(n)&&emailMatchesName(n,email))||null;
+  const phone=snippet.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/)?.[0]||null;
+  if(name)return{name,title,email,phone,url,snippet:snippet.slice(0,320)};
+ }
+ return null;
 }
 
 function candidateFromPage(html:string,url:string,role:string){
@@ -107,12 +170,14 @@ function candidateFromPage(html:string,url:string,role:string){
     .filter(x=>!INVALID_NAME.test(x.name.trim())&&!/^(First|Last|Full|Your|Contact|Learn|Read|Property|Facility|Privacy|Terms|Stay|Canada|Administrative)\b/i.test(x.name));
    const roleAt=Math.max(0,at-Math.max(0,at-100));
    names.sort((a,b)=>Math.abs(a.index-roleAt)-Math.abs(b.index-roleAt));
-   const name=names.length?names[0].name:null;
+   const name=names.find(x=>looksLikePersonName(x.name))?.name||null;
    const pageEmails=Array.from(new Set(
     [...text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0])
    ));
-   const matchedEmail=name?pageEmails.find(e=>emailMatchesName(name,e))||null:null;
-   const email=nearbyEmail||matchedEmail;
+   const matchedEmail=name?pageEmails.find(e=>!isGenericMailbox(e)&&emailMatchesName(name,e))||null:null;
+   const nearbyNamedEmail=name&&nearbyEmail&&!isGenericMailbox(nearbyEmail)&&emailMatchesName(name,nearbyEmail)
+    ?nearbyEmail:null;
+   const email=nearbyNamedEmail||matchedEmail;
    if(name&&email)return{name,title:term,email,phone,url,snippet:snippet.slice(0,320)};
    at=lower.indexOf(term,at+term.length);
   }
@@ -154,6 +219,7 @@ async function researchTask(admin:any,task:any){
   }
  }
 
+ const discoveredLinks=new Set<string>();
  for(const path of PATHS){
   if(found)break;
   const page=absolute(site,path);
@@ -161,8 +227,21 @@ async function researchTask(admin:any,task:any){
   const fetched=await fetchHtml(page);
   if(!fetched)continue;
   pages++;
-  found=candidateFromPage(fetched.html,fetched.url,task.missing_role);
+  for(const link of prioritizedLinks(fetched.html,fetched.url).slice(0,16)) discoveredLinks.add(link);
+  found=candidateFromMailtoPage(fetched.html,fetched.url,task.missing_role)
+    ||candidateFromPage(fetched.html,fetched.url,task.missing_role);
   if(found)break;
+ }
+
+ if(!found&&discoveredLinks.size){
+  for(const page of [...discoveredLinks].slice(0,24)){
+   const fetched=await fetchHtml(page,500000);
+   if(!fetched)continue;
+   pages++;
+   found=candidateFromMailtoPage(fetched.html,fetched.url,task.missing_role)
+    ||candidateFromPage(fetched.html,fetched.url,task.missing_role);
+   if(found)break;
+  }
  }
 
  if(!found){
@@ -171,7 +250,8 @@ async function researchTask(admin:any,task:any){
    const fetched=await fetchHtml(source.url,800000);
    if(!fetched)continue;
    pages++;
-   found=candidateFromPage(fetched.html,fetched.url,task.missing_role);
+   found=candidateFromMailtoPage(fetched.html,fetched.url,task.missing_role)
+    ||candidateFromPage(fetched.html,fetched.url,task.missing_role);
 
    if(!found&&/geds-sage\.gc\.ca/i.test(fetched.url)){
     const people=hrefs(fetched.html,fetched.url).filter(u=>/pgid=015/i.test(u)).slice(0,8);
@@ -179,7 +259,8 @@ async function researchTask(admin:any,task:any){
      const personPage=await fetchHtml(person,300000);
      if(!personPage)continue;
      pages++;
-     found=candidateFromPage(personPage.html,personPage.url,task.missing_role);
+     found=candidateFromMailtoPage(personPage.html,personPage.url,task.missing_role)
+      ||candidateFromPage(personPage.html,personPage.url,task.missing_role);
      if(found)break;
     }
    }
