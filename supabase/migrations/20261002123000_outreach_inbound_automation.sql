@@ -457,7 +457,7 @@ returns uuid
 language plpgsql
 security invoker
 set search_path=pg_catalog,public,private
-as $
+as $$
 declare
   p public.outreach_pursuits%rowtype;
   r public.outreach_replies%rowtype;
@@ -522,7 +522,7 @@ returns trigger
 language plpgsql
 security invoker
 set search_path=pg_catalog,public
-as $
+as $$
 begin
   if new.opportunity_id is null then return new; end if;
 
