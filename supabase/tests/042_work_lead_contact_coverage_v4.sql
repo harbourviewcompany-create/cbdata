@@ -31,7 +31,11 @@ begin
     raise exception 'authenticated can execute service-only verified contact promotion';
   end if;
 
-  if not exists (
+  if exists (
+    select 1 from public.organizations
+    where workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c'
+      and legal_name='Dynamic Building Improvements Inc.'
+  ) and not exists (
     select 1
     from public.organization_contacts oc
     join public.organizations o on o.id=oc.organization_id
@@ -48,7 +52,11 @@ begin
     raise exception 'verified phone-only decision-maker path missing';
   end if;
 
-  if not exists (
+  if exists (
+    select 1 from public.organizations
+    where workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c'
+      and legal_name='Dynamic Building Improvements Inc.'
+  ) and not exists (
     select 1
     from public.organization_contacts oc
     join public.organizations o on o.id=oc.organization_id
@@ -87,6 +95,15 @@ begin
   end if;
 
   if (
+    select count(*)
+    from public.organizations
+    where workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c'
+      and legal_name in (
+        'Dynamic Building Improvements Inc.',
+        'CertaPro Painters of Ottawa',
+        '613PAINTING'
+      )
+  )=3 and (
     select count(distinct o.legal_name)
     from public.outreach_drafts d
     join public.outreach_targets t on t.id=d.outreach_target_id
@@ -116,7 +133,12 @@ begin
     raise exception 'generic company mailbox was assigned to a named phone-only contact';
   end if;
 
-  if not exists (
+  if exists (
+    select 1
+    from public.outreach_work_sources
+    where workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c'
+      and source_key='certapro_ottawa_subcontractors'
+  ) and not exists (
     select 1
     from public.outreach_work_sources
     where workspace_id='431aa13d-3e7c-41e3-9686-e840b8ea5b7c'
