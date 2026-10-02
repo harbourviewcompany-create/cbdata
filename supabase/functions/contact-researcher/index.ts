@@ -208,6 +208,9 @@ async function researchTask(admin:any,task:any){
  let found:any=null;
  let pages=0;
  let evidenceLabel="Official organization website";
+ let verifiedProfileMatched=false;
+ let verifiedEmailMatched=false;
+ let verifiedSourcePages=0;
 
  const verifiedSources=VERIFIED_PERSON_SOURCES.filter(source=>
   source.match.test(orgName) && source.roles.includes(task.missing_role)
@@ -216,8 +219,10 @@ async function researchTask(admin:any,task:any){
   const fetched=await fetchHtml(source.url,500000);
   if(!fetched)continue;
   pages++;
+  verifiedSourcePages++;
   const profile=verifiedNamedProfile(fetched.html,fetched.url,source.name,source.title);
   if(!profile)continue;
+  verifiedProfileMatched=true;
 
   let matched=matchingNamedEmail(fetched.html,fetched.url,source.name);
   if(!matched){
@@ -241,6 +246,7 @@ async function researchTask(admin:any,task:any){
   }
 
   if(matched){
+   verifiedEmailMatched=true;
    found={
     name:source.name,
     title:source.title,
@@ -360,7 +366,13 @@ async function researchTask(admin:any,task:any){
   last_attempt_at:attemptedAt,
   next_attempt_at:new Date(Date.now()+(attempts>=3?14:2)*86400000).toISOString(),
   last_error:"no high-confidence named contact on official or authoritative directory pages",
-  researcher_metadata:{pages_checked:pages,method:"official_plus_authoritative_directory"}
+  researcher_metadata:{
+   pages_checked:pages,
+   method:"official_plus_authoritative_directory",
+   verified_profile_matched:verifiedProfileMatched,
+   verified_email_matched:verifiedEmailMatched,
+   verified_source_pages:verifiedSourcePages
+  }
  }).eq("id",task.id);
 
  return{
