@@ -3,7 +3,8 @@ import type { Route } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceContext } from "@/lib/workspace";
-import { customerNowAction, customerNowLane, customerNowScore, rankCustomerNow } from "@/lib/customer-now";
+import { rankCustomerNow } from "@/lib/customer-now";
+import OutreachFocus from "./focus-home";
 import {
   activateCustomerNowSprint,
   acceptResearchCandidate,
@@ -149,10 +150,13 @@ function confidence(v:number|string|null|undefined) {
   return Math.round(Number(v)*100)+"%";
 }
 
-const views=[
-  ["command","Command Queue"],["work","Work Leads"],["replies","Replies"],["drafts","Drafts"],
-  ["research","Research"],["accounts","Accounts"],["analytics","Analytics"],
+const primaryViews=[
+  ["command","Today"],["work","Leads"],["replies","Replies"],["accounts","Accounts"],
 ] as const;
+const secondaryViews=[
+  ["drafts","Drafts"],["research","Research"],["analytics","Analytics"],
+] as const;
+const views=[...primaryViews,...secondaryViews] as const;
 
 export default async function OutreachPage({
   searchParams,
@@ -233,10 +237,6 @@ export default async function OutreachPage({
   const won=analytics.filter(a=>a.dimension==="target").reduce((sum,a)=>sum+Number(a.won_value??0),0);
   const analyticsRows=analytics.filter(a=>a.dimension===analyticsDimension);
   const customerNow=rankCustomerNow(activeAccounts).slice(0,12);
-  const customerNowReady=customerNow.filter(p=>customerNowLane(p)!=="research").length;
-  const customerNowCallable=customerNow.filter(p=>Boolean(p.contact_phone)).length;
-  const customerNowEmailReady=customerNow.filter(p=>Boolean(p.contact_email)).length;
-  const customerNowReplies=customerNow.filter(p=>(p.needs_response_count??0)>0).length;
   const pursuitMap=new Map(pursuits.map(p=>[p.pursuit_id,p]));
   const workContactNow=workLeads.filter(l=>l.inbox_bucket==="contact_now").length;
   const workResearch=workLeads.filter(l=>l.inbox_bucket==="research_contact").length;
@@ -262,20 +262,33 @@ export default async function OutreachPage({
       <Link className="back" href={"/dashboard" as Route}>← Command</Link>
       <span className="eyebrow">GROWTH EXECUTION</span>
       <h1>Outreach</h1>
-      <p className="muted" style={{marginTop:8,maxWidth:920}}>
-        One pursuit per account, reply-first execution, evidence-backed messaging, controlled follow-up, and revenue attribution from first touch through won work.
+      <p className="muted" style={{marginTop:8,maxWidth:760}}>
+        See what needs attention, do the next action, and keep moving toward a customer.
       </p>
     </header>
 
-    <nav className="panel" aria-label="Outreach sections" style={{marginBottom:16,padding:10,display:"flex",gap:8,flexWrap:"wrap"}}>
-      {views.map(([key,label])=>
-        <Link key={key} className={view===key?"primary":"button"} href={("/outreach?view="+key) as Route}>
-          {label}
-          {key==="replies"&&(unhandledReplies.length+unresolvedInbound.length)?" ("+(unhandledReplies.length+unresolvedInbound.length)+")":""}
-          {key==="work"&&workLeads.filter(l=>["contact_now","research_contact","review"].includes(l.inbox_bucket)).length
-            ?" ("+workLeads.filter(l=>["contact_now","research_contact","review"].includes(l.inbox_bucket)).length+")":""}
-        </Link>
-      )}
+    <nav className="outreach-main-nav" aria-label="Outreach sections">
+      <div className="outreach-main-tabs">
+        {primaryViews.map(([key,label])=>
+          <Link key={key} className={view===key?"active":""} href={("/outreach?view="+key) as Route}>
+            {label}
+            {key==="replies"&&(unhandledReplies.length+unresolvedInbound.length)?<span>{unhandledReplies.length+unresolvedInbound.length}</span>:null}
+            {key==="work"&&workLeads.filter(l=>["contact_now","research_contact","review"].includes(l.inbox_bucket)).length
+              ?<span>{workLeads.filter(l=>["contact_now","research_contact","review"].includes(l.inbox_bucket)).length}</span>:null}
+          </Link>
+        )}
+      </div>
+      <details className="outreach-more-menu">
+        <summary>More</summary>
+        <div>
+          {secondaryViews.map(([key,label])=>
+            <Link key={key} className={view===key?"active":""} href={("/outreach?view="+key) as Route}>
+              {label}
+              {key==="research"&&research.length?<span>{research.length}</span>:null}
+            </Link>
+          )}
+        </div>
+      </details>
     </nav>
 
     {errors.length?<section className="panel" style={{marginBottom:16}}>
@@ -283,13 +296,7 @@ export default async function OutreachPage({
       <p className="muted" style={{marginTop:6}}>{errors[0]?.message}</p>
     </section>:null}
 
-    <section className="metrics" style={{marginBottom:18}}>
-      <div className="metric"><span>Active pursuits</span><strong>{activeAccounts.length}</strong><small>canonical accounts</small></div>
-      <div className="metric"><span>Replies to handle</span><strong>{unhandledReplies.length+unresolvedInbound.length}</strong><small>{unhandledReplies.length} matched · {unresolvedInbound.length} need matching</small></div>
-      <div className="metric"><span>Safe steps due</span><strong>{safeDue}</strong><small>{blockedDue} blocked by guardrails</small></div>
-      <div className="metric"><span>Pipeline</span><strong>{money(pipeline)}</strong><small>outreach-linked</small></div>
-      <div className="metric"><span>Won</span><strong>{money(won)}</strong><small>attributed revenue</small></div>
-    </section>
+
 
     {view==="work"?<section className="panel">
       <div className="panel-head">
@@ -398,309 +405,17 @@ export default async function OutreachPage({
       </div>
     </section>:null}
 
-    {view==="command"?<>
-      <section className="panel" style={{marginBottom:18}}>
-        <div className="panel-head">
-          <div>
-            <span className="eyebrow">GET CUSTOMER NOW</span>
-            <h3>Immediate-customer sprint</h3>
-          </div>
-          <form action={activateCustomerNowSprint}>
-            <input type="hidden" name="limit" value="10"/>
-            <button className="primary" type="submit">Prepare top 10 now</button>
-          </form>
-        </div>
-        <p className="muted" style={{marginTop:8,maxWidth:900}}>
-          Ranks direct-contact, service-fit accounts ahead of slow tender/procurement work. Preparing the sprint assigns the top pursuits to you, makes them due now, generates missing one-site email or call drafts, and queues contact research where required. It does not send anything automatically.
-        </p>
-      </section>
-
-      <section className="metrics" style={{marginBottom:18}}>
-        <div className="metric"><span>Ready now</span><strong>{customerNowReady}</strong><small>of top {customerNow.length}</small></div>
-        <div className="metric"><span>Callable</span><strong>{customerNowCallable}</strong><small>direct phone available</small></div>
-        <div className="metric"><span>Email-ready</span><strong>{customerNowEmailReady}</strong><small>direct email available</small></div>
-        <div className="metric"><span>Replies</span><strong>{customerNowReplies}</strong><small>always first priority</small></div>
-      </section>
-
-      <section style={{display:"grid",gap:12}}>
-        {customerNow.map((p,index)=>{
-          const lane=customerNowLane(p);
-          const nowScore=customerNowScore(p);
-          const emailLink=mailto(p.contact_email,p.latest_draft_subject,p.latest_draft_body);
-          const positiveReply=["interested","request_quote","request_call","site_visit_request","referral","send_information"].includes(p.latest_reply_classification??"");
-          return <article key={p.pursuit_id} className="outreach-queue-card">
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:18,alignItems:"start"}}>
-              <div>
-                <span className="eyebrow">#{index+1}</span>
-                <strong style={{display:"block",fontSize:30}}>{nowScore}</strong>
-                <span className="muted" style={{fontSize:10}}>close-now score</span>
-              </div>
-              <div>
-                <Link href={("/targets/"+p.primary_target_id) as Route}><strong>{p.organization_display_name}</strong></Link>
-                <div className="muted" style={{fontSize:12,marginTop:4}}>{p.contact_display_name??"Direct contact needed"}</div>
-                <div className="muted" style={{fontSize:11}}>{p.contact_job_title??""}</div>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:7}}>
-                  <span className="pill">{human(lane)}</span>
-                  <span className="pill">{human(p.stage)}</span>
-                  {p.service_fit?.slice(0,2).map(service=><span className="pill" key={service}>{service}</span>)}
-                </div>
-              </div>
-              <div>
-                <span className="eyebrow">WHY THIS ACCOUNT</span>
-                <div style={{fontSize:12,lineHeight:1.45,marginTop:5}}>{p.why_now??"Direct contact and service fit"}</div>
-                <div className="muted" style={{fontSize:11,marginTop:6}}>
-                  {p.contact_phone?"phone ready · ":""}{p.contact_email?"email ready · ":""}committee {p.contact_coverage_score}%
-                </div>
-              </div>
-              <div>
-                <span className="eyebrow">DO THIS NOW</span>
-                <strong style={{display:"block",fontSize:12,lineHeight:1.45,marginTop:5}}>{customerNowAction(p)}</strong>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
-                  {p.contact_phone?<a className="primary" href={"tel:"+p.contact_phone}>Call now</a>:null}
-
-                  {lane==="reply_now"&&p.latest_reply_id?
-                    <form action={handleReply}>
-                      <input type="hidden" name="reply_id" value={p.latest_reply_id}/>
-                      <button className="button">Mark handled</button>
-                    </form>:null}
-
-                  {lane==="reply_now"&&positiveReply&&!p.opportunity_id?
-                    <form action={createOpportunityFromPursuit}>
-                      <input type="hidden" name="pursuit_id" value={p.pursuit_id}/>
-                      <input type="hidden" name="reply_id" value={p.latest_reply_id??""}/>
-                      <button className="primary">Create opportunity</button>
-                    </form>:null}
-
-                  {lane==="send_now"&&p.latest_draft_channel==="email"&&emailLink?
-                    <a className="primary" href={emailLink}>Open email</a>:null}
-
-                  {lane==="send_now"&&p.latest_draft_id?
-                    <form action={markSent}>
-                      <input type="hidden" name="target_id" value={p.primary_target_id}/>
-                      <input type="hidden" name="draft_id" value={p.latest_draft_id}/>
-                      <input type="hidden" name="provider" value="manual"/>
-                      <button className="button">Mark sent</button>
-                    </form>:null}
-
-                  {lane==="approve_now"&&p.latest_draft_id?
-                    <form action={approveDraft}>
-                      <input type="hidden" name="target_id" value={p.primary_target_id}/>
-                      <input type="hidden" name="draft_id" value={p.latest_draft_id}/>
-                      <button className="primary">Approve draft</button>
-                    </form>:null}
-
-                  {lane==="draft_now"?
-                    <form action={generateDraft}>
-                      <input type="hidden" name="target_id" value={p.primary_target_id}/>
-                      <input type="hidden" name="channel" value="email"/>
-                      <input type="hidden" name="objective" value="quote"/>
-                      <button className="primary">Build one-site email</button>
-                    </form>:null}
-
-                  {lane==="call_now"?
-                    <form action={generateDraft}>
-                      <input type="hidden" name="target_id" value={p.primary_target_id}/>
-                      <input type="hidden" name="channel" value="call"/>
-                      <input type="hidden" name="objective" value="site_walk"/>
-                      <button className="button">Prepare call opener</button>
-                    </form>:null}
-
-                  {lane==="research"?
-                    <Link className="primary" href={"/outreach?view=research" as Route}>Find direct contact</Link>:null}
-
-                  <Link className="button" href={("/targets/"+p.primary_target_id) as Route}>Open account</Link>
-                </div>
-              </div>
-            </div>
-            <div className="muted" style={{fontSize:11,marginTop:12,paddingTop:10,borderTop:"1px solid var(--line)"}}>
-              Existing next action: {p.next_action??"none"} · Due {due(p.next_action_due_at)}
-            </div>
-          </article>;
-        })}
-        {!customerNow.length?<section className="panel"><p className="muted">No active pursuits are available for the immediate-customer sprint.</p></section>:null}
-      </section>
-    </>:null}
-
-    {view==="command"?<>
-      <section className="panel" style={{marginBottom:18}}>
-        <div className="panel-head">
-          <div><span className="eyebrow">TODAY</span><h3>Command Queue</h3></div>
-          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-            <span className="muted">{pursuits.length} canonical pursuits</span>
-            <form action={runDueSequences}><button className="primary" type="submit">Run {safeDue} safe sequence steps</button></form>
-          </div>
-        </div>
-        {blockedDue>0?<p className="muted" style={{marginTop:8}}>
-          {blockedDue} due sequence step{blockedDue===1?" is":"s are"} paused by reply, suppression, duplicate-pursuit, recent-touch, closed-target, or reachability guards.
-        </p>:null}
-      </section>
-
-      <section style={{display:"grid",gap:12}}>
-        {pursuits.slice(0,40).map(p=>{
-          const emailLink=mailto(p.contact_email,p.latest_draft_subject,p.latest_draft_body);
-          const events=(timelineByPursuit.get(p.pursuit_id)??[]).slice(0,6);
-          return <article key={p.pursuit_id} className="outreach-queue-card">
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:18,alignItems:"start"}}>
-              <div>
-                <span className="eyebrow">SCORE</span>
-                <strong style={{display:"block",fontSize:28}}>{p.total_score}</strong>
-                <span className="muted" style={{fontSize:11}}>command {p.command_score}</span>
-              </div>
-              <div>
-                <Link href={("/targets/"+p.primary_target_id) as Route}><strong>{p.organization_display_name}</strong></Link>
-                <div className="muted" style={{fontSize:12,marginTop:4}}>{p.contact_display_name??"No verified primary contact"}</div>
-                <div className="muted" style={{fontSize:11}}>{p.contact_job_title??""}</div>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:7}}>
-                  <span className="pill">{human(p.stage)}</span>
-                  {p.needs_response_count>0?<span className="pill">{p.needs_response_count} reply{p.needs_response_count===1?"":"ies"} waiting</span>:null}
-                  <span className="pill">committee {p.contact_coverage_score}%</span>
-                </div>
-              </div>
-              <div>
-                <span className="eyebrow">WHY NOW</span>
-                <div style={{fontSize:12,lineHeight:1.45,marginTop:5}}>{p.why_now??"Account fit and readiness"}</div>
-                <div className="muted" style={{fontSize:11,marginTop:6}}>
-                  {p.property_count} properties · {p.high_signal_property_count} strong-fit · {p.open_signal_count} signals
-                  {p.service_fit?.length?" · "+p.service_fit.join(" / "):""}
-                </div>
-                <details style={{marginTop:8}}>
-                  <summary style={{cursor:"pointer",fontSize:11}}>Score breakdown</summary>
-                  <div className="muted" style={{fontSize:11,lineHeight:1.65,marginTop:6}}>
-                    Fit {p.fit_score}/25 · Timing {p.timing_score}/25 · Evidence {p.evidence_score}/20 · Contact {p.contact_score}/15 · Committee {p.committee_score}/10 · Relationship {p.relationship_score}/5
-                  </div>
-                  {p.improvement_recommendations?.length?<div className="muted" style={{fontSize:11,marginTop:5}}>
-                    Next score gain: {p.improvement_recommendations[0]}
-                  </div>:null}
-                </details>
-              </div>
-              <div>
-                <span className="eyebrow">NEXT</span>
-                <strong style={{display:"block",fontSize:12,marginTop:5,textTransform:"capitalize"}}>{human(p.recommended_action)}</strong>
-                <div className="muted" style={{fontSize:11,marginTop:4}}>{p.next_action??"Set next action"}</div>
-                <div className="muted" style={{fontSize:11,marginTop:3}}>
-                  Owner: {p.next_action_owner_user_id===ctx.user.id?"You":p.next_action_owner_user_id?"Assigned teammate":"Unassigned"} · Due {due(p.next_action_due_at)}
-                </div>
-              </div>
-            </div>
-
-            {p.latest_reply_needs_response?<section style={{marginTop:12,padding:12,border:"1px solid var(--line)",borderRadius:10}}>
-              <span className="eyebrow">REPLY NEEDS RESPONSE · {human(p.latest_reply_classification)}</span>
-              <p style={{fontSize:12,lineHeight:1.5,margin:"6px 0 0"}}>{p.latest_reply_summary??p.latest_reply_body}</p>
-              <div className="muted" style={{fontSize:11,marginTop:5}}>Classifier confidence {confidence(p.latest_reply_confidence)}</div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
-                <form action={handleReply}><input type="hidden" name="reply_id" value={p.latest_reply_id??""}/><button className="primary">Mark handled</button></form>
-                <form action={handleReply}><input type="hidden" name="reply_id" value={p.latest_reply_id??""}/><input type="hidden" name="resume_sequence" value="true"/><button className="button">Handle + resume sequence</button></form>
-                {!p.opportunity_id&&["interested","request_quote","request_call","site_visit_request"].includes(p.latest_reply_classification??"")?
-                  <form action={createOpportunityFromPursuit}>
-                    <input type="hidden" name="pursuit_id" value={p.pursuit_id}/>
-                    <input type="hidden" name="reply_id" value={p.latest_reply_id??""}/>
-                    <button className="button">Create opportunity</button>
-                  </form>:null}
-              </div>
-            </section>:null}
-
-            {p.latest_draft_id?<details className="outreach-draft-review" style={{marginTop:12}}>
-              <summary>
-                {human(p.latest_draft_state)} draft · quality {p.latest_draft_quality_score}/100
-                {p.latest_draft_strategy?" · "+human(p.latest_draft_strategy):""}
-              </summary>
-              <div style={{marginTop:10,padding:12,border:"1px solid var(--line)",borderRadius:10}}>
-                {p.latest_draft_subject?<strong style={{display:"block",marginBottom:8}}>{p.latest_draft_subject}</strong>:null}
-                <div style={{whiteSpace:"pre-wrap",fontSize:12,lineHeight:1.5}}>{p.latest_draft_body}</div>
-                <div className="muted" style={{fontSize:11,marginTop:10}}>
-                  Evidence: {String(p.latest_draft_evidence?.property_name??"no property")} · {String(p.latest_draft_evidence?.signal??"no live signal")} · contact {String(p.latest_draft_evidence?.contact_confidence??"unverified")}
-                </div>
-              </div>
-            </details>:null}
-
-            <div className="outreach-queue-actions" style={{marginTop:12}}>
-              {p.recommended_action==="handle_reply"?null:
-                (!p.latest_draft_id||p.latest_draft_state==="draft"||p.recommended_action==="generate_draft")?
-                <form action={generateDraft} className="outreach-rewrite-form">
-                  <input type="hidden" name="target_id" value={p.primary_target_id}/>
-                  <select name="objective" defaultValue="referral">
-                    <option value="referral">Referral / right person</option>
-                    <option value="introduction">Introduction</option>
-                    <option value="meeting">Meeting</option>
-                    <option value="site_walk">Site walkthrough</option>
-                    <option value="vendor_registration">Vendor registration</option>
-                    <option value="quote">Quote opportunity</option>
-                  </select>
-                  <select name="channel" defaultValue={p.latest_draft_channel??"email"} aria-label="Draft channel">
-                    <option value="email">Email</option><option value="linkedin">LinkedIn</option>
-                    <option value="call">Call opener</option><option value="voicemail">Voicemail</option><option value="sms">SMS</option>
-                  </select>
-                  <button className={p.latest_draft_id?"button":"primary"}>{p.latest_draft_id?"Rewrite draft":"Generate draft"}</button>
-                </form>:null}
-              {p.latest_draft_id&&p.latest_draft_state==="draft"?
-                <form action={approveDraft}>
-                  <input type="hidden" name="target_id" value={p.primary_target_id}/>
-                  <input type="hidden" name="draft_id" value={p.latest_draft_id}/>
-                  <button className="primary" disabled={!p.latest_draft_quality_passed}>Approve {p.latest_draft_quality_score}/100</button>
-                </form>:null}
-              {p.latest_draft_id&&p.latest_draft_state==="approved"&&p.latest_draft_channel==="email"&&emailLink?
-                <a className="primary" href={emailLink}>Open email</a>:null}
-              {p.latest_draft_id&&p.latest_draft_state==="approved"?
-                <form action={markSent}>
-                  <input type="hidden" name="target_id" value={p.primary_target_id}/>
-                  <input type="hidden" name="draft_id" value={p.latest_draft_id}/>
-                  <input type="hidden" name="provider" value="manual"/>
-                  <button className="button">Mark sent</button>
-                </form>:null}
-              <form action={enrollDefaultSequence}>
-                <input type="hidden" name="target_id" value={p.primary_target_id}/>
-                <button className="button">Enroll 7-touch</button>
-              </form>
-              <details>
-                <summary className="button" style={{cursor:"pointer"}}>Log reply</summary>
-                <form action={classifyReply} style={{display:"grid",gap:8,minWidth:340,marginTop:8}}>
-                  <input type="hidden" name="target_id" value={p.primary_target_id}/>
-                  <textarea name="reply_body" required rows={5} placeholder="Paste the reply. CBData will classify it and pause the sequence."/>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                    <select name="channel" defaultValue="email"><option value="email">Email</option><option value="linkedin">LinkedIn</option><option value="sms">SMS</option><option value="call">Call</option><option value="other">Other</option></select>
-                    <select name="classification_override" defaultValue="">
-                      <option value="">Auto classify</option><option value="interested">Interested</option>
-                      <option value="request_quote">Quote request</option><option value="request_call">Call request</option>
-                      <option value="site_visit_request">Site visit</option><option value="referral">Referral</option>
-                      <option value="wrong_person">Wrong person</option><option value="under_contract">Under contract</option>
-                      <option value="future_renewal">Future renewal</option><option value="not_interested">Not interested</option>
-                      <option value="unsubscribe">Unsubscribe</option><option value="bounce">Bounce</option><option value="other">Other</option>
-                    </select>
-                  </div>
-                  <input name="referred_contact" placeholder="Referred contact, if provided"/>
-                  <input name="renewal_date" type="date"/>
-                  <button className="primary">Classify + pause sequence</button>
-                </form>
-              </details>
-              <details>
-                <summary className="button" style={{cursor:"pointer"}}>Set next action</summary>
-                <form action={updatePursuitNextAction} style={{display:"grid",gap:8,minWidth:330,marginTop:8}}>
-                  <input type="hidden" name="pursuit_id" value={p.pursuit_id}/>
-                  <input name="next_action" defaultValue={p.next_action??""} maxLength={240} required placeholder="Next action"/>
-                  <input name="next_action_due_at" type="datetime-local" defaultValue={localInput(p.next_action_due_at)}/>
-                  <label style={{display:"flex",gap:7,alignItems:"center",fontSize:12}}>
-                    <input type="checkbox" name="assign_to_me" value="true" defaultChecked/> Assign to me
-                  </label>
-                  <button className="button">Save next action</button>
-                </form>
-              </details>
-            </div>
-
-            {events.length?<details style={{marginTop:12}}>
-              <summary style={{cursor:"pointer",fontSize:12}}>Timeline · latest {events.length}</summary>
-              <div style={{display:"grid",gap:8,marginTop:8}}>
-                {events.map(e=><div key={e.event_type+"-"+e.event_id} style={{borderLeft:"2px solid var(--line)",paddingLeft:10}}>
-                  <strong style={{fontSize:11}}>{e.title}</strong>
-                  <span className="muted" style={{fontSize:10,marginLeft:8}}>{moment(e.occurred_at)}</span>
-                  {e.detail?<div className="muted" style={{fontSize:11,marginTop:2}}>{e.detail.slice(0,360)}</div>:null}
-                </div>)}
-              </div>
-            </details>:null}
-          </article>;
-        })}
-        {!pursuits.length?<section className="panel"><p className="muted">No outreach pursuits yet.</p></section>:null}
-      </section>
-    </>:null}
+    {view==="command"?<OutreachFocus
+      pursuits={customerNow}
+      workLeads={workLeads}
+      matchedReplies={unhandledReplies.length}
+      pendingInbound={unresolvedInbound.length}
+      safeDue={safeDue}
+      blockedDue={blockedDue}
+      researchOpen={research.length}
+      pipeline={pipeline}
+      won={won}
+    />:null}
 
     {view==="replies"?<section className="table-panel">
       <div className="panel-head">
