@@ -51,9 +51,12 @@ function hrefs(html:string,base:string){
 }
 const INVALID_NAME=/^(first name|last name|full name|your name|contact us|learn more|read more|property management|facility management|vice president|executive director|privacy policy|terms conditions|stay connected|canada administrative|administrative assistant)$/i;
 
+function normalizeToken(v:string){
+ return v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
+}
 function emailMatchesName(name:string,email:string){
- const local=normalize(email.split("@")[0]||"").replaceAll(" ","");
- const parts=normalize(name).split(" ").filter(p=>p.length>=3);
+ const local=normalizeToken(email.split("@")[0]||"").replaceAll(" ","");
+ const parts=normalizeToken(name).split(" ").filter(p=>p.length>=3);
  return parts.some(part=>local.includes(part));
 }
 
