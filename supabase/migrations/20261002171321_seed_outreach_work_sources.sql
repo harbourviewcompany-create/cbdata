@@ -4,7 +4,7 @@ with defs(source_key,display_name,source_url,source_kind) as (
     ('fiore_subcontractors','Fiore Corp Renovations — Subcontractor Work','https://fiorecorprenovations.ca/join-the-team','standing_network'),
     ('omsg_service_network','Ottawa Multiservices Group — Service Network','https://www.ottawamultiservicesgroup.com/partners','standing_network'),
     ('machaalani_subcontractors','Machaalani Landscaping & Contracting — Subcontractors','https://www.machaalani.ca/','standing_network'),
-    ('certapro_ottawa_subcontractors','CertaPro Painters Ottawa — Independent Contractor','https://certapro-painters-ottawa-on.careerplug.com/jobs/1951264/apps/new','standing_network'),
+    ('certapro_ottawa_subcontractors','CertaPro Painters Ottawa — Independent Contractor','https://app.careerplug.com/jobs/1951264/apps/new','standing_network'),
     ('613painting_subcontractors','613PAINTING — Subcontractor Application','https://613painting.com/join-our-team/','standing_network'),
     ('mbc_trade_registration','McDonald Brothers Construction — Trade Contractor List','https://mbc.ca/trade-registration-form/','standing_network'),
     ('mbc_current_tenders','McDonald Brothers Construction — Current Tenders','https://mbc.ca/current-tenders/','private_tender')
