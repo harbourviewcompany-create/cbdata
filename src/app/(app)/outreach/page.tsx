@@ -251,7 +251,7 @@ export default async function OutreachPage({
     return ms>=0 && ms<=7*24*60*60*1000;
   }).length;
   const workHealthySources=workSources.filter(source=>source.health_state==="healthy").length;
-  const workProblemSources=workSources.filter(source=>["degraded","failing","stale"].includes(source.health_state)).length;
+  const workProblemSources=workSources.filter(source=>["degraded","failing","stale","untested"].includes(source.health_state)).length;
   const errors=[
     pursuitResult.error,replyResult.error,inboundResult.error,researchResult.error,timelineResult.error,
     analyticsResult.error,safetyResult.error,estimateResult.error,workLeadResult.error,workSourceResult.error,workRunResult.error,
