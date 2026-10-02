@@ -93,12 +93,18 @@ Deno.serve(async (req) => {
     "sender_email", "from_email", "from", "sender", "email",
   ]));
   const subject = clean(valueAt(nested, ["subject", "Subject"]), 1000);
+  const eventType = clean(valueAt(raw, ["type", "event_type", "eventType"]), 120);
+  const resendEmailId = clean(valueAt(nested, ["email_id", "emailId"]), 500);
   const body =
     clean(valueAt(nested, ["text", "body", "text_body", "plain", "content", "message"]), 50000) ??
     clean(valueAt(raw, ["text", "body", "text_body", "plain", "content"]), 50000);
-  if (!body) return json(400, { error: "missing_reply_body" });
+  const metadataOnlyResend = eventType === "email.received" && Boolean(resendEmailId) && !body;
+  if (!body && !metadataOnlyResend) return json(400, { error: "missing_reply_body" });
 
-  const provider = clean(valueAt(nested, ["provider"]), 80) ?? clean(valueAt(raw, ["provider"]), 80) ?? "webhook";
+  const provider =
+    clean(valueAt(nested, ["provider"]), 80) ??
+    clean(valueAt(raw, ["provider"]), 80) ??
+    (eventType === "email.received" ? "resend" : "webhook");
   const providerThreadId =
     clean(valueAt(nested, ["thread_id", "threadId", "conversation_id", "conversationId"]), 500) ??
     clean(valueAt(raw, ["thread_id", "threadId", "conversation_id", "conversationId"]), 500);
@@ -109,8 +115,8 @@ Deno.serve(async (req) => {
     providerMessageId = `auto-${(await sha256(JSON.stringify(rawPayload))).slice(0, 48)}`;
   }
   const receivedAt = parseTimestamp(
-    valueAt(nested, ["received_at", "receivedAt", "timestamp", "date"]) ??
-    valueAt(raw, ["received_at", "receivedAt", "timestamp", "date"]),
+    valueAt(nested, ["received_at", "receivedAt", "created_at", "createdAt", "timestamp", "date"]) ??
+    valueAt(raw, ["received_at", "receivedAt", "created_at", "createdAt", "timestamp", "date"]),
   );
 
   const existingResponse = await fetch(
@@ -163,6 +169,8 @@ Deno.serve(async (req) => {
   }
 
   const initialStatus = selected ? "matched" : candidates.length ? "ambiguous" : "unmatched";
+  const eventStatus = metadataOnlyResend ? "pending_content" : initialStatus;
+  const eventBody = body ?? `Resend inbound content pending retrieval (${resendEmailId})`;
   const eventRow = {
     workspace_id: workspaceId,
     provider,
@@ -170,9 +178,9 @@ Deno.serve(async (req) => {
     provider_thread_id: providerThreadId,
     sender_email: senderEmail,
     subject,
-    body,
+    body: eventBody,
     received_at: receivedAt,
-    status: initialStatus,
+    status: eventStatus,
     matched_target_id: selected?.target_id ?? null,
     matched_pursuit_id: selected?.pursuit_id ?? null,
     match_reason: selected?.match_reason ?? (candidates.length ? "multiple_candidate_pursuits" : "no_target_match"),
@@ -180,6 +188,9 @@ Deno.serve(async (req) => {
       payload: rawPayload,
       candidate_target_ids: candidates.map((x) => x.target_id),
       candidate_pursuit_ids: [...new Set(candidates.map((x) => x.pursuit_id).filter(Boolean))],
+      event_type: eventType,
+      resend_email_id: resendEmailId,
+      content_pending: metadataOnlyResend,
     },
   };
 
@@ -198,6 +209,52 @@ Deno.serve(async (req) => {
 
   const inserted = await eventResponse.json();
   const eventId = inserted[0]?.id ?? null;
+
+  if (metadataOnlyResend) {
+    if (selected) {
+      const pauseResponse = await fetch(
+        `${supabaseUrl}/rest/v1/rpc/pause_outreach_sequences_for_inbound`,
+        {
+          method: "POST",
+          headers: authHeaders,
+          body: JSON.stringify({
+            p_workspace_id: workspaceId,
+            p_target_id: selected.target_id,
+            p_reason: "resend_reply_pending_content",
+          }),
+        },
+      );
+      if (!pauseResponse.ok) {
+        const detail = await pauseResponse.text();
+        if (eventId) {
+          await fetch(
+            `${supabaseUrl}/rest/v1/outreach_inbound_events?id=eq.${eventId}`,
+            {
+              method: "PATCH",
+              headers: authHeaders,
+              body: JSON.stringify({
+                status: "error",
+                match_reason: "sequence_pause_failed",
+                updated_at: new Date().toISOString(),
+              }),
+            },
+          );
+        }
+        return json(500, { error: "sequence_pause_failed", detail, event_id: eventId });
+      }
+    }
+
+    return json(202, {
+      accepted: true,
+      matched: Boolean(selected),
+      status: "pending_content",
+      event_id: eventId,
+      candidates: candidates.length,
+      resend_email_id: resendEmailId,
+      sequence_paused: Boolean(selected),
+    });
+  }
+
   if (!selected) {
     return json(202, {
       accepted: true,
