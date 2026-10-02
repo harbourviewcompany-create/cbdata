@@ -1,4 +1,5 @@
--- Use the named unique constraint to avoid OUT-parameter ambiguity in PL/pgSQL.\ncreate or replace function private.promote_outreach_work_lead_core(p_lead_id uuid)
+-- Use the named unique constraint to avoid OUT-parameter ambiguity in PL/pgSQL.
+create or replace function private.promote_outreach_work_lead_core(p_lead_id uuid)
 returns table(outreach_target_id uuid,pursuit_id uuid,organization_id uuid)
 language plpgsql
 security definer
