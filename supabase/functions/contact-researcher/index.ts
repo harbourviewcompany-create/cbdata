@@ -112,14 +112,19 @@ function emailMatchesName(name:string,email:string){
 }
 function isGenericMailbox(email:string){
  const local=normalizeToken(email.split("@")[0]||"").replaceAll(" ","");
- return /^(info|contact|hello|office|admin|administration|reception|leasing|rentals|sales|support|service|services|operations|facilities|maintenance|propertymanagement|projectmanagement|procurement|purchasing|estimating|careers|jobs|accounts|accounting|ap|ar)$/.test(local);
+ return /^(info|contact|hello|office|admin|administration|reception|leasing|rentals|sales|support|service|services|operations|facilities|maintenance|propertymanagement|projectmanagement|procurement|purchasing|estimating|careers|jobs|accounts|accounting|ap|ar|corporaterecords|records|communications|marketing|hr|humanresources)$/.test(local);
+}
+const NON_PERSON_NAME=/\b(corporate|records|department|services?|management|office|team|support|facilit(?:y|ies)|leasing|procurement|purchasing|maintenance|construction|property|properties|company|group|administration|administrative|communications?|marketing|sales|careers?|resources?|reception|information|president|director|manager|chief|owner|partner|vice)\b/i;
+function looksLikePersonName(name:string){
+ const parts=name.trim().split(/\s+/).filter(Boolean);
+ return parts.length>=2 && parts.length<=4 && !NON_PERSON_NAME.test(name);
 }
 function verifiedNamedCandidate(html:string,url:string,name:string,title:string){
  const text=clean(html);
  const lower=normalizeToken(text);
  const nameToken=normalizeToken(name);
  const titleWords=normalizeToken(title).split(" ").filter(w=>w.length>=4);
- if(!lower.includes(nameToken) || !titleWords.some(word=>lower.includes(word))) return null;
+ if(!looksLikePersonName(name) || !lower.includes(nameToken) || !titleWords.some(word=>lower.includes(word))) return null;
  const emails=Array.from(new Set(
   [...text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0])
  ));
@@ -143,7 +148,7 @@ function candidateFromMailtoPage(html:string,url:string,role:string){
    .map(match=>match[0])
    .filter(name=>!INVALID_NAME.test(name.trim())&&!/^(First|Last|Full|Your|Contact|Learn|Read|Property|Facility|Privacy|Terms|Stay|Canada|Administrative)\b/i.test(name));
   if(isGenericMailbox(email))continue;
-  const name=names.find(n=>emailMatchesName(n,email))||null;
+  const name=names.find(n=>looksLikePersonName(n)&&emailMatchesName(n,email))||null;
   const phone=snippet.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/)?.[0]||null;
   if(name)return{name,title,email,phone,url,snippet:snippet.slice(0,320)};
  }
@@ -165,7 +170,7 @@ function candidateFromPage(html:string,url:string,role:string){
     .filter(x=>!INVALID_NAME.test(x.name.trim())&&!/^(First|Last|Full|Your|Contact|Learn|Read|Property|Facility|Privacy|Terms|Stay|Canada|Administrative)\b/i.test(x.name));
    const roleAt=Math.max(0,at-Math.max(0,at-100));
    names.sort((a,b)=>Math.abs(a.index-roleAt)-Math.abs(b.index-roleAt));
-   const name=names.length?names[0].name:null;
+   const name=names.find(x=>looksLikePersonName(x.name))?.name||null;
    const pageEmails=Array.from(new Set(
     [...text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0])
    ));
