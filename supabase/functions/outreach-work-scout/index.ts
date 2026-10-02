@@ -338,6 +338,7 @@ Deno.serve(async(req)=>{
   for(const lead of leads)resultCounts.set(lead.source_key,(resultCounts.get(lead.source_key)||0)+1);
   const mbcDetailErrors=sourceResults.filter(r=>r.source==="mbc_tender_detail"&&!r.ok).length;
   let sourceFailureCount=0;
+  let healthWriteErrors=0;
 
   for(const source of SOURCE_DEFS){
     const current=healthMap.get(source.source_key);
@@ -350,20 +351,28 @@ Deno.serve(async(req)=>{
     const errorMessage=baseSucceeded ? partialError : (result?.error||"source did not complete");
     if(!baseSucceeded)sourceFailureCount++;
 
-    await admin.from("outreach_work_sources").update({
+    const healthPatch:any={
       last_run_at:observedAt,
-      last_success_at:baseSucceeded?observedAt:undefined,
       last_error:errorMessage,
       consecutive_failures:baseSucceeded?0:Number(current?.consecutive_failures||0)+1,
       last_result_count:resultCounts.get(source.source_key)||0,
       updated_at:observedAt
-    }).eq("workspace_id",workspaceId).eq("source_key",source.source_key);
+    };
+    if(baseSucceeded)healthPatch.last_success_at=observedAt;
+    const {error:healthWriteError}=await admin.from("outreach_work_sources")
+      .update(healthPatch)
+      .eq("workspace_id",workspaceId)
+      .eq("source_key",source.source_key);
+    if(healthWriteError){
+      healthWriteErrors++;
+      sourceResults.push({source:source.source_key,health_write_error:healthWriteError.message});
+    }
   }
 
   const promoted=Number(Array.isArray(routing)&&routing[0]?.promoted||0);
   const draftCount=drafts.filter(d=>d.draft_id&&!d.error).length;
   const draftErrors=drafts.filter(d=>d.error).length;
-  const errorCount=writeErrors+sourceFailureCount+mbcDetailErrors+draftErrors+(routingError?1:0);
+  const errorCount=writeErrors+sourceFailureCount+mbcDetailErrors+draftErrors+healthWriteErrors+(routingError?1:0);
   const runStatus=errorCount===0?"completed":errorCount>=SOURCE_DEFS.length?"error":"partial";
 
   await admin.from("outreach_work_scout_runs").update({
