@@ -238,7 +238,8 @@ async function researchTask(admin:any,task:any){
    const fetched=await fetchHtml(source.url,800000);
    if(!fetched)continue;
    pages++;
-   found=candidateFromMailtoPage(fetched.html,fetched.url,task.missing_role)\n    ||candidateFromPage(fetched.html,fetched.url,task.missing_role);
+   found=candidateFromMailtoPage(fetched.html,fetched.url,task.missing_role)
+    ||candidateFromPage(fetched.html,fetched.url,task.missing_role);
 
    if(!found&&/geds-sage\.gc\.ca/i.test(fetched.url)){
     const people=hrefs(fetched.html,fetched.url).filter(u=>/pgid=015/i.test(u)).slice(0,8);
@@ -246,7 +247,8 @@ async function researchTask(admin:any,task:any){
      const personPage=await fetchHtml(person,300000);
      if(!personPage)continue;
      pages++;
-     found=candidateFromPage(personPage.html,personPage.url,task.missing_role);
+     found=candidateFromMailtoPage(personPage.html,personPage.url,task.missing_role)
+      ||candidateFromPage(personPage.html,personPage.url,task.missing_role);
      if(found)break;
     }
    }
