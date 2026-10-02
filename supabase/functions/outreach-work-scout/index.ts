@@ -118,6 +118,21 @@ const NETWORKS=[
   }
 ] as const;
 
+const SOURCE_DEFS=[
+  ...NETWORKS.map(source=>({
+    source_key:source.source_key,
+    display_name:source.source_label,
+    source_url:source.source_url,
+    source_kind:"standing_network"
+  })),
+  {
+    source_key:"mbc_current_tenders",
+    display_name:"McDonald Brothers Construction — Current Tenders",
+    source_url:MBC_CURRENT,
+    source_kind:"private_tender"
+  }
+] as const;
+
 const FIT_RULES=[
   {label:"sheet metal & ductwork",weight:32,terms:["sheet metal","ductwork","duct work","metal flashing","metal cladding","metal siding","siding","louvers","soffit","fascia","eavestrough","gutter"]},
   {label:"metals & fabrication",weight:30,terms:["structural steel","steel fabrication","metal fabrication","welding","misc. metals","miscellaneous metals","metal stairs","metal railing"]},
@@ -195,18 +210,49 @@ Deno.serve(async(req)=>{
   }else{
     const {data:userData,error:userError}=await admin.auth.getUser(token);
     if(userError||!userData.user)return Response.json({error:"unauthorized"},{status:401});
-    const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id").eq("user_id",userData.user.id).eq("status","active");
-    const membership=(memberships||[]).find((m:any)=>!requestedWorkspace||m.workspace_id===requestedWorkspace);
-    if(!membership)return Response.json({error:"workspace_access_denied"},{status:403});
+    const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id,role").eq("user_id",userData.user.id).eq("status","active");
+    const salesRoles=new Set(["owner","administrator","sales_manager","sales_rep"]);
+    const membership=(memberships||[]).find((m:any)=>
+      (!requestedWorkspace||m.workspace_id===requestedWorkspace) && salesRoles.has(String(m.role))
+    );
+    if(!membership)return Response.json({error:"workspace_sales_access_denied"},{status:403});
     workspaceId=membership.workspace_id;
   }
   if(!workspaceId)return Response.json({error:"workspace_unresolved"},{status:400});
 
   const observedAt=new Date().toISOString();
+  const {error:sourceSeedError}=await admin.from("outreach_work_sources").upsert(
+    SOURCE_DEFS.map(source=>({
+      workspace_id:workspaceId,
+      source_key:source.source_key,
+      display_name:source.display_name,
+      source_url:source.source_url,
+      source_kind:source.source_kind,
+      updated_at:observedAt
+    })),
+    {onConflict:"workspace_id,source_key"}
+  );
+  if(sourceSeedError)return Response.json({error:"source_health_seed_failed",detail:sourceSeedError.message},{status:500});
+
+  const {data:healthRows,error:healthError}=await admin.from("outreach_work_sources")
+    .select("source_key,enabled,consecutive_failures")
+    .eq("workspace_id",workspaceId);
+  if(healthError)return Response.json({error:"source_health_read_failed",detail:healthError.message},{status:500});
+  const healthMap=new Map((healthRows||[]).map((row:any)=>[row.source_key,row]));
+
+  const {data:run,error:runError}=await admin.from("outreach_work_scout_runs")
+    .insert({workspace_id:workspaceId,started_at:observedAt,status:"running"})
+    .select("id").single();
+  if(runError||!run)return Response.json({error:"scout_run_create_failed",detail:runError?.message||null},{status:500});
+
   const leads:LeadInput[]=[];
   const sourceResults:any[]=[];
 
   for(const source of NETWORKS){
+    if(healthMap.get(source.source_key)?.enabled===false){
+      sourceResults.push({source:source.source_key,ok:true,skipped:"disabled"});
+      continue;
+    }
     try{
       const html=await fetchText(source.source_url);
       const text=normalize(cleanHtml(html));
@@ -228,7 +274,7 @@ Deno.serve(async(req)=>{
     }
   }
 
-  try{
+  if(healthMap.get("mbc_current_tenders")?.enabled!==false) try{
     const indexHtml=await fetchText(MBC_CURRENT);
     const links=Array.from(indexHtml.matchAll(/href=["'](https?:\/\/mbc\.ca\/tender\/[^"'#?]+|\/tender\/[^"'#?]+)["']/gi))
       .map(m=>m[1].startsWith("http")?m[1]:`https://mbc.ca${m[1]}`);
@@ -288,11 +334,66 @@ Deno.serve(async(req)=>{
       if(draftId||draftError)drafts.push({lead_id:leadId,draft_id:draftId||null,error:draftError?.message||null});
     }
   }
+  const resultCounts=new Map<string,number>();
+  for(const lead of leads)resultCounts.set(lead.source_key,(resultCounts.get(lead.source_key)||0)+1);
+  const mbcDetailErrors=sourceResults.filter(r=>r.source==="mbc_tender_detail"&&!r.ok).length;
+  let sourceFailureCount=0;
+  let healthWriteErrors=0;
+
+  for(const source of SOURCE_DEFS){
+    const current=healthMap.get(source.source_key);
+    if(current?.enabled===false)continue;
+    const result=sourceResults.find(r=>r.source===source.source_key);
+    const baseSucceeded=result?.ok===true;
+    const partialError=source.source_key==="mbc_current_tenders"&&mbcDetailErrors
+      ? mbcDetailErrors+" tender detail fetch"+(mbcDetailErrors===1?"":"es")+" failed"
+      : null;
+    const errorMessage=baseSucceeded ? partialError : (result?.error||"source did not complete");
+    if(!baseSucceeded)sourceFailureCount++;
+
+    const healthPatch:any={
+      last_run_at:observedAt,
+      last_error:errorMessage,
+      consecutive_failures:baseSucceeded?0:Number(current?.consecutive_failures||0)+1,
+      last_result_count:resultCounts.get(source.source_key)||0,
+      updated_at:observedAt
+    };
+    if(baseSucceeded)healthPatch.last_success_at=observedAt;
+    const {error:healthWriteError}=await admin.from("outreach_work_sources")
+      .update(healthPatch)
+      .eq("workspace_id",workspaceId)
+      .eq("source_key",source.source_key);
+    if(healthWriteError){
+      healthWriteErrors++;
+      sourceResults.push({source:source.source_key,health_write_error:healthWriteError.message});
+    }
+  }
+
+  const promoted=Number(Array.isArray(routing)&&routing[0]?.promoted||0);
+  const draftCount=drafts.filter(d=>d.draft_id&&!d.error).length;
+  const draftErrors=drafts.filter(d=>d.error).length;
+  const errorCount=writeErrors+sourceFailureCount+mbcDetailErrors+draftErrors+healthWriteErrors+(routingError?1:0);
+  const runStatus=errorCount===0?"completed":errorCount>=SOURCE_DEFS.length?"error":"partial";
+
+  await admin.from("outreach_work_scout_runs").update({
+    finished_at:new Date().toISOString(),
+    status:runStatus,
+    discovered_count:leads.length,
+    upserted_count:upserted,
+    promoted_count:promoted,
+    draft_count:draftCount,
+    error_count:errorCount,
+    source_results:sourceResults,
+    error_message:routingError?.message||null
+  }).eq("id",run.id);
+
   return Response.json({
-    ok:writeErrors===0&&!routingError&&drafts.every(d=>!d.error),
+    ok:errorCount===0,
+    run_id:run.id,
     discovered:leads.length,upserted,write_errors:writeErrors,
     routing:routing||null,routing_error:routingError?.message||null,
     drafts,
+    source_failures:sourceFailureCount,
     sources:sourceResults
   });
 });

@@ -508,3 +508,30 @@ export async function dismissWorkLead(formData: FormData) {
   if (error) throw new Error(error.message);
   refresh();
 }
+
+
+export async function toggleWorkLeadSource(formData: FormData) {
+  const { s, workspaceId } = await client();
+  const sourceId = String(formData.get("source_id") ?? "");
+  const enabled = String(formData.get("enabled") ?? "") === "true";
+  if (!sourceId) throw new Error("Work Lead source is required");
+
+  const { data: source, error: sourceError } = await (s as any)
+    .from("outreach_work_sources")
+    .select("id")
+    .eq("id", sourceId)
+    .eq("workspace_id", workspaceId)
+    .maybeSingle();
+
+  if (sourceError) throw new Error(sourceError.message);
+  if (!source) throw new Error("Work Lead source is not in the active workspace");
+
+  const { error } = await (s as any)
+    .from("outreach_work_sources")
+    .update({ enabled, updated_at: new Date().toISOString() })
+    .eq("id", sourceId)
+    .eq("workspace_id", workspaceId);
+
+  if (error) throw new Error(error.message);
+  refresh();
+}
