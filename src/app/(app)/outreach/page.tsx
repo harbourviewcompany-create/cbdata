@@ -16,6 +16,8 @@ import {
   linkEstimateToPursuit,
   markSent,
   promoteWorkLead,
+  dismissWorkLead,
+  scanWorkLeads,
   queueContactResearch,
   resolveInboundEvent,
   runDueSequences,
@@ -103,7 +105,7 @@ type WorkLeadRow = {
   published_at:string|null; deadline_at:string|null; service_fit:string[]|null;
   fit_score:number|string; speed_score:number|string; conversion_score:number|string;
   status:string; outreach_target_id:string|null; pursuit_id:string|null;
-  inbox_bucket:string; recommended_next_action:string;
+  inbox_bucket:string; recommended_next_action:string; last_seen_at:string;
 };
 
 function due(v:string|null|undefined) {
@@ -216,6 +218,19 @@ export default async function OutreachPage({
   const customerNowCallable=customerNow.filter(p=>Boolean(p.contact_phone)).length;
   const customerNowEmailReady=customerNow.filter(p=>Boolean(p.contact_email)).length;
   const customerNowReplies=customerNow.filter(p=>(p.needs_response_count??0)>0).length;
+  const pursuitMap=new Map(pursuits.map(p=>[p.pursuit_id,p]));
+  const workContactNow=workLeads.filter(l=>l.inbox_bucket==="contact_now").length;
+  const workResearch=workLeads.filter(l=>l.inbox_bucket==="research_contact").length;
+  const workDraftsReady=new Set(workLeads.filter(l=>{
+    if(!l.pursuit_id) return false;
+    const p=pursuitMap.get(l.pursuit_id);
+    return p?.latest_draft_state==="draft" || p?.latest_draft_state==="approved";
+  }).map(l=>l.pursuit_id)).size;
+  const workClosingSoon=workLeads.filter(l=>{
+    if(!l.deadline_at) return false;
+    const ms=new Date(l.deadline_at).getTime()-Date.now();
+    return ms>=0 && ms<=7*24*60*60*1000;
+  }).length;
   const errors=[
     pursuitResult.error,replyResult.error,inboundResult.error,researchResult.error,timelineResult.error,
     analyticsResult.error,safetyResult.error,estimateResult.error,workLeadResult.error,
@@ -261,11 +276,22 @@ export default async function OutreachPage({
           <span className="eyebrow">LIVE WORK DISCOVERY</span>
           <h3>Work Leads</h3>
         </div>
-        <span className="muted">{workLeads.length} discovered</span>
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
+          <span className="muted">{workLeads.length} discovered</span>
+          <form action={scanWorkLeads}>
+            <button className="primary" type="submit">Scan now</button>
+          </form>
+        </div>
       </div>
       <p className="muted" style={{marginTop:8,maxWidth:920}}>
-        Private tenders, subcontractor calls, vendor networks and service opportunities ranked for CB Contracting by trade fit and speed to revenue. High-confidence leads are promoted automatically; use Promote to outreach for anything you want to pursue manually.
+        Private tenders, subcontractor calls, vendor networks and service opportunities ranked for CB Contracting by trade fit and speed to revenue. High-confidence leads are promoted automatically; official response contacts create review-ready drafts, but nothing sends automatically.
       </p>
+      <section className="metrics" style={{marginTop:16,marginBottom:16}}>
+        <div className="metric"><span>Contact now</span><strong>{workContactNow}</strong><small>direct response path</small></div>
+        <div className="metric"><span>Drafts ready</span><strong>{workDraftsReady}</strong><small>review before send</small></div>
+        <div className="metric"><span>Needs research</span><strong>{workResearch}</strong><small>contact gap</small></div>
+        <div className="metric"><span>Closing ≤7d</span><strong>{workClosingSoon}</strong><small>deadline pressure</small></div>
+      </section>
       <div style={{display:"grid",gap:12,marginTop:16}}>
         {workLeads.length?workLeads.map(lead=>{
           const score=Math.round(Number(lead.conversion_score??0));
@@ -299,11 +325,20 @@ export default async function OutreachPage({
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}>
               <a className="button" href={lead.source_url} target="_blank" rel="noreferrer">Open source</a>
               {promoted
-                ?<Link className="primary" href={"/outreach?view=command" as Route}>In command queue</Link>
+                ?<>
+                  <Link className="primary" href={"/outreach?view=command" as Route}>In command queue</Link>
+                  {lead.pursuit_id&&["draft","approved"].includes(pursuitMap.get(lead.pursuit_id)?.latest_draft_state??"")
+                    ?<Link className="button" href={"/outreach?view=drafts" as Route}>Draft ready</Link>
+                    :null}
+                </>
                 :<form action={promoteWorkLead}>
                   <input type="hidden" name="lead_id" value={lead.id}/>
                   <button className="primary" type="submit">Promote to outreach</button>
                 </form>}
+              {!promoted?<form action={dismissWorkLead}>
+                <input type="hidden" name="lead_id" value={lead.id}/>
+                <button className="button" type="submit">Dismiss</button>
+              </form>:null}
             </div>
           </article>;
         }):<p className="muted" style={{marginTop:14}}>No work leads have been discovered yet.</p>}

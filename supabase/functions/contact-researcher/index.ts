@@ -3,10 +3,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.1";
 const ROLE_TERMS:Record<string,string[]>={
  decision_maker:["president","owner","principal","chief","vice president","vp","executive director","director"],
  operations:["operations","facilities","facility","property manager","building manager","maintenance"],
- procurement:["procurement","purchasing","buyer","sourcing","contracts","supply chain"]
+ procurement:["procurement","purchasing","buyer","sourcing","contracts","supply chain","estimating","estimator"]
 };
 
-const PATHS=["","/team","/our-team","/about","/about-us","/leadership","/staff","/contact","/contact-us","/directory"];
+const PATHS=["","/team","/our-team","/our-people","/about","/about-us","/leadership","/staff","/contact","/contact-us","/directory"];
 const DIRECTORY_SOURCES=[
  {match:/city of ottawa/i,url:"https://ottawa.ca/en/business/procurement/contact-supply-services",label:"City of Ottawa Supply Services directory"},
  {match:/public services and procurement canada|pspc|spac/i,url:"https://geds-sage.gc.ca/en/GEDS/?dn=T1U9TkNSTy1PUkNOLE9VPVJQU0ItREdTSSxPVT1QU1BDLVNQQUMsTz1HQyxDPUNB&pgid=014",label:"Government Electronic Directory Services (GEDS)"},
@@ -16,8 +16,27 @@ const DIRECTORY_SOURCES=[
  {match:/ottawa catholic school board|ocsb/i,url:"https://www.ocsb.ca/our-board/departments/supply-chain-risk-management/",label:"OCSB Supply Chain and Risk Management"},
  {match:/ottawa catholic school board|ocsb/i,url:"https://www.ocsb.ca/our-board/executive-council/",label:"OCSB executive council"},
  {match:/ottawa catholic school board|ocsb/i,url:"https://www.ocsb.ca/our-board/departments/planning-and-facilities/",label:"OCSB Planning and Facilities"},
- {match:/national capital commission|\bncc\b|commission de la capitale nationale/i,url:"https://ncc-ccn.gc.ca/business/contracting-with-the-ncc",label:"NCC contracting and supplier information"}
+ {match:/national capital commission|\bncc\b|commission de la capitale nationale/i,url:"https://ncc-ccn.gc.ca/business/contracting-with-the-ncc",label:"NCC contracting and supplier information"},
+ {match:/certapro painters of ottawa/i,url:"https://certapro.com/ottawa/our-team/dipkumar-patel/",label:"CertaPro Ottawa operations leadership profile"}
 ];
+const VERIFIED_PERSON_SOURCES=[
+ {
+  match:/fiore corp renovations/i,
+  roles:["decision_maker","operations"],
+  url:"https://fiorecorprenovations.ca/about",
+  label:"Fiore Corp official owner profile",
+  name:"Brian Fiore",
+  title:"Owner & Operator / Founder & Lead Project Manager"
+ },
+ {
+  match:/certapro painters of ottawa/i,
+  roles:["decision_maker","operations"],
+  url:"https://certapro.com/ottawa/our-team/dipkumar-patel/",
+  label:"CertaPro Ottawa official operations leadership profile",
+  name:"Dipkumar Patel",
+  title:"Co-Owner & Operations Manager"
+ }
+] as const;
 
 const USER_AGENT="CBDataContactResearch/1.2 (+business-contact-enrichment)";
 const CONCURRENCY=4;
@@ -50,6 +69,29 @@ function hrefs(html:string,base:string){
 }
 const INVALID_NAME=/^(first name|last name|full name|your name|contact us|learn more|read more|property management|facility management|vice president|executive director|privacy policy|terms conditions|stay connected|canada administrative|administrative assistant)$/i;
 
+function normalizeToken(v:string){
+ return v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
+}
+function emailMatchesName(name:string,email:string){
+ const local=normalizeToken(email.split("@")[0]||"").replaceAll(" ","");
+ const parts=normalizeToken(name).split(" ").filter(p=>p.length>=3);
+ return parts.some(part=>local.includes(part));
+}
+function verifiedNamedCandidate(html:string,url:string,name:string,title:string){
+ const text=clean(html);
+ const lower=normalizeToken(text);
+ const nameToken=normalizeToken(name);
+ const titleWords=normalizeToken(title).split(" ").filter(w=>w.length>=4);
+ if(!lower.includes(nameToken) || !titleWords.some(word=>lower.includes(word))) return null;
+ const emails=Array.from(new Set(
+  [...text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0])
+ ));
+ const email=emails.find(e=>emailMatchesName(name,e))||null;
+ if(!email) return null;
+ const phone=text.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/)?.[0]||null;
+ return {name,title,email,phone,url,snippet:(name+" — "+title+" — "+email).slice(0,320)};
+}
+
 function candidateFromPage(html:string,url:string,role:string){
  const text=clean(html);
  const terms=ROLE_TERMS[role]||[];
@@ -58,7 +100,7 @@ function candidateFromPage(html:string,url:string,role:string){
   let at=lower.indexOf(term);
   while(at>=0){
    const snippet=text.slice(Math.max(0,at-100),Math.min(text.length,at+220));
-   const email=snippet.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]||null;
+   const nearbyEmail=snippet.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0]||null;
    const phone=snippet.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/)?.[0]||null;
    const names=[...snippet.matchAll(/\b([A-Z][a-zÀ-ÿ'’-]{1,30})\s+([A-Z][a-zÀ-ÿ'’-]{1,30})\b/g)]
     .map(m=>({name:m[0],index:m.index??0}))
@@ -66,6 +108,11 @@ function candidateFromPage(html:string,url:string,role:string){
    const roleAt=Math.max(0,at-Math.max(0,at-100));
    names.sort((a,b)=>Math.abs(a.index-roleAt)-Math.abs(b.index-roleAt));
    const name=names.length?names[0].name:null;
+   const pageEmails=Array.from(new Set(
+    [...text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0])
+   ));
+   const matchedEmail=name?pageEmails.find(e=>emailMatchesName(name,e))||null:null;
+   const email=nearbyEmail||matchedEmail;
    if(name&&email)return{name,title:term,email,phone,url,snippet:snippet.slice(0,320)};
    at=lower.indexOf(term,at+term.length);
   }
@@ -93,7 +140,22 @@ async function researchTask(admin:any,task:any){
  let pages=0;
  let evidenceLabel="Official organization website";
 
+ const verifiedSources=VERIFIED_PERSON_SOURCES.filter(source=>
+  source.match.test(orgName) && source.roles.includes(task.missing_role)
+ );
+ for(const source of verifiedSources){
+  const fetched=await fetchHtml(source.url,500000);
+  if(!fetched)continue;
+  pages++;
+  found=verifiedNamedCandidate(fetched.html,fetched.url,source.name,source.title);
+  if(found){
+   evidenceLabel=source.label;
+   break;
+  }
+ }
+
  for(const path of PATHS){
+  if(found)break;
   const page=absolute(site,path);
   if(!page||!sameHost(site,page))continue;
   const fetched=await fetchHtml(page);
@@ -154,10 +216,22 @@ async function researchTask(admin:any,task:any){
   if(updateError)return{task_id:task.id,status:"error",error:updateError.message};
 
   const {data:contactId,error:promoteError}=await admin.rpc("promote_verified_contact_candidate",{p_task_id:task.id});
+  let draftId:string|null=null;
+  let draftError:string|null=null;
+  if(!promoteError&&contactId){
+   const {data,error}=await admin.rpc("prepare_work_lead_draft",{
+    p_task_id:task.id,
+    p_contact_id:contactId
+   });
+   draftId=data||null;
+   draftError=error?.message||null;
+  }
   return{
    task_id:task.id,
    status:promoteError?"found":"verified",
    contact_id:contactId||null,
+   draft_id:draftId,
+   draft_error:draftError,
    error:promoteError?.message||null,
    pages_checked:pages
   };

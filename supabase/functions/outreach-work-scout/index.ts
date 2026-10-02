@@ -57,6 +57,51 @@ const NETWORKS=[
     required:["service network","small repairs","snow removal"]
   },
   {
+    source_key:"machaalani_subcontractors",
+    source_label:"Machaalani Landscaping & Contracting — Subcontractors",
+    buyer_name:"Machaalani Landscaping and Contracting",
+    opportunity_title:"Become a subcontractor for Ottawa landscaping, concrete, excavation and site work",
+    opportunity_type:"subcontractor_network",
+    response_mode:"subcontractor_application",
+    source_url:"https://www.machaalani.ca/",
+    region:"Ottawa, Ontario",
+    contact_email:"ali.machaalani@gmail.com",
+    contact_phone:"613-252-4190",
+    service_fit:["landscaping & grounds","site & civil","renovation & general contracting"],
+    fit_score:86,speed_score:88,conversion_score:87,
+    required:["become a subcontractor","ottawa"]
+  },
+  {
+    source_key:"certapro_ottawa_subcontractors",
+    source_label:"CertaPro Painters Ottawa — Independent Contractor",
+    buyer_name:"CertaPro Painters of Ottawa",
+    opportunity_title:"Exterior painting subcontractor / independent contractor work across Ottawa",
+    opportunity_type:"subcontractor_network",
+    response_mode:"subcontractor_application",
+    source_url:"https://certapro-painters-ottawa-on.careerplug.com/jobs/1951264/apps/new",
+    region:"Ottawa, Ontario",
+    contact_email:null,
+    contact_phone:"613-255-8068",
+    service_fit:["painting & finishes","facility maintenance"],
+    fit_score:82,speed_score:92,conversion_score:84,
+    required:["independent contractor","ottawa","partners"]
+  },
+  {
+    source_key:"613painting_subcontractors",
+    source_label:"613PAINTING — Subcontractor Application",
+    buyer_name:"613PAINTING",
+    opportunity_title:"Apply for painting and repair subcontract work in Ottawa",
+    opportunity_type:"subcontractor_network",
+    response_mode:"subcontractor_application",
+    source_url:"https://613painting.com/join-our-team/",
+    region:"Ottawa, Ontario",
+    contact_email:"info@613painting.com",
+    contact_phone:"613-618-3217",
+    service_fit:["painting & finishes","renovation & general contracting"],
+    fit_score:80,speed_score:88,conversion_score:82,
+    required:["subcontractor","wsib","hst"]
+  },
+  {
     source_key:"mbc_trade_registration",
     source_label:"McDonald Brothers Construction — Trade Contractor List",
     buyer_name:"McDonald Brothers Construction Inc.",
@@ -223,19 +268,31 @@ Deno.serve(async(req)=>{
   }
 
   let upserted=0,writeErrors=0;
+  const currentLeadIds:string[]=[];
   for(const lead of leads){
-    const {error}=await admin.from("outreach_work_leads").upsert({
+    const {data:stored,error}=await admin.from("outreach_work_leads").upsert({
       workspace_id:workspaceId,...lead,last_seen_at:observedAt,updated_at:observedAt
-    },{onConflict:"workspace_id,source_key,external_id"});
+    },{onConflict:"workspace_id,source_key,external_id"}).select("id").single();
     if(error){writeErrors++;sourceResults.push({source:lead.source_key,external_id:lead.external_id,write_error:error.message});}
-    else upserted++;
+    else{
+      upserted++;
+      if(stored?.id)currentLeadIds.push(stored.id);
+    }
   }
 
   const {data:routing,error:routingError}=await admin.rpc("route_outreach_work_leads",{p_workspace:workspaceId,p_limit:20});
+  const drafts:any[]=[];
+  if(!routingError){
+    for(const leadId of currentLeadIds){
+      const {data:draftId,error:draftError}=await admin.rpc("prepare_direct_work_lead_draft",{p_lead_id:leadId});
+      if(draftId||draftError)drafts.push({lead_id:leadId,draft_id:draftId||null,error:draftError?.message||null});
+    }
+  }
   return Response.json({
-    ok:writeErrors===0&&!routingError,
+    ok:writeErrors===0&&!routingError&&drafts.every(d=>!d.error),
     discovered:leads.length,upserted,write_errors:writeErrors,
     routing:routing||null,routing_error:routingError?.message||null,
+    drafts,
     sources:sourceResults
   });
 });
