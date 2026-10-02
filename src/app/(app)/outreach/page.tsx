@@ -221,11 +221,11 @@ export default async function OutreachPage({
   const pursuitMap=new Map(pursuits.map(p=>[p.pursuit_id,p]));
   const workContactNow=workLeads.filter(l=>l.inbox_bucket==="contact_now").length;
   const workResearch=workLeads.filter(l=>l.inbox_bucket==="research_contact").length;
-  const workDraftsReady=workLeads.filter(l=>{
+  const workDraftsReady=new Set(workLeads.filter(l=>{
     if(!l.pursuit_id) return false;
     const p=pursuitMap.get(l.pursuit_id);
     return p?.latest_draft_state==="draft" || p?.latest_draft_state==="approved";
-  }).length;
+  }).map(l=>l.pursuit_id)).size;
   const workClosingSoon=workLeads.filter(l=>{
     if(!l.deadline_at) return false;
     const ms=new Date(l.deadline_at).getTime()-Date.now();
