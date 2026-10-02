@@ -25,7 +25,7 @@ begin
     raise exception 'research queue refresh must dedupe by organization and role';
   end if;
 
-  if position('t.organization_id IS NOT NULL' in fn)=0 then
+  if position('t.organization_id is not null' in lower(fn))=0 then
     raise exception 'research queue refresh must require a canonical organization';
   end if;
 end $$;
