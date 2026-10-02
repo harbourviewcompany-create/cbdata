@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { customerNowAction, customerNowLane, customerNowScore } from "@/lib/customer-now";
+import { gmailComposeUrl } from "@/lib/gmail-compose";
 import { approveDraft, generateDraft, markSent } from "./actions";
 
 type FocusPursuit = {
@@ -54,11 +55,6 @@ function when(value:string|null|undefined) {
   if(days===0) return "Today";
   if(days===1) return "Tomorrow";
   return new Intl.DateTimeFormat("en-CA",{month:"short",day:"numeric"}).format(date);
-}
-
-function mailto(email:string|null,subject:string|null,body:string|null) {
-  if(!email) return null;
-  return "mailto:"+email+"?subject="+encodeURIComponent(subject??"")+"&body="+encodeURIComponent(body??"");
 }
 
 function laneLabel(lane:string) {
@@ -143,7 +139,7 @@ export default function OutreachFocus({
       <div className="outreach-action-list">
         {top.map((p,index)=>{
           const lane=customerNowLane(p);
-          const email=mailto(p.contact_email,p.latest_draft_subject,p.latest_draft_body);
+          const email=gmailComposeUrl(p.contact_email,p.latest_draft_subject,p.latest_draft_body);
           return <article className="outreach-action-row" key={p.pursuit_id}>
             <div className="outreach-action-rank">{index+1}</div>
             <div className="outreach-action-main">
@@ -163,7 +159,7 @@ export default function OutreachFocus({
             </div>
             <div className="outreach-action-cta">
               {lane==="reply_now"?<Link className="primary" href={"/outreach?view=replies" as Route}>Review reply</Link>:null}
-              {lane==="send_now"&&email?<a className="primary" href={email}>Open email</a>:null}
+              {lane==="send_now"&&email?<a className="primary" href={email} target="_blank" rel="noopener noreferrer">Email ↗</a>:null}
               {lane==="send_now"&&p.latest_draft_id?<form action={markSent}>
                 <input type="hidden" name="target_id" value={p.primary_target_id}/>
                 <input type="hidden" name="draft_id" value={p.latest_draft_id}/>
