@@ -154,10 +154,22 @@ async function researchTask(admin:any,task:any){
   if(updateError)return{task_id:task.id,status:"error",error:updateError.message};
 
   const {data:contactId,error:promoteError}=await admin.rpc("promote_verified_contact_candidate",{p_task_id:task.id});
+  let draftId:string|null=null;
+  let draftError:string|null=null;
+  if(!promoteError&&contactId){
+   const {data,error}=await admin.rpc("prepare_work_lead_draft",{
+    p_task_id:task.id,
+    p_contact_id:contactId
+   });
+   draftId=data||null;
+   draftError=error?.message||null;
+  }
   return{
    task_id:task.id,
    status:promoteError?"found":"verified",
    contact_id:contactId||null,
+   draft_id:draftId,
+   draft_error:draftError,
    error:promoteError?.message||null,
    pages_checked:pages
   };
