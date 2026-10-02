@@ -15,6 +15,7 @@ import {
   handleReply,
   linkEstimateToPursuit,
   markSent,
+  promoteWorkLead,
   queueContactResearch,
   resolveInboundEvent,
   runDueSequences,
@@ -94,6 +95,17 @@ type EstimateRow = {
   opportunity_id:string|null; status:string; total:number|string;
 };
 
+type WorkLeadRow = {
+  id:string; source_key:string; source_label:string; buyer_name:string;
+  opportunity_title:string; opportunity_type:string; response_mode:string;
+  description:string|null; region:string|null; source_url:string;
+  contact_name:string|null; contact_email:string|null; contact_phone:string|null;
+  published_at:string|null; deadline_at:string|null; service_fit:string[]|null;
+  fit_score:number|string; speed_score:number|string; conversion_score:number|string;
+  status:string; outreach_target_id:string|null; pursuit_id:string|null;
+  inbox_bucket:string; recommended_next_action:string;
+};
+
 function due(v:string|null|undefined) {
   if (!v) return "—";
   return new Intl.DateTimeFormat("en-CA",{month:"short",day:"numeric",year:"numeric"}).format(new Date(v));
@@ -123,7 +135,7 @@ function confidence(v:number|string|null|undefined) {
 }
 
 const views=[
-  ["command","Command Queue"],["replies","Replies"],["drafts","Drafts"],
+  ["command","Command Queue"],["work","Work Leads"],["replies","Replies"],["drafts","Drafts"],
   ["research","Research"],["accounts","Accounts"],["analytics","Analytics"],
 ] as const;
 
@@ -140,7 +152,7 @@ export default async function OutreachPage({
   const ws=ctx.workspaceId;
 
   const [
-    pursuitResult,replyResult,inboundResult,researchResult,timelineResult,analyticsResult,safetyResult,estimateResult,
+    pursuitResult,replyResult,inboundResult,researchResult,timelineResult,analyticsResult,safetyResult,estimateResult,workLeadResult,
   ]=await Promise.all([
     (s as any).from("v_outreach_pursuit_queue").select("*")
       .eq("workspace_id",ws).order("command_score",{ascending:false}).limit(250),
@@ -159,6 +171,8 @@ export default async function OutreachPage({
       .eq("workspace_id",ws).eq("due_now",true).limit(250),
     (s as any).from("estimates").select("id,estimate_number,organization_id,opportunity_id,status,total")
       .eq("workspace_id",ws).order("created_at",{ascending:false}).limit(250),
+    (s as any).from("v_outreach_work_lead_inbox").select("*")
+      .eq("workspace_id",ws).order("conversion_score",{ascending:false}).order("deadline_at",{ascending:true,nullsFirst:false}).limit(250),
   ]);
 
   const pursuits=(pursuitResult.data??[]) as PursuitRow[];
@@ -169,6 +183,7 @@ export default async function OutreachPage({
   const analytics=(analyticsResult.data??[]) as AnalyticsRow[];
   const safety=(safetyResult.data??[]) as any[];
   const estimates=(estimateResult.data??[]) as EstimateRow[];
+  const workLeads=(workLeadResult.data??[]) as WorkLeadRow[];
   const timelineByPursuit=new Map<string,TimelineRow[]>();
   for(const event of timeline){
     if(!timelineByPursuit.has(event.pursuit_id)) timelineByPursuit.set(event.pursuit_id,[]);
@@ -203,7 +218,7 @@ export default async function OutreachPage({
   const customerNowReplies=customerNow.filter(p=>(p.needs_response_count??0)>0).length;
   const errors=[
     pursuitResult.error,replyResult.error,inboundResult.error,researchResult.error,timelineResult.error,
-    analyticsResult.error,safetyResult.error,estimateResult.error,
+    analyticsResult.error,safetyResult.error,estimateResult.error,workLeadResult.error,
   ].filter(Boolean);
 
   return <main className="list-shell">
@@ -219,7 +234,10 @@ export default async function OutreachPage({
     <nav className="panel" aria-label="Outreach sections" style={{marginBottom:16,padding:10,display:"flex",gap:8,flexWrap:"wrap"}}>
       {views.map(([key,label])=>
         <Link key={key} className={view===key?"primary":"button"} href={("/outreach?view="+key) as Route}>
-          {label}{key==="replies"&&(unhandledReplies.length+unresolvedInbound.length)?" ("+(unhandledReplies.length+unresolvedInbound.length)+")":""}
+          {label}
+          {key==="replies"&&(unhandledReplies.length+unresolvedInbound.length)?" ("+(unhandledReplies.length+unresolvedInbound.length)+")":""}
+          {key==="work"&&workLeads.filter(l=>["contact_now","research_contact","review"].includes(l.inbox_bucket)).length
+            ?" ("+workLeads.filter(l=>["contact_now","research_contact","review"].includes(l.inbox_bucket)).length+")":""}
         </Link>
       )}
     </nav>
@@ -236,6 +254,61 @@ export default async function OutreachPage({
       <div className="metric"><span>Pipeline</span><strong>{money(pipeline)}</strong><small>outreach-linked</small></div>
       <div className="metric"><span>Won</span><strong>{money(won)}</strong><small>attributed revenue</small></div>
     </section>
+
+    {view==="work"?<section className="panel">
+      <div className="panel-head">
+        <div>
+          <span className="eyebrow">LIVE WORK DISCOVERY</span>
+          <h3>Work Leads</h3>
+        </div>
+        <span className="muted">{workLeads.length} discovered</span>
+      </div>
+      <p className="muted" style={{marginTop:8,maxWidth:920}}>
+        Private tenders, subcontractor calls, vendor networks and service opportunities ranked for CB Contracting by trade fit and speed to revenue. High-confidence leads are promoted automatically; use Promote to outreach for anything you want to pursue manually.
+      </p>
+      <div style={{display:"grid",gap:12,marginTop:16}}>
+        {workLeads.length?workLeads.map(lead=>{
+          const score=Math.round(Number(lead.conversion_score??0));
+          const promoted=lead.status==="promoted";
+          return <article key={lead.id} className="panel" style={{margin:0}}>
+            <div className="panel-head">
+              <div>
+                <span className="eyebrow">{human(lead.inbox_bucket)} · {lead.source_label}</span>
+                <h3>{lead.buyer_name}</h3>
+                <p style={{marginTop:5}}><strong>{lead.opportunity_title}</strong></p>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <strong style={{fontSize:24}}>{score}</strong><span className="muted">/100</span>
+                <div className="muted" style={{fontSize:12}}>conversion score</div>
+              </div>
+            </div>
+            {lead.description?<p className="muted" style={{marginTop:10}}>
+              {lead.description.length>420?lead.description.slice(0,420)+"…":lead.description}
+            </p>:null}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+              <span className="chip">{human(lead.opportunity_type)}</span>
+              <span className="chip">{human(lead.response_mode)}</span>
+              {lead.region?<span className="chip">{lead.region}</span>:null}
+              {lead.deadline_at?<span className="chip">Due {due(lead.deadline_at)}</span>:null}
+              {(lead.service_fit??[]).slice(0,5).map(service=><span className="chip" key={service}>{service}</span>)}
+            </div>
+            <p style={{marginTop:12}}><strong>Next:</strong> {lead.recommended_next_action}</p>
+            {(lead.contact_name||lead.contact_email||lead.contact_phone)?<p className="muted" style={{marginTop:6}}>
+              Contact: {[lead.contact_name,lead.contact_email,lead.contact_phone].filter(Boolean).join(" · ")}
+            </p>:null}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}>
+              <a className="button" href={lead.source_url} target="_blank" rel="noreferrer">Open source</a>
+              {promoted
+                ?<Link className="primary" href={"/outreach?view=command" as Route}>In command queue</Link>
+                :<form action={promoteWorkLead}>
+                  <input type="hidden" name="lead_id" value={lead.id}/>
+                  <button className="primary" type="submit">Promote to outreach</button>
+                </form>}
+            </div>
+          </article>;
+        }):<p className="muted" style={{marginTop:14}}>No work leads have been discovered yet.</p>}
+      </div>
+    </section>:null}
 
     {view==="command"?<>
       <section className="panel" style={{marginBottom:18}}>
