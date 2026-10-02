@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceContext } from "@/lib/workspace";
 import { rankCustomerNow } from "@/lib/customer-now";
+import { gmailComposeUrl, replySubject } from "@/lib/gmail-compose";
 import OutreachFocus from "./focus-home";
 import {
   acceptResearchCandidate,
@@ -135,10 +136,6 @@ function money(v:number|string|null|undefined) {
   return Number(v??0).toLocaleString("en-CA",{style:"currency",currency:"CAD",maximumFractionDigits:0});
 }
 function pct(v:number|string|null|undefined) { return Number(v??0).toFixed(0)+"%"; }
-function mailto(email:string|null,subject:string|null,body:string|null) {
-  if (!email) return null;
-  return "mailto:"+email+"?subject="+encodeURIComponent(subject??"")+"&body="+encodeURIComponent(body??"");
-}
 function human(v:string|null|undefined) { return v ? v.replaceAll("_"," ") : "—"; }
 function confidence(v:number|string|null|undefined) {
   if (v===null || v===undefined) return "—";
@@ -352,6 +349,14 @@ export default async function OutreachPage({
         {workLeads.length?workLeads.map(lead=>{
           const score=Math.round(Number(lead.conversion_score??0));
           const promoted=lead.status==="promoted";
+          const linkedPursuit=lead.pursuit_id?pursuitMap.get(lead.pursuit_id):null;
+          const leadDestination=lead.contact_email||linkedPursuit?.contact_email||null;
+          const approvedEmailDraft=linkedPursuit?.latest_draft_state==="approved"&&linkedPursuit.latest_draft_channel==="email";
+          const leadEmail=gmailComposeUrl(
+            leadDestination,
+            approvedEmailDraft?linkedPursuit?.latest_draft_subject:"CB Contracting — "+lead.opportunity_title,
+            approvedEmailDraft?linkedPursuit?.latest_draft_body:null,
+          );
           return <article key={lead.id} className="panel" style={{margin:0}}>
             <div className="panel-head">
               <div>
@@ -380,6 +385,7 @@ export default async function OutreachPage({
             </p>:null}
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}>
               <a className="button" href={lead.source_url} target="_blank" rel="noreferrer">Open source</a>
+              {leadEmail?<a className="primary" href={leadEmail} target="_blank" rel="noopener noreferrer">Email ↗</a>:null}
               {promoted
                 ?<>
                   <Link className="primary" href={"/outreach?view=command" as Route}>In command queue</Link>
@@ -472,7 +478,9 @@ export default async function OutreachPage({
       </section>:null}
 
       <div style={{display:"grid",gap:10,marginTop:12}}>
-        {unhandledReplies.map(r=><article key={r.reply_id} style={{border:"1px solid var(--line)",borderRadius:12,padding:14}}>
+        {unhandledReplies.map(r=>{
+          const replyEmail=gmailComposeUrl(r.sender_email??r.contact_email,replySubject(r.subject),null);
+          return <article key={r.reply_id} style={{border:"1px solid var(--line)",borderRadius:12,padding:14}}>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:16}}>
             <div>
               <strong>{r.organization_display_name??"Account"}</strong>
@@ -494,7 +502,8 @@ export default async function OutreachPage({
               <div style={{fontSize:12,marginTop:4}}>{r.next_action??"Review reply"}</div>
               <div className="muted" style={{fontSize:11,marginTop:3}}>Due {due(r.next_action_due_at)}</div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
-                {r.needs_response?<form action={handleReply}><input type="hidden" name="reply_id" value={r.reply_id}/><button className="primary">Handled</button></form>:<span className="muted" style={{fontSize:11}}>Handled</span>}
+                {replyEmail?<a className="primary" href={replyEmail} target="_blank" rel="noopener noreferrer">Reply by email ↗</a>:null}
+                {r.needs_response?<form action={handleReply}><input type="hidden" name="reply_id" value={r.reply_id}/><button className="button">Handled</button></form>:<span className="muted" style={{fontSize:11}}>Handled</span>}
                 {r.needs_response&&r.sequence_paused&&!["unsubscribe","bounce","not_interested"].includes(r.classification)?
                   <form action={handleReply}><input type="hidden" name="reply_id" value={r.reply_id}/><input type="hidden" name="resume_sequence" value="true"/><button className="button">Handle + resume</button></form>:null}
                 {!r.opportunity_id&&r.pursuit_id&&["interested","request_quote","request_call","site_visit_request"].includes(r.classification)?
@@ -502,7 +511,8 @@ export default async function OutreachPage({
               </div>
             </div>
           </div>
-        </article>)}
+        </article>;
+        })}
         {!unhandledReplies.length&&!unresolvedInbound.length?<div className="outreach-focus-empty">You're caught up. No replies need attention.</div>:null}
         {handledReplies.length?<details className="outreach-handled-replies">
           <summary>Handled replies · {handledReplies.length}</summary>
@@ -524,7 +534,7 @@ export default async function OutreachPage({
             ? String(p.latest_draft_evidence.direct_response_email)
             : null;
           const destination=p.contact_email||directEmail;
-          const emailLink=mailto(destination,p.latest_draft_subject,p.latest_draft_body);
+          const emailLink=gmailComposeUrl(destination,p.latest_draft_subject,p.latest_draft_body);
           const sourceUrl=typeof p.latest_draft_evidence?.source_url==="string"
             ? String(p.latest_draft_evidence.source_url)
             : typeof p.latest_draft_evidence?.contact_source==="string"
@@ -553,7 +563,7 @@ export default async function OutreachPage({
                 <button className="primary" disabled={!p.latest_draft_quality_passed}>Approve</button>
               </form>:null}
               {p.latest_draft_state==="approved"&&p.latest_draft_channel==="email"&&emailLink
-                ?<a className="primary" href={emailLink}>Open email</a>:null}
+                ?<a className="primary" href={emailLink} target="_blank" rel="noopener noreferrer">Email ↗</a>:null}
               {p.latest_draft_state==="approved"&&p.latest_draft_id?<form action={markSent}>
                 <input type="hidden" name="target_id" value={p.primary_target_id}/>
                 <input type="hidden" name="draft_id" value={p.latest_draft_id}/>
@@ -603,6 +613,16 @@ export default async function OutreachPage({
         {pursuits.map(p=>{
           const events=(timelineByPursuit.get(p.pursuit_id)??[]).slice(0,8);
           const availableEstimates=estimates.filter(e=>e.organization_id===p.organization_id&&!e.opportunity_id);
+          const directEmail=typeof p.latest_draft_evidence?.direct_response_email==="string"
+            ?String(p.latest_draft_evidence.direct_response_email)
+            :null;
+          const destination=p.contact_email||directEmail;
+          const approvedEmailDraft=p.latest_draft_state==="approved"&&p.latest_draft_channel==="email";
+          const accountEmail=gmailComposeUrl(
+            destination,
+            approvedEmailDraft?p.latest_draft_subject:null,
+            approvedEmailDraft?p.latest_draft_body:null,
+          );
           return <article key={p.pursuit_id} className="outreach-account-row">
             <div className="outreach-account-main">
               <Link href={("/targets/"+p.primary_target_id) as Route}>{p.organization_display_name}</Link>
@@ -618,6 +638,7 @@ export default async function OutreachPage({
               <span>{p.opportunity_id?"pipeline":"no opportunity"}</span>
             </div>
             <div className="outreach-account-actions">
+              {accountEmail?<a className="primary" href={accountEmail} target="_blank" rel="noopener noreferrer">Email ↗</a>:null}
               <Link className="button" href={("/targets/"+p.primary_target_id) as Route}>Open</Link>
               <details>
                 <summary>More</summary>
