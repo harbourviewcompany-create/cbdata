@@ -64,7 +64,7 @@ const VERIFIED_PERSON_SOURCES=[
 
 const USER_AGENT="CBDataContactResearch/1.3 (+business-contact-enrichment)";
 const CONCURRENCY=4;
-const FETCH_TIMEOUT_MS=6500;
+const FETCH_TIMEOUT_MS=4500;
 
 function clean(s:string){
  return s.replace(/<script[\s\S]*?<\/script>/gi," ")
@@ -396,7 +396,7 @@ async function researchTask(admin:any,task:any){
   if(!matched){
    const base=site||fetched.url;
    const emailPages=new Set<string>();
-   for(const path of PATHS){
+   for(const path of PATHS.slice(0,14)){
     const page=absolute(base,path);
     if(page&&sameHost(base,page))emailPages.add(page);
    }
@@ -445,7 +445,7 @@ async function researchTask(admin:any,task:any){
  }
 
  if(!found&&discoveredLinks.size){
-  for(const page of [...discoveredLinks].slice(0,24)){
+  for(const page of [...discoveredLinks].slice(0,12)){
    const fetched=await fetchHtml(page,500000);
    if(!fetched)continue;
    pages++;
@@ -587,9 +587,9 @@ Deno.serve(async(req)=>{
 
  await admin.rpc("refresh_contact_research_queue",{p_workspace:workspaceId});
 
- const requested=Math.max(1,Math.min(40,Number(body.limit)||20));
+ const requested=Math.max(1,Math.min(8,Number(body.limit)||8));
  const taskIds=Array.isArray(body.task_ids)
-  ?Array.from(new Set(body.task_ids.filter((id:unknown)=>typeof id==="string"&&id.length>0))).slice(0,40)
+  ?Array.from(new Set(body.task_ids.filter((id:unknown)=>typeof id==="string"&&id.length>0))).slice(0,8)
   :[];
 
  let taskQuery=admin
