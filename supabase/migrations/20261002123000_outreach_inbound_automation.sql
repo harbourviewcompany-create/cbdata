@@ -456,8 +456,8 @@ create or replace function public.ensure_outreach_opportunity(
 returns uuid
 language plpgsql
 security invoker
-set search_path=public
-as $$
+set search_path=pg_catalog,public,private
+as $
 declare
   p public.outreach_pursuits%rowtype;
   r public.outreach_replies%rowtype;
@@ -521,8 +521,8 @@ create or replace function public.sync_outreach_opportunity_from_estimate()
 returns trigger
 language plpgsql
 security invoker
-set search_path=public
-as $$
+set search_path=pg_catalog,public
+as $
 begin
   if new.opportunity_id is null then return new; end if;
 
