@@ -564,64 +564,71 @@ export default async function OutreachPage({
       </div>
     </section>:null}
 
-    {view==="accounts"?<section style={{display:"grid",gap:12}}>
-      {pursuits.map(p=>{
-        const events=(timelineByPursuit.get(p.pursuit_id)??[]).slice(0,12);
-        const availableEstimates=estimates.filter(e=>e.organization_id===p.organization_id&&!e.opportunity_id);
-        return <article key={p.pursuit_id} className="outreach-queue-card">
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:18}}>
-            <div>
-              <span className="eyebrow">ACCOUNT PURSUIT</span>
-              <h3 style={{marginTop:5}}>{p.organization_display_name}</h3>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:7}}>
-                <span className="pill">{human(p.stage)}</span><span className="pill">{p.total_score}/100</span>
-                <span className="pill">committee {p.contact_coverage_score}%</span>
-              </div>
-              <div className="muted" style={{fontSize:11,marginTop:8}}>{p.property_count} linked properties · {p.open_signal_count} open signals · {p.reply_count} replies</div>
+    {view==="accounts"?<section className="panel outreach-accounts">
+      <div className="panel-head">
+        <div><span className="eyebrow">ACCOUNTS</span><h3>Active pursuits</h3></div>
+        <span className="muted">{pursuits.length} accounts</span>
+      </div>
+      <div className="outreach-account-list">
+        {pursuits.map(p=>{
+          const events=(timelineByPursuit.get(p.pursuit_id)??[]).slice(0,8);
+          const availableEstimates=estimates.filter(e=>e.organization_id===p.organization_id&&!e.opportunity_id);
+          return <article key={p.pursuit_id} className="outreach-account-row">
+            <div className="outreach-account-main">
+              <Link href={("/targets/"+p.primary_target_id) as Route}>{p.organization_display_name}</Link>
+              <span>{p.contact_display_name??"No primary contact"}{p.contact_job_title?" · "+p.contact_job_title:""}</span>
             </div>
-            <div>
-              <span className="eyebrow">BUYING COMMITTEE</span>
-              <div className="muted" style={{fontSize:11,lineHeight:1.7,marginTop:5}}>
-                Decision maker {p.has_decision_maker?"✓":"missing"} · Operations {p.has_operations?"✓":"missing"} · Procurement {p.has_procurement?"✓":"missing"} · Property/site {p.has_property_contact?"✓":"missing"}
-              </div>
-              <div style={{marginTop:8}}><strong>{p.contact_display_name??"No primary contact"}</strong><div className="muted" style={{fontSize:11}}>{p.contact_job_title??""}</div></div>
+            <div className="outreach-account-stage"><span className="pill">{human(p.stage)}</span></div>
+            <div className="outreach-account-next">
+              <strong>{p.next_action??"Set next action"}</strong>
+              <span>{due(p.next_action_due_at)} · {p.next_action_owner_user_id===ctx.user.id?"You":p.next_action_owner_user_id?"Assigned":"Unassigned"}</span>
             </div>
-            <div>
-              <span className="eyebrow">REVENUE PATH</span>
-              <div style={{fontSize:12,marginTop:5}}>Opportunity: {p.opportunity_id?"linked":"not created"} · Pipeline {money(p.estimated_value)}</div>
-              {!p.opportunity_id&&p.organization_id?<form action={createOpportunityFromPursuit} style={{display:"flex",gap:8,marginTop:8}}>
-                <input type="hidden" name="pursuit_id" value={p.pursuit_id}/>
-                <input name="estimated_value" type="number" min="0" step="1" placeholder="Estimated value" style={{maxWidth:140}}/>
-                <button className="button">Create opportunity</button>
-              </form>:null}
-              {p.organization_id&&availableEstimates.length?<form action={linkEstimateToPursuit} style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
-                <input type="hidden" name="pursuit_id" value={p.pursuit_id}/>
-                <select name="estimate_id" required defaultValue="">
-                  <option value="" disabled>Link existing estimate</option>
-                  {availableEstimates.map(e=><option key={e.id} value={e.id}>{e.estimate_number} · {human(e.status)} · {money(e.total)}</option>)}
-                </select>
-                <button className="button">Link estimate</button>
-              </form>:null}
-              {p.opportunity_id?<Link className="button" style={{display:"inline-block",marginTop:8}} href={"/sales" as Route}>Open sales pipeline</Link>:null}
+            <div className="outreach-account-value">
+              <strong>{money(p.estimated_value)}</strong>
+              <span>{p.opportunity_id?"pipeline":"no opportunity"}</span>
             </div>
-          </div>
-          <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid var(--line)"}}>
-            <strong style={{fontSize:12}}>Next action</strong>
-            <div className="muted" style={{fontSize:11,marginTop:3}}>{p.next_action??"Not set"} · {due(p.next_action_due_at)} · {p.next_action_owner_user_id===ctx.user.id?"You":p.next_action_owner_user_id?"Assigned teammate":"Unassigned"}</div>
-          </div>
-          <details style={{marginTop:10}}>
-            <summary style={{cursor:"pointer",fontSize:12}}>Full timeline</summary>
-            <div style={{display:"grid",gap:8,marginTop:8}}>
-              {events.map(e=><div key={e.event_type+"-"+e.event_id} style={{borderLeft:"2px solid var(--line)",paddingLeft:10}}>
-                <strong style={{fontSize:11}}>{e.title}</strong><span className="muted" style={{fontSize:10,marginLeft:8}}>{moment(e.occurred_at)}</span>
-                {e.detail?<div className="muted" style={{fontSize:11,marginTop:2}}>{e.detail.slice(0,500)}</div>:null}
-              </div>)}
-              {!events.length?<span className="muted" style={{fontSize:11}}>No timeline events yet.</span>:null}
+            <div className="outreach-account-actions">
+              <Link className="button" href={("/targets/"+p.primary_target_id) as Route}>Open</Link>
+              <details>
+                <summary>More</summary>
+                <div className="outreach-account-detail">
+                  <div>
+                    <span className="eyebrow">CONTACT COVERAGE</span>
+                    <p>Decision maker {p.has_decision_maker?"✓":"missing"} · Operations {p.has_operations?"✓":"missing"} · Procurement {p.has_procurement?"✓":"missing"} · Site {p.has_property_contact?"✓":"missing"}</p>
+                    <p className="muted">{p.contact_coverage_score}% coverage · {p.property_count} properties · {p.open_signal_count} signals</p>
+                  </div>
+                  <div>
+                    <span className="eyebrow">REVENUE</span>
+                    {!p.opportunity_id&&p.organization_id?<form action={createOpportunityFromPursuit} className="outreach-inline-form">
+                      <input type="hidden" name="pursuit_id" value={p.pursuit_id}/>
+                      <input name="estimated_value" type="number" min="0" step="1" placeholder="Estimated value"/>
+                      <button className="button">Create opportunity</button>
+                    </form>:null}
+                    {p.organization_id&&availableEstimates.length?<form action={linkEstimateToPursuit} className="outreach-inline-form">
+                      <input type="hidden" name="pursuit_id" value={p.pursuit_id}/>
+                      <select name="estimate_id" required defaultValue="">
+                        <option value="" disabled>Link estimate</option>
+                        {availableEstimates.map(e=><option key={e.id} value={e.id}>{e.estimate_number} · {human(e.status)} · {money(e.total)}</option>)}
+                      </select>
+                      <button className="button">Link</button>
+                    </form>:null}
+                    {p.opportunity_id?<Link className="button" href={"/sales" as Route}>Open pipeline</Link>:null}
+                  </div>
+                  {events.length?<div>
+                    <span className="eyebrow">RECENT ACTIVITY</span>
+                    <div className="outreach-mini-timeline">
+                      {events.map(e=><div key={e.event_type+"-"+e.event_id}>
+                        <strong>{e.title}</strong><span>{moment(e.occurred_at)}</span>
+                      </div>)}
+                    </div>
+                  </div>:null}
+                </div>
+              </details>
             </div>
-          </details>
-        </article>;
-      })}
-      {!pursuits.length?<section className="panel"><p className="muted">No canonical account pursuits yet.</p></section>:null}
+          </article>;
+        })}
+        {!pursuits.length?<div className="outreach-focus-empty">No active outreach accounts yet.</div>:null}
+      </div>
     </section>:null}
 
     {view==="analytics"?<>
