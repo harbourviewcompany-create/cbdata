@@ -390,18 +390,28 @@ Deno.serve(async(req)=>{
  await admin.rpc("refresh_contact_research_queue",{p_workspace:workspaceId});
 
  const requested=Math.max(1,Math.min(40,Number(body.limit)||20));
- const {data:tasks,error}=await admin
+ const taskIds=Array.isArray(body.task_ids)
+  ?Array.from(new Set(body.task_ids.filter((id:unknown)=>typeof id==="string"&&id.length>0))).slice(0,40)
+  :[];
+
+ let taskQuery=admin
   .from("contact_enrichment_tasks")
   .select("*,organizations!contact_enrichment_tasks_organization_id_fkey(website,legal_name,operating_name)")
   .eq("workspace_id",workspaceId)
-  .in("status",["queued","researching","not_found"])
-  .or("next_attempt_at.is.null,next_attempt_at.lte."+new Date().toISOString())
-  .order("research_priority_score",{ascending:false})
-  .order("research_urgency_rank",{ascending:false})
-  .order("priority_score",{ascending:false})
-  .order("next_attempt_at",{ascending:true,nullsFirst:true})
-  .limit(requested);
+  .in("status",["queued","researching","not_found"]);
 
+ if(taskIds.length){
+  taskQuery=taskQuery.in("id",taskIds);
+ }else{
+  taskQuery=taskQuery
+   .or("next_attempt_at.is.null,next_attempt_at.lte."+new Date().toISOString())
+   .order("research_priority_score",{ascending:false})
+   .order("research_urgency_rank",{ascending:false})
+   .order("priority_score",{ascending:false})
+   .order("next_attempt_at",{ascending:true,nullsFirst:true});
+ }
+
+ const {data:tasks,error}=await taskQuery.limit(taskIds.length||requested);
  if(error)return Response.json({error:error.message},{status:500});
 
  const selected=tasks||[];
@@ -413,7 +423,8 @@ Deno.serve(async(req)=>{
 
  return Response.json({
   ok:true,
-  requested,
+  requested:taskIds.length||requested,
+  targeted:taskIds.length>0,
   processed:results.length,
   verified:results.filter(r=>r.status==="verified").length,
   not_found:results.filter(r=>r.status==="not_found").length,
