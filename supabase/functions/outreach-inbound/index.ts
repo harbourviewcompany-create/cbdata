@@ -129,8 +129,28 @@ Deno.serve(async (req) => {
   );
 
   let workspaceId: string | null = null;
+  const integrationKey =
+    req.headers.get("x-cbdata-integration-key") ??
+    new URL(req.url).searchParams.get("integration_key");
 
-  if (rawEventType === "email.received" && hasResendSignature) {
+  if (integrationKey) {
+    const keyHash = await sha256(integrationKey);
+    const credentialResponse = await fetch(
+      `${supabaseUrl}/rest/v1/rpc/lookup_integration_workspace`,
+      {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({ p_provider: "outreach_inbound", p_key_hash: keyHash }),
+      },
+    );
+    if (!credentialResponse.ok) return json(500, { error: "credential_lookup_failed" });
+
+    const resolvedWorkspace = await credentialResponse.json();
+    if (typeof resolvedWorkspace !== "string" || !resolvedWorkspace) {
+      return json(401, { error: "invalid_integration_key" });
+    }
+    workspaceId = resolvedWorkspace;
+  } else if (rawEventType === "email.received" && hasResendSignature) {
     const secretResponse = await fetch(
       `${supabaseUrl}/rest/v1/rpc/get_service_integration_secret`,
       {
@@ -163,27 +183,7 @@ Deno.serve(async (req) => {
     }
     workspaceId = resolvedWorkspace;
   } else {
-    const integrationKey =
-      req.headers.get("x-cbdata-integration-key") ??
-      new URL(req.url).searchParams.get("integration_key");
-    if (!integrationKey) return json(401, { error: "missing_integration_key" });
-
-    const keyHash = await sha256(integrationKey);
-    const credentialResponse = await fetch(
-      `${supabaseUrl}/rest/v1/rpc/lookup_integration_workspace`,
-      {
-        method: "POST",
-        headers: authHeaders,
-        body: JSON.stringify({ p_provider: "outreach_inbound", p_key_hash: keyHash }),
-      },
-    );
-    if (!credentialResponse.ok) return json(500, { error: "credential_lookup_failed" });
-
-    const resolvedWorkspace = await credentialResponse.json();
-    if (typeof resolvedWorkspace !== "string" || !resolvedWorkspace) {
-      return json(401, { error: "invalid_integration_key" });
-    }
-    workspaceId = resolvedWorkspace;
+    return json(401, { error: "missing_integration_auth" });
   }
   const nested =
     raw.data && typeof raw.data === "object" ? raw.data as Record<string, unknown> :
