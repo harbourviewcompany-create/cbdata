@@ -119,22 +119,37 @@ function looksLikePersonName(name:string){
  const parts=name.trim().split(/\s+/).filter(Boolean);
  return parts.length>=2 && parts.length<=4 && !NON_PERSON_NAME.test(name);
 }
+function structuredText(html:string){
+ return html
+  .replace(/\\u0040/gi,"@")
+  .replace(/\\u002e/gi,".")
+  .replace(/&#64;|&commat;/gi,"@")
+  .replace(/&period;/gi,".")
+  .replace(/<[^>]+>/g," ")
+  .replace(/\\n|\\r|\\t/g," ")
+  .replace(/\\["']/g," ")
+  .replace(/\s+/g," ")
+  .trim();
+}
 function verifiedNamedProfile(html:string,url:string,name:string,title:string){
- const text=clean(html);
- const lower=normalizeToken(text);
+ const visible=clean(html);
+ const structured=structuredText(html);
+ const lower=normalizeToken(visible+" "+structured);
  const nameToken=normalizeToken(name);
  const titleWords=normalizeToken(title).split(" ").filter(w=>w.length>=4);
  if(!looksLikePersonName(name) || !lower.includes(nameToken) || !titleWords.some(word=>lower.includes(word))) return null;
  return {name,title,url,snippet:(name+" — "+title).slice(0,320)};
 }
 function matchingNamedEmail(html:string,url:string,name:string){
- const text=clean(html);
+ const visible=clean(html);
+ const structured=structuredText(html);
+ const corpus=visible+" "+structured;
  const emails=Array.from(new Set(
-  [...text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0])
+  [...corpus.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0])
  ));
  const email=emails.find(e=>!isGenericMailbox(e)&&emailMatchesName(name,e))||null;
  if(!email)return null;
- const phone=text.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/)?.[0]||null;
+ const phone=corpus.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/)?.[0]||null;
  return {email,phone,url};
 }
 
