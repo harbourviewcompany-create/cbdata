@@ -216,6 +216,7 @@ export default async function OutreachPage({
   }
 
   const unhandledReplies=replies.filter(r=>r.needs_response);
+  const handledReplies=replies.filter(r=>!r.needs_response);
   const unresolvedInbound=inboundEvents.filter(e=>["unmatched","ambiguous","pending_content","error"].includes(e.status));
   const candidateIds=[...new Set(unresolvedInbound.flatMap(e=>{
     const ids=e.raw_metadata?.candidate_target_ids;
@@ -419,7 +420,7 @@ export default async function OutreachPage({
 
     {view==="replies"?<section className="table-panel">
       <div className="panel-head">
-        <div><span className="eyebrow">REPLY INBOX</span><h3>Replies requiring decisions</h3></div>
+        <div><span className="eyebrow">REPLY INBOX</span><h3>Replies to handle</h3></div>
         <span className="muted">{unhandledReplies.length} classified · {unresolvedInbound.length} inbound pending</span>
       </div>
 
@@ -476,7 +477,7 @@ export default async function OutreachPage({
       </section>:null}
 
       <div style={{display:"grid",gap:10,marginTop:12}}>
-        {replies.map(r=><article key={r.reply_id} style={{border:"1px solid var(--line)",borderRadius:12,padding:14}}>
+        {unhandledReplies.map(r=><article key={r.reply_id} style={{border:"1px solid var(--line)",borderRadius:12,padding:14}}>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:16}}>
             <div>
               <strong>{r.organization_display_name??"Account"}</strong>
@@ -507,7 +508,16 @@ export default async function OutreachPage({
             </div>
           </div>
         </article>)}
-        {!replies.length?<p className="muted">No replies captured yet.</p>:null}
+        {!unhandledReplies.length&&!unresolvedInbound.length?<div className="outreach-focus-empty">You're caught up. No replies need attention.</div>:null}
+        {handledReplies.length?<details className="outreach-handled-replies">
+          <summary>Handled replies · {handledReplies.length}</summary>
+          <div>
+            {handledReplies.slice(0,30).map(r=><div key={r.reply_id}>
+              <span><strong>{r.organization_display_name??"Account"}</strong>{r.subject?" · "+r.subject:""}</span>
+              <span>{human(r.classification)} · {moment(r.received_at)}</span>
+            </div>)}
+          </div>
+        </details>:null}
       </div>
     </section>:null}
 
