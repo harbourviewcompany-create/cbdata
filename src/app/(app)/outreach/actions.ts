@@ -473,3 +473,38 @@ export async function promoteWorkLead(formData: FormData) {
   if (error) throw new Error(error.message);
   refresh();
 }
+
+
+export async function scanWorkLeads() {
+  const { s, workspaceId } = await client();
+  const { error } = await (s as any).functions.invoke("outreach-work-scout", {
+    body: { workspace_id: workspaceId },
+  });
+  if (error) throw new Error(error.message);
+  refresh();
+}
+
+export async function dismissWorkLead(formData: FormData) {
+  const { s, workspaceId } = await client();
+  const leadId = String(formData.get("lead_id") ?? "");
+  if (!leadId) throw new Error("Work lead is required");
+
+  const { data: lead, error: leadError } = await (s as any)
+    .from("outreach_work_leads")
+    .select("id,status")
+    .eq("id", leadId)
+    .eq("workspace_id", workspaceId)
+    .maybeSingle();
+
+  if (leadError) throw new Error(leadError.message);
+  if (!lead) throw new Error("Work lead is not in the active workspace");
+
+  const { error } = await (s as any)
+    .from("outreach_work_leads")
+    .update({ status: "dismissed", updated_at: new Date().toISOString() })
+    .eq("id", leadId)
+    .eq("workspace_id", workspaceId);
+
+  if (error) throw new Error(error.message);
+  refresh();
+}
