@@ -119,19 +119,23 @@ function looksLikePersonName(name:string){
  const parts=name.trim().split(/\s+/).filter(Boolean);
  return parts.length>=2 && parts.length<=4 && !NON_PERSON_NAME.test(name);
 }
-function verifiedNamedCandidate(html:string,url:string,name:string,title:string){
+function verifiedNamedProfile(html:string,url:string,name:string,title:string){
  const text=clean(html);
  const lower=normalizeToken(text);
  const nameToken=normalizeToken(name);
  const titleWords=normalizeToken(title).split(" ").filter(w=>w.length>=4);
  if(!looksLikePersonName(name) || !lower.includes(nameToken) || !titleWords.some(word=>lower.includes(word))) return null;
+ return {name,title,url,snippet:(name+" — "+title).slice(0,320)};
+}
+function matchingNamedEmail(html:string,url:string,name:string){
+ const text=clean(html);
  const emails=Array.from(new Set(
   [...text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0])
  ));
- const email=emails.find(e=>emailMatchesName(name,e))||null;
- if(!email) return null;
+ const email=emails.find(e=>!isGenericMailbox(e)&&emailMatchesName(name,e))||null;
+ if(!email)return null;
  const phone=text.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/)?.[0]||null;
- return {name,title,email,phone,url,snippet:(name+" — "+title+" — "+email).slice(0,320)};
+ return {email,phone,url};
 }
 
 function candidateFromMailtoPage(html:string,url:string,role:string){
@@ -212,9 +216,40 @@ async function researchTask(admin:any,task:any){
   const fetched=await fetchHtml(source.url,500000);
   if(!fetched)continue;
   pages++;
-  found=verifiedNamedCandidate(fetched.html,fetched.url,source.name,source.title);
-  if(found){
-   evidenceLabel=source.label;
+  const profile=verifiedNamedProfile(fetched.html,fetched.url,source.name,source.title);
+  if(!profile)continue;
+
+  let matched=matchingNamedEmail(fetched.html,fetched.url,source.name);
+  if(!matched){
+   const base=site||fetched.url;
+   const emailPages=new Set<string>();
+   for(const path of PATHS){
+    const page=absolute(base,path);
+    if(page&&sameHost(base,page))emailPages.add(page);
+   }
+   for(const page of prioritizedLinks(fetched.html,fetched.url).slice(0,12)){
+    if(sameHost(base,page))emailPages.add(page);
+   }
+   for(const page of [...emailPages].slice(0,16)){
+    if(page===fetched.url)continue;
+    const candidatePage=await fetchHtml(page,400000);
+    if(!candidatePage)continue;
+    pages++;
+    matched=matchingNamedEmail(candidatePage.html,candidatePage.url,source.name);
+    if(matched)break;
+   }
+  }
+
+  if(matched){
+   found={
+    name:source.name,
+    title:source.title,
+    email:matched.email,
+    phone:matched.phone,
+    url:profile.url,
+    snippet:(profile.snippet+" — email verified at "+matched.url).slice(0,320)
+   };
+   evidenceLabel=source.label+" + matching official email";
    break;
   }
  }
