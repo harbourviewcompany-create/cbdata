@@ -177,6 +177,128 @@ function candidateFromMailtoPage(html:string,url:string,role:string){
  return null;
 }
 
+type ContactCandidate={
+ name:string;
+ title:string;
+ email:string;
+ phone:string|null;
+ url:string;
+ snippet:string;
+};
+
+function contactCandidatesFromPage(html:string,url:string,role:string){
+ const terms=ROLE_TERMS[role]||[];
+ const text=clean(html);
+ const out=new Map<string,ContactCandidate>();
+
+ const consider=(email:string,snippet:string)=>{
+  const normalized=email.trim().toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)||isGenericMailbox(normalized))return;
+  const lower=snippet.toLowerCase();
+  const title=terms.find(term=>lower.includes(term));
+  if(!title)return;
+  const names=[...snippet.matchAll(/\b([A-Z][a-zÀ-ÿ'’-]{1,30})\s+([A-Z][a-zÀ-ÿ'’-]{1,30})\b/g)]
+   .map(match=>match[0])
+   .filter(name=>looksLikePersonName(name)&&!INVALID_NAME.test(name.trim()));
+  const name=names.find(candidate=>emailMatchesName(candidate,normalized));
+  if(!name)return;
+  const phone=snippet.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/)?.[0]||null;
+  out.set(normalized,{name,title,email:normalized,phone,url,snippet:snippet.slice(0,320)});
+ };
+
+ for(const m of text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)){
+  const at=m.index??0;
+  consider(m[0],text.slice(Math.max(0,at-450),Math.min(text.length,at+450)));
+ }
+
+ for(const m of html.matchAll(/href=["']mailto:([^"'?]+)(?:\?[^"']*)?["']/gi)){
+  const at=m.index??0;
+  consider(decodeURIComponent(m[1]||""),clean(html.slice(Math.max(0,at-900),Math.min(html.length,at+900))));
+ }
+
+ return [...out.values()];
+}
+
+async function persistAdditionalCandidates(admin:any,task:any,candidates:ContactCandidate[],sourceLabel:string,primaryEmail:string){
+ const extras=candidates
+  .filter(candidate=>candidate.email.toLowerCase()!==primaryEmail.toLowerCase())
+  .slice(0,6);
+ const contactIds:string[]=[];
+
+ for(const candidate of extras){
+  const parts=candidate.name.trim().split(/\s+/);
+  const first=parts.shift()||"";
+  const last=parts.join(" ");
+  if(!first||!last)continue;
+
+  const {data:existing,error:lookupError}=await admin
+   .from("contacts")
+   .select("id,job_title,email,phone,source_url,source_label,source_confidence,source_verified_at")
+   .eq("workspace_id",task.workspace_id)
+   .ilike("email",candidate.email)
+   .limit(1)
+   .maybeSingle();
+  if(lookupError)continue;
+
+  let contactId=existing?.id as string|undefined;
+  if(!contactId){
+   const {data:inserted,error:insertError}=await admin
+    .from("contacts")
+    .insert({
+     workspace_id:task.workspace_id,
+     first_name:first,
+     last_name:last,
+     job_title:candidate.title,
+     email:candidate.email,
+     phone:candidate.phone,
+     status:"active",
+     source_url:candidate.url,
+     source_label:sourceLabel,
+     source_confidence:"high",
+     source_verified_at:new Date().toISOString()
+    })
+    .select("id")
+    .single();
+   if(insertError)continue;
+   contactId=inserted.id;
+  }else{
+   await admin.from("contacts").update({
+    job_title:existing.job_title||candidate.title,
+    phone:existing.phone||candidate.phone,
+    source_url:existing.source_url||candidate.url,
+    source_label:existing.source_label||sourceLabel,
+    source_confidence:"high",
+    source_verified_at:existing.source_verified_at||new Date().toISOString(),
+    updated_at:new Date().toISOString()
+   }).eq("id",contactId);
+  }
+
+  const {data:existingLink}=await admin
+   .from("organization_contacts")
+   .select("id")
+   .eq("workspace_id",task.workspace_id)
+   .eq("organization_id",task.organization_id)
+   .eq("contact_id",contactId)
+   .limit(1)
+   .maybeSingle();
+
+  let linkError:any=null;
+  if(!existingLink){
+   const link=await admin.from("organization_contacts").insert({
+    workspace_id:task.workspace_id,
+    organization_id:task.organization_id,
+    contact_id:contactId,
+    relationship_type:task.missing_role,
+    is_primary:false
+   });
+   linkError=link.error;
+  }
+  if(!linkError)contactIds.push(contactId);
+ }
+
+ return contactIds;
+}
+
 function candidateFromPage(html:string,url:string,role:string){
  const text=clean(html);
  const terms=ROLE_TERMS[role]||[];
@@ -230,6 +352,12 @@ async function researchTask(admin:any,task:any){
  let verifiedEmailMatched=false;
  let verifiedCuratedSourceUsed=false;
  let verifiedSourcePages=0;
+ const harvested=new Map<string,ContactCandidate>();
+ const capture=(html:string,url:string)=>{
+  for(const candidate of contactCandidatesFromPage(html,url,task.missing_role)){
+   harvested.set(candidate.email.toLowerCase(),candidate);
+  }
+ };
 
  const verifiedSources=VERIFIED_PERSON_SOURCES.filter(source=>
   source.match.test(orgName) && source.roles.includes(task.missing_role)
@@ -239,6 +367,7 @@ async function researchTask(admin:any,task:any){
   if(!fetched)continue;
   pages++;
   verifiedSourcePages++;
+  capture(fetched.html,fetched.url);
   const profile=verifiedNamedProfile(fetched.html,fetched.url,source.name,source.title);
   if(!profile){
    if("verified_email" in source
@@ -279,6 +408,7 @@ async function researchTask(admin:any,task:any){
     const candidatePage=await fetchHtml(page,400000);
     if(!candidatePage)continue;
     pages++;
+    capture(candidatePage.html,candidatePage.url);
     matched=matchingNamedEmail(candidatePage.html,candidatePage.url,source.name);
     if(matched)break;
    }
@@ -307,6 +437,7 @@ async function researchTask(admin:any,task:any){
   const fetched=await fetchHtml(page);
   if(!fetched)continue;
   pages++;
+  capture(fetched.html,fetched.url);
   for(const link of prioritizedLinks(fetched.html,fetched.url).slice(0,16)) discoveredLinks.add(link);
   found=candidateFromMailtoPage(fetched.html,fetched.url,task.missing_role)
     ||candidateFromPage(fetched.html,fetched.url,task.missing_role);
@@ -318,6 +449,7 @@ async function researchTask(admin:any,task:any){
    const fetched=await fetchHtml(page,500000);
    if(!fetched)continue;
    pages++;
+   capture(fetched.html,fetched.url);
    found=candidateFromMailtoPage(fetched.html,fetched.url,task.missing_role)
     ||candidateFromPage(fetched.html,fetched.url,task.missing_role);
    if(found)break;
@@ -330,6 +462,7 @@ async function researchTask(admin:any,task:any){
    const fetched=await fetchHtml(source.url,800000);
    if(!fetched)continue;
    pages++;
+   capture(fetched.html,fetched.url);
    found=candidateFromMailtoPage(fetched.html,fetched.url,task.missing_role)
     ||candidateFromPage(fetched.html,fetched.url,task.missing_role);
 
@@ -339,6 +472,7 @@ async function researchTask(admin:any,task:any){
      const personPage=await fetchHtml(person,300000);
      if(!personPage)continue;
      pages++;
+     capture(personPage.html,personPage.url);
      found=candidateFromMailtoPage(personPage.html,personPage.url,task.missing_role)
       ||candidateFromPage(personPage.html,personPage.url,task.missing_role);
      if(found)break;
@@ -377,6 +511,16 @@ async function researchTask(admin:any,task:any){
   if(updateError)return{task_id:task.id,status:"error",error:updateError.message};
 
   const {data:contactId,error:promoteError}=await admin.rpc("promote_verified_contact_candidate",{p_task_id:task.id});
+  let additionalContactIds:string[]=[];
+  if(!promoteError&&contactId){
+   additionalContactIds=await persistAdditionalCandidates(
+    admin,
+    task,
+    [...harvested.values()],
+    evidenceLabel,
+    found.email
+   );
+  }
   let draftId:string|null=null;
   let draftError:string|null=null;
   if(!promoteError&&contactId){
@@ -393,6 +537,8 @@ async function researchTask(admin:any,task:any){
    contact_id:contactId||null,
    draft_id:draftId,
    draft_error:draftError,
+   additional_contacts:additionalContactIds.length,
+   additional_contact_ids:additionalContactIds,
    error:promoteError?.message||null,
    pages_checked:pages
   };
@@ -457,6 +603,7 @@ Deno.serve(async(req)=>{
  }else{
   taskQuery=taskQuery
    .or("next_attempt_at.is.null,next_attempt_at.lte."+new Date().toISOString())
+   .order("attempt_count",{ascending:true})
    .order("research_priority_score",{ascending:false})
    .order("research_urgency_rank",{ascending:false})
    .order("priority_score",{ascending:false})
@@ -479,6 +626,7 @@ Deno.serve(async(req)=>{
   targeted:taskIds.length>0,
   processed:results.length,
   verified:results.filter(r=>r.status==="verified").length,
+  additional_contacts:results.reduce((sum,r)=>sum+Number(r.additional_contacts||0),0),
   not_found:results.filter(r=>r.status==="not_found").length,
   errors:results.filter(r=>r.status==="error").length,
   results
