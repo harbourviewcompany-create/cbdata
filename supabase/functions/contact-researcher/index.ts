@@ -19,6 +19,24 @@ const DIRECTORY_SOURCES=[
  {match:/national capital commission|\bncc\b|commission de la capitale nationale/i,url:"https://ncc-ccn.gc.ca/business/contracting-with-the-ncc",label:"NCC contracting and supplier information"},
  {match:/certapro painters of ottawa/i,url:"https://certapro.com/ottawa/our-team/dipkumar-patel/",label:"CertaPro Ottawa operations leadership profile"}
 ];
+const VERIFIED_PERSON_SOURCES=[
+ {
+  match:/fiore corp renovations/i,
+  roles:["decision_maker","operations"],
+  url:"https://fiorecorprenovations.ca/about",
+  label:"Fiore Corp official owner profile",
+  name:"Brian Fiore",
+  title:"Owner & Operator / Founder & Lead Project Manager"
+ },
+ {
+  match:/certapro painters of ottawa/i,
+  roles:["decision_maker","operations"],
+  url:"https://certapro.com/ottawa/our-team/dipkumar-patel/",
+  label:"CertaPro Ottawa official operations leadership profile",
+  name:"Dipkumar Patel",
+  title:"Co-Owner & Operations Manager"
+ }
+] as const;
 
 const USER_AGENT="CBDataContactResearch/1.2 (+business-contact-enrichment)";
 const CONCURRENCY=4;
@@ -58,6 +76,20 @@ function emailMatchesName(name:string,email:string){
  const local=normalizeToken(email.split("@")[0]||"").replaceAll(" ","");
  const parts=normalizeToken(name).split(" ").filter(p=>p.length>=3);
  return parts.some(part=>local.includes(part));
+}
+function verifiedNamedCandidate(html:string,url:string,name:string,title:string){
+ const text=clean(html);
+ const lower=normalizeToken(text);
+ const nameToken=normalizeToken(name);
+ const titleWords=normalizeToken(title).split(" ").filter(w=>w.length>=4);
+ if(!lower.includes(nameToken) || !titleWords.some(word=>lower.includes(word))) return null;
+ const emails=Array.from(new Set(
+  [...text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0])
+ ));
+ const email=emails.find(e=>emailMatchesName(name,e))||null;
+ if(!email) return null;
+ const phone=text.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/)?.[0]||null;
+ return {name,title,email,phone,url,snippet:(name+" — "+title+" — "+email).slice(0,320)};
 }
 
 function candidateFromPage(html:string,url:string,role:string){
@@ -108,7 +140,22 @@ async function researchTask(admin:any,task:any){
  let pages=0;
  let evidenceLabel="Official organization website";
 
+ const verifiedSources=VERIFIED_PERSON_SOURCES.filter(source=>
+  source.match.test(orgName) && source.roles.includes(task.missing_role)
+ );
+ for(const source of verifiedSources){
+  const fetched=await fetchHtml(source.url,500000);
+  if(!fetched)continue;
+  pages++;
+  found=verifiedNamedCandidate(fetched.html,fetched.url,source.name,source.title);
+  if(found){
+   evidenceLabel=source.label;
+   break;
+  }
+ }
+
  for(const path of PATHS){
+  if(found)break;
   const page=absolute(site,path);
   if(!page||!sameHost(site,page))continue;
   const fetched=await fetchHtml(page);
