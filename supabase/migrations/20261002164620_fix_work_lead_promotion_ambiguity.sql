@@ -1,4 +1,5 @@
--- Qualify RETURNING columns because pursuit_id is also an OUT parameter.\ncreate or replace function private.promote_outreach_work_lead_core(p_lead_id uuid)
+-- Qualify RETURNING columns because pursuit_id is also an OUT parameter.
+create or replace function private.promote_outreach_work_lead_core(p_lead_id uuid)
 returns table(outreach_target_id uuid,pursuit_id uuid,organization_id uuid)
 language plpgsql
 security definer
