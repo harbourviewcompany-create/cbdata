@@ -110,6 +110,10 @@ function emailMatchesName(name:string,email:string){
  const parts=normalizeToken(name).split(" ").filter(p=>p.length>=3);
  return parts.some(part=>local.includes(part));
 }
+function isGenericMailbox(email:string){
+ const local=normalizeToken(email.split("@")[0]||"").replaceAll(" ","");
+ return /^(info|contact|hello|office|admin|administration|reception|leasing|rentals|sales|support|service|services|operations|facilities|maintenance|propertymanagement|projectmanagement|procurement|purchasing|estimating|careers|jobs|accounts|accounting|ap|ar)$/.test(local);
+}
 function verifiedNamedCandidate(html:string,url:string,name:string,title:string){
  const text=clean(html);
  const lower=normalizeToken(text);
@@ -138,7 +142,8 @@ function candidateFromMailtoPage(html:string,url:string,role:string){
   const names=[...snippet.matchAll(/\b([A-Z][a-zÀ-ÿ'’-]{1,30})\s+([A-Z][a-zÀ-ÿ'’-]{1,30})\b/g)]
    .map(match=>match[0])
    .filter(name=>!INVALID_NAME.test(name.trim())&&!/^(First|Last|Full|Your|Contact|Learn|Read|Property|Facility|Privacy|Terms|Stay|Canada|Administrative)\b/i.test(name));
-  const name=names.find(n=>emailMatchesName(n,email))||names[0]||null;
+  if(isGenericMailbox(email))continue;
+  const name=names.find(n=>emailMatchesName(n,email))||null;
   const phone=snippet.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/)?.[0]||null;
   if(name)return{name,title,email,phone,url,snippet:snippet.slice(0,320)};
  }
@@ -164,8 +169,10 @@ function candidateFromPage(html:string,url:string,role:string){
    const pageEmails=Array.from(new Set(
     [...text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0])
    ));
-   const matchedEmail=name?pageEmails.find(e=>emailMatchesName(name,e))||null:null;
-   const email=nearbyEmail||matchedEmail;
+   const matchedEmail=name?pageEmails.find(e=>!isGenericMailbox(e)&&emailMatchesName(name,e))||null:null;
+   const nearbyNamedEmail=name&&nearbyEmail&&!isGenericMailbox(nearbyEmail)&&emailMatchesName(name,nearbyEmail)
+    ?nearbyEmail:null;
+   const email=nearbyNamedEmail||matchedEmail;
    if(name&&email)return{name,title:term,email,phone,url,snippet:snippet.slice(0,320)};
    at=lower.indexOf(term,at+term.length);
   }
