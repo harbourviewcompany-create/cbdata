@@ -45,14 +45,61 @@ function parseTimestamp(value: unknown): string {
   return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
 }
 
+function bytesToBase64(bytes: Uint8Array): string {
+  let value = "";
+  for (const byte of bytes) value += String.fromCharCode(byte);
+  return btoa(value);
+}
+
+function base64ToBytes(value: string): Uint8Array {
+  const decoded = atob(value);
+  return Uint8Array.from(decoded, (char) => char.charCodeAt(0));
+}
+
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+async function verifyResendSignature(req: Request, rawBody: string, secret: string): Promise<boolean> {
+  const id = req.headers.get("svix-id");
+  const timestamp = req.headers.get("svix-timestamp");
+  const signature = req.headers.get("svix-signature");
+  if (!id || !timestamp || !signature || !secret) return false;
+
+  const timestampSeconds = Number(timestamp);
+  if (!Number.isFinite(timestampSeconds)) return false;
+  if (Math.abs(Math.floor(Date.now() / 1000) - timestampSeconds) > 300) return false;
+
+  let keyBytes: Uint8Array;
+  try {
+    keyBytes = base64ToBytes(secret.startsWith("whsec_") ? secret.slice(6) : secret);
+  } catch {
+    return false;
+  }
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    keyBytes,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signedContent = new TextEncoder().encode(`${id}.${timestamp}.${rawBody}`);
+  const mac = new Uint8Array(await crypto.subtle.sign("HMAC", key, signedContent));
+  const expected = bytesToBase64(mac);
+
+  return signature
+    .split(" ")
+    .map((part) => part.split(",", 2))
+    .some(([version, value]) => version === "v1" && Boolean(value) && constantTimeEqual(value, expected));
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json(405, { error: "method_not_allowed" });
-
-  const integrationKey =
-    req.headers.get("x-cbdata-integration-key") ??
-    new URL(req.url).searchParams.get("integration_key");
-  if (!integrationKey) return json(401, { error: "missing_integration_key" });
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -64,26 +111,80 @@ Deno.serve(async (req) => {
     "Content-Type": "application/json",
   };
 
-  const keyHash = await sha256(integrationKey);
-  const credentialResponse = await fetch(
-    `${supabaseUrl}/rest/v1/rpc/lookup_integration_workspace`,
-    {
-      method: "POST",
-      headers: authHeaders,
-      body: JSON.stringify({ p_provider: "outreach_inbound", p_key_hash: keyHash }),
-    },
-  );
-  if (!credentialResponse.ok) return json(500, { error: "credential_lookup_failed" });
-
-  const workspaceId = await credentialResponse.json();
-  if (typeof workspaceId !== "string" || !workspaceId) {
-    return json(401, { error: "invalid_integration_key" });
+  const rawBody = await req.text();
+  let rawPayload: unknown;
+  try {
+    rawPayload = JSON.parse(rawBody);
+  } catch {
+    return json(400, { error: "invalid_json" });
   }
-
-  const rawPayload = await req.json().catch(() => null);
   if (!rawPayload || typeof rawPayload !== "object") return json(400, { error: "invalid_json" });
 
   const raw = rawPayload as Record<string, unknown>;
+  const rawEventType = clean(valueAt(raw, ["type", "event_type", "eventType"]), 120);
+  const hasResendSignature = Boolean(
+    req.headers.get("svix-id") &&
+    req.headers.get("svix-timestamp") &&
+    req.headers.get("svix-signature")
+  );
+
+  let workspaceId: string | null = null;
+
+  if (rawEventType === "email.received" && hasResendSignature) {
+    const secretResponse = await fetch(
+      `${supabaseUrl}/rest/v1/rpc/get_service_integration_secret`,
+      {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({ p_name: "resend_outreach_webhook_signing_secret" }),
+      },
+    );
+    if (!secretResponse.ok) return json(500, { error: "webhook_secret_lookup_failed" });
+    const signingSecret = await secretResponse.json();
+    if (typeof signingSecret !== "string" || !signingSecret) {
+      return json(500, { error: "webhook_secret_not_configured" });
+    }
+    if (!await verifyResendSignature(req, rawBody, signingSecret)) {
+      return json(401, { error: "invalid_webhook_signature" });
+    }
+
+    const workspaceResponse = await fetch(
+      `${supabaseUrl}/rest/v1/rpc/lookup_signed_integration_workspace`,
+      {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({ p_provider: "resend_webhook" }),
+      },
+    );
+    if (!workspaceResponse.ok) return json(500, { error: "signed_workspace_lookup_failed" });
+    const resolvedWorkspace = await workspaceResponse.json();
+    if (typeof resolvedWorkspace !== "string" || !resolvedWorkspace) {
+      return json(500, { error: "signed_workspace_unavailable" });
+    }
+    workspaceId = resolvedWorkspace;
+  } else {
+    const integrationKey =
+      req.headers.get("x-cbdata-integration-key") ??
+      new URL(req.url).searchParams.get("integration_key");
+    if (!integrationKey) return json(401, { error: "missing_integration_key" });
+
+    const keyHash = await sha256(integrationKey);
+    const credentialResponse = await fetch(
+      `${supabaseUrl}/rest/v1/rpc/lookup_integration_workspace`,
+      {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({ p_provider: "outreach_inbound", p_key_hash: keyHash }),
+      },
+    );
+    if (!credentialResponse.ok) return json(500, { error: "credential_lookup_failed" });
+
+    const resolvedWorkspace = await credentialResponse.json();
+    if (typeof resolvedWorkspace !== "string" || !resolvedWorkspace) {
+      return json(401, { error: "invalid_integration_key" });
+    }
+    workspaceId = resolvedWorkspace;
+  }
   const nested =
     raw.data && typeof raw.data === "object" ? raw.data as Record<string, unknown> :
     raw.message && typeof raw.message === "object" ? raw.message as Record<string, unknown> :
