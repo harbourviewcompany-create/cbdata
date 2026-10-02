@@ -53,12 +53,76 @@ const VERIFIED_PERSON_SOURCES=[
   verified_at:"2026-10-02"
  },
  {
+  match:/mcdonald brothers construction/i,
+  roles:["decision_maker"],
+  url:"https://mbc.ca/our-people/",
+  label:"MBC official leadership profile",
+  name:"Patrick McDonald",
+  title:"President",
+  verified_phone:"613-831-6223",
+  verified_at:"2026-10-02"
+ },
+ {
+  match:/mcdonald brothers construction/i,
+  roles:["operations"],
+  url:"https://mbc.ca/our-people/",
+  label:"MBC official leadership profile",
+  name:"Matthew Wilson",
+  title:"Partner, VP of Operations",
+  verified_email:"matthew@mbc.ca",
+  verified_phone:"613-831-6223",
+  verified_at:"2026-10-02"
+ },
+ {
+  match:/mcdonald brothers construction/i,
+  roles:["procurement"],
+  url:"https://mbc.ca/our-people/",
+  label:"MBC official estimator profile",
+  name:"Patrick Brousseau",
+  title:"Design-Build Estimator",
+  verified_email:"patb@mbc.ca",
+  verified_phone:"613-831-6223",
+  verified_at:"2026-10-02"
+ },
+ {
+  match:/dynamic building improvements/i,
+  roles:["decision_maker"],
+  url:"https://www.dynamicbuilding.ca/about",
+  label:"Dynamic Building official owner profile",
+  name:"Jon Black",
+  title:"Owner / Carpenter",
+  verified_phone:"613-746-9888",
+  verified_at:"2026-10-02"
+ },
+ {
+  match:/dynamic building improvements/i,
+  roles:["operations"],
+  url:"https://www.dynamicbuilding.ca/about",
+  label:"Dynamic Building official operations profile",
+  name:"Nick Buchanan",
+  title:"Project Manager / Scheduler / Accounting",
+  verified_phone:"613-746-9888",
+  verified_at:"2026-10-02"
+ },
+ {
   match:/certapro painters of ottawa/i,
-  roles:["decision_maker","operations"],
-  url:"https://certapro.com/ottawa/our-team/dipkumar-patel/",
-  label:"CertaPro Ottawa official operations leadership profile",
+  roles:["decision_maker"],
+  url:"https://certapro.com/ottawa/our-team/",
+  label:"CertaPro Ottawa official team profile",
+  name:"Mit Patel",
+  title:"Co-Owner & Finance Manager",
+  verified_phone:"613-255-8068",
+  verified_at:"2026-10-02"
+ },
+ {
+  match:/certapro painters of ottawa/i,
+  roles:["operations"],
+  url:"https://certapro.com/ottawa/our-team/",
+  label:"CertaPro Ottawa official team profile",
   name:"Dipkumar Patel",
-  title:"Co-Owner & Operations Manager"
+  title:"Co-Owner & Operations Manager",
+  verified_phone:"613-255-8068",
+  verified_at:"2026-10-02"
  },
  {
   match:/machaalani landscaping/i,
@@ -70,12 +134,32 @@ const VERIFIED_PERSON_SOURCES=[
   verified_email:"ali.machaalani@gmail.com",
   verified_phone:"613-252-4190",
   verified_at:"2026-10-02"
+ },
+ {
+  match:/613painting/i,
+  roles:["decision_maker"],
+  url:"https://613painting.com/contact/",
+  label:"613PAINTING official crew leadership profile",
+  name:"Katrina O'Neill",
+  title:"CEO",
+  verified_phone:"613-618-3217",
+  verified_at:"2026-10-02"
+ },
+ {
+  match:/613painting/i,
+  roles:["operations"],
+  url:"https://613painting.com/contact/",
+  label:"613PAINTING official crew leadership profile",
+  name:"Megan Holzhuter",
+  title:"Admin & Operations",
+  verified_phone:"613-618-3217",
+  verified_at:"2026-10-02"
  }
 ] as const;
 
-const USER_AGENT="CBDataContactResearch/1.3 (+business-contact-enrichment)";
+const USER_AGENT="CBDataContactResearch/1.5 (+business-contact-enrichment)";
 const CONCURRENCY=4;
-const FETCH_TIMEOUT_MS=6500;
+const FETCH_TIMEOUT_MS=4500;
 
 function clean(s:string){
  return s.replace(/<script[\s\S]*?<\/script>/gi," ")
@@ -167,6 +251,30 @@ function matchingNamedEmail(html:string,url:string,name:string){
  return {email,phone,url};
 }
 
+function curatedVerifiedCandidate(source:any,url:string){
+ const email=typeof source.verified_email==="string"&&emailMatchesName(source.name,source.verified_email)
+  ?source.verified_email:null;
+ const phone=typeof source.verified_phone==="string"?source.verified_phone:null;
+ if(!email&&!phone)return null;
+ return {
+  name:source.name,
+  title:source.title,
+  email,
+  phone,
+  url:source.url||url,
+  snippet:(
+   source.name+" — "+source.title+" — curated from reachable official profile"+
+   (source.verified_at?" — verified "+source.verified_at:"")
+  ).slice(0,320)
+ };
+}
+function curatedVerificationIsFresh(source:any){
+ const ts=Date.parse(String(source.verified_at||""));
+ if(!Number.isFinite(ts))return false;
+ const age=Date.now()-ts;
+ return age>=0&&age<=31*86400000;
+}
+
 function candidateFromMailtoPage(html:string,url:string,role:string){
  const terms=ROLE_TERMS[role]||[];
  for(const m of html.matchAll(/href=["']mailto:([^"'?]+)(?:\?[^"']*)?["']/gi)){
@@ -186,6 +294,128 @@ function candidateFromMailtoPage(html:string,url:string,role:string){
   if(name)return{name,title,email,phone,url,snippet:snippet.slice(0,320)};
  }
  return null;
+}
+
+type ContactCandidate={
+ name:string;
+ title:string;
+ email:string;
+ phone:string|null;
+ url:string;
+ snippet:string;
+};
+
+function contactCandidatesFromPage(html:string,url:string,role:string){
+ const terms=ROLE_TERMS[role]||[];
+ const text=clean(html);
+ const out=new Map<string,ContactCandidate>();
+
+ const consider=(email:string,snippet:string)=>{
+  const normalized=email.trim().toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)||isGenericMailbox(normalized))return;
+  const lower=snippet.toLowerCase();
+  const title=terms.find(term=>lower.includes(term));
+  if(!title)return;
+  const names=[...snippet.matchAll(/\b([A-Z][a-zÀ-ÿ'’-]{1,30})\s+([A-Z][a-zÀ-ÿ'’-]{1,30})\b/g)]
+   .map(match=>match[0])
+   .filter(name=>looksLikePersonName(name)&&!INVALID_NAME.test(name.trim()));
+  const name=names.find(candidate=>emailMatchesName(candidate,normalized));
+  if(!name)return;
+  const phone=snippet.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/)?.[0]||null;
+  out.set(normalized,{name,title,email:normalized,phone,url,snippet:snippet.slice(0,320)});
+ };
+
+ for(const m of text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)){
+  const at=m.index??0;
+  consider(m[0],text.slice(Math.max(0,at-450),Math.min(text.length,at+450)));
+ }
+
+ for(const m of html.matchAll(/href=["']mailto:([^"'?]+)(?:\?[^"']*)?["']/gi)){
+  const at=m.index??0;
+  consider(decodeURIComponent(m[1]||""),clean(html.slice(Math.max(0,at-900),Math.min(html.length,at+900))));
+ }
+
+ return [...out.values()];
+}
+
+async function persistAdditionalCandidates(admin:any,task:any,candidates:ContactCandidate[],sourceLabel:string,primaryEmail:string|null){
+ const extras=candidates
+  .filter(candidate=>!primaryEmail||candidate.email.toLowerCase()!==primaryEmail.toLowerCase())
+  .slice(0,6);
+ const contactIds:string[]=[];
+
+ for(const candidate of extras){
+  const parts=candidate.name.trim().split(/\s+/);
+  const first=parts.shift()||"";
+  const last=parts.join(" ");
+  if(!first||!last)continue;
+
+  const {data:existing,error:lookupError}=await admin
+   .from("contacts")
+   .select("id,job_title,email,phone,source_url,source_label,source_confidence,source_verified_at")
+   .eq("workspace_id",task.workspace_id)
+   .ilike("email",candidate.email)
+   .limit(1)
+   .maybeSingle();
+  if(lookupError)continue;
+
+  let contactId=existing?.id as string|undefined;
+  if(!contactId){
+   const {data:inserted,error:insertError}=await admin
+    .from("contacts")
+    .insert({
+     workspace_id:task.workspace_id,
+     first_name:first,
+     last_name:last,
+     job_title:candidate.title,
+     email:candidate.email,
+     phone:candidate.phone,
+     status:"active",
+     source_url:candidate.url,
+     source_label:sourceLabel,
+     source_confidence:"high",
+     source_verified_at:new Date().toISOString()
+    })
+    .select("id")
+    .single();
+   if(insertError)continue;
+   contactId=inserted.id;
+  }else{
+   await admin.from("contacts").update({
+    job_title:existing.job_title||candidate.title,
+    phone:existing.phone||candidate.phone,
+    source_url:existing.source_url||candidate.url,
+    source_label:existing.source_label||sourceLabel,
+    source_confidence:"high",
+    source_verified_at:existing.source_verified_at||new Date().toISOString(),
+    updated_at:new Date().toISOString()
+   }).eq("id",contactId);
+  }
+
+  const {data:existingLink}=await admin
+   .from("organization_contacts")
+   .select("id")
+   .eq("workspace_id",task.workspace_id)
+   .eq("organization_id",task.organization_id)
+   .eq("contact_id",contactId)
+   .limit(1)
+   .maybeSingle();
+
+  let linkError:any=null;
+  if(!existingLink){
+   const link=await admin.from("organization_contacts").insert({
+    workspace_id:task.workspace_id,
+    organization_id:task.organization_id,
+    contact_id:contactId,
+    relationship_type:task.missing_role,
+    is_primary:false
+   });
+   linkError=link.error;
+  }
+  if(!linkError)contactIds.push(contactId);
+ }
+
+ return contactIds;
 }
 
 function candidateFromPage(html:string,url:string,role:string){
@@ -241,32 +471,36 @@ async function researchTask(admin:any,task:any){
  let verifiedEmailMatched=false;
  let verifiedCuratedSourceUsed=false;
  let verifiedSourcePages=0;
+ const harvested=new Map<string,ContactCandidate>();
+ const capture=(html:string,url:string)=>{
+  for(const candidate of contactCandidatesFromPage(html,url,task.missing_role)){
+   harvested.set(candidate.email.toLowerCase(),candidate);
+  }
+ };
 
  const verifiedSources=VERIFIED_PERSON_SOURCES.filter(source=>
   source.match.test(orgName) && source.roles.includes(task.missing_role)
  );
  for(const source of verifiedSources){
+  const curated=curatedVerifiedCandidate(source,source.url);
   const fetched=await fetchHtml(source.url,500000);
-  if(!fetched)continue;
+  if(!fetched){
+   if(curated&&curatedVerificationIsFresh(source)){
+    verifiedCuratedSourceUsed=true;
+    found=curated;
+    evidenceLabel=source.label+" — recent curated verified official contact";
+    break;
+   }
+   continue;
+  }
   pages++;
   verifiedSourcePages++;
+  capture(fetched.html,fetched.url);
   const profile=verifiedNamedProfile(fetched.html,fetched.url,source.name,source.title);
   if(!profile){
-   if("verified_email" in source
-      && typeof source.verified_email==="string"
-      && emailMatchesName(source.name,source.verified_email)){
+   if(curated){
     verifiedCuratedSourceUsed=true;
-    found={
-     name:source.name,
-     title:source.title,
-     email:source.verified_email,
-     phone:"verified_phone" in source?source.verified_phone:null,
-     url:source.url,
-     snippet:(
-      source.name+" — "+source.title+" — curated from reachable official profile"+
-      ("verified_at" in source?" — verified "+source.verified_at:"")
-     ).slice(0,320)
-    };
+    found=curated;
     evidenceLabel=source.label+" — curated verified official contact";
     break;
    }
@@ -278,7 +512,7 @@ async function researchTask(admin:any,task:any){
   if(!matched){
    const base=site||fetched.url;
    const emailPages=new Set<string>();
-   for(const path of PATHS){
+   for(const path of PATHS.slice(0,14)){
     const page=absolute(base,path);
     if(page&&sameHost(base,page))emailPages.add(page);
    }
@@ -290,6 +524,7 @@ async function researchTask(admin:any,task:any){
     const candidatePage=await fetchHtml(page,400000);
     if(!candidatePage)continue;
     pages++;
+    capture(candidatePage.html,candidatePage.url);
     matched=matchingNamedEmail(candidatePage.html,candidatePage.url,source.name);
     if(matched)break;
    }
@@ -301,11 +536,17 @@ async function researchTask(admin:any,task:any){
     name:source.name,
     title:source.title,
     email:matched.email,
-    phone:matched.phone,
+    phone:matched.phone||curated?.phone||null,
     url:profile.url,
     snippet:(profile.snippet+" — email verified at "+matched.url).slice(0,320)
    };
    evidenceLabel=source.label+" + matching official email";
+   break;
+  }
+  if(curated){
+   verifiedCuratedSourceUsed=true;
+   found=curated;
+   evidenceLabel=source.label+" — curated verified official contact";
    break;
   }
  }
@@ -318,6 +559,7 @@ async function researchTask(admin:any,task:any){
   const fetched=await fetchHtml(page);
   if(!fetched)continue;
   pages++;
+  capture(fetched.html,fetched.url);
   for(const link of prioritizedLinks(fetched.html,fetched.url).slice(0,16)) discoveredLinks.add(link);
   found=candidateFromMailtoPage(fetched.html,fetched.url,task.missing_role)
     ||candidateFromPage(fetched.html,fetched.url,task.missing_role);
@@ -325,10 +567,11 @@ async function researchTask(admin:any,task:any){
  }
 
  if(!found&&discoveredLinks.size){
-  for(const page of [...discoveredLinks].slice(0,24)){
+  for(const page of [...discoveredLinks].slice(0,12)){
    const fetched=await fetchHtml(page,500000);
    if(!fetched)continue;
    pages++;
+   capture(fetched.html,fetched.url);
    found=candidateFromMailtoPage(fetched.html,fetched.url,task.missing_role)
     ||candidateFromPage(fetched.html,fetched.url,task.missing_role);
    if(found)break;
@@ -341,6 +584,7 @@ async function researchTask(admin:any,task:any){
    const fetched=await fetchHtml(source.url,800000);
    if(!fetched)continue;
    pages++;
+   capture(fetched.html,fetched.url);
    found=candidateFromMailtoPage(fetched.html,fetched.url,task.missing_role)
     ||candidateFromPage(fetched.html,fetched.url,task.missing_role);
 
@@ -350,6 +594,7 @@ async function researchTask(admin:any,task:any){
      const personPage=await fetchHtml(person,300000);
      if(!personPage)continue;
      pages++;
+     capture(personPage.html,personPage.url);
      found=candidateFromMailtoPage(personPage.html,personPage.url,task.missing_role)
       ||candidateFromPage(personPage.html,personPage.url,task.missing_role);
      if(found)break;
@@ -388,6 +633,16 @@ async function researchTask(admin:any,task:any){
   if(updateError)return{task_id:task.id,status:"error",error:updateError.message};
 
   const {data:contactId,error:promoteError}=await admin.rpc("promote_verified_contact_candidate",{p_task_id:task.id});
+  let additionalContactIds:string[]=[];
+  if(!promoteError&&contactId){
+   additionalContactIds=await persistAdditionalCandidates(
+    admin,
+    task,
+    [...harvested.values()],
+    evidenceLabel,
+    found.email
+   );
+  }
   let draftId:string|null=null;
   let draftError:string|null=null;
   if(!promoteError&&contactId){
@@ -404,6 +659,8 @@ async function researchTask(admin:any,task:any){
    contact_id:contactId||null,
    draft_id:draftId,
    draft_error:draftError,
+   additional_contacts:additionalContactIds.length,
+   additional_contact_ids:additionalContactIds,
    error:promoteError?.message||null,
    pages_checked:pages
   };
@@ -452,9 +709,9 @@ Deno.serve(async(req)=>{
 
  await admin.rpc("refresh_contact_research_queue",{p_workspace:workspaceId});
 
- const requested=Math.max(1,Math.min(40,Number(body.limit)||20));
+ const requested=Math.max(1,Math.min(8,Number(body.limit)||8));
  const taskIds=Array.isArray(body.task_ids)
-  ?Array.from(new Set(body.task_ids.filter((id:unknown)=>typeof id==="string"&&id.length>0))).slice(0,40)
+  ?Array.from(new Set(body.task_ids.filter((id:unknown)=>typeof id==="string"&&id.length>0))).slice(0,8)
   :[];
 
  let taskQuery=admin
@@ -468,6 +725,7 @@ Deno.serve(async(req)=>{
  }else{
   taskQuery=taskQuery
    .or("next_attempt_at.is.null,next_attempt_at.lte."+new Date().toISOString())
+   .order("attempt_count",{ascending:true})
    .order("research_priority_score",{ascending:false})
    .order("research_urgency_rank",{ascending:false})
    .order("priority_score",{ascending:false})
@@ -490,6 +748,7 @@ Deno.serve(async(req)=>{
   targeted:taskIds.length>0,
   processed:results.length,
   verified:results.filter(r=>r.status==="verified").length,
+  additional_contacts:results.reduce((sum,r)=>sum+Number(r.additional_contacts||0),0),
   not_found:results.filter(r=>r.status==="not_found").length,
   errors:results.filter(r=>r.status==="error").length,
   results
