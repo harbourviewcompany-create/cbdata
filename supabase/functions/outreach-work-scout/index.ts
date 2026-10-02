@@ -210,9 +210,12 @@ Deno.serve(async(req)=>{
   }else{
     const {data:userData,error:userError}=await admin.auth.getUser(token);
     if(userError||!userData.user)return Response.json({error:"unauthorized"},{status:401});
-    const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id").eq("user_id",userData.user.id).eq("status","active");
-    const membership=(memberships||[]).find((m:any)=>!requestedWorkspace||m.workspace_id===requestedWorkspace);
-    if(!membership)return Response.json({error:"workspace_access_denied"},{status:403});
+    const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id,role").eq("user_id",userData.user.id).eq("status","active");
+    const salesRoles=new Set(["owner","administrator","sales_manager","sales_rep"]);
+    const membership=(memberships||[]).find((m:any)=>
+      (!requestedWorkspace||m.workspace_id===requestedWorkspace) && salesRoles.has(String(m.role))
+    );
+    if(!membership)return Response.json({error:"workspace_sales_access_denied"},{status:403});
     workspaceId=membership.workspace_id;
   }
   if(!workspaceId)return Response.json({error:"workspace_unresolved"},{status:400});
