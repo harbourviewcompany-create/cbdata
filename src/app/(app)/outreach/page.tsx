@@ -12,6 +12,7 @@ import {
   generateDraft,
   handleReply,
   linkEstimateToPursuit,
+  markSent,
   promoteWorkLead,
   dismissWorkLead,
   scanWorkLeads,
@@ -518,23 +519,58 @@ export default async function OutreachPage({
     {view==="drafts"?<section className="table-panel">
       <div className="panel-head"><div><span className="eyebrow">MESSAGE QUALITY</span><h3>Draft review</h3></div><span className="muted">{draftRows.length} pursuits with drafts</span></div>
       <div style={{display:"grid",gap:10,marginTop:12}}>
-        {draftRows.map(p=><article key={p.pursuit_id} style={{border:"1px solid var(--line)",borderRadius:12,padding:14}}>
-          <div style={{display:"flex",justifyContent:"space-between",gap:16,alignItems:"start",flexWrap:"wrap"}}>
-            <div><strong>{p.organization_display_name}</strong><div className="muted" style={{fontSize:11}}>{p.contact_display_name??"No named contact"} · {human(p.latest_draft_strategy)}</div></div>
-            <div style={{textAlign:"right"}}><strong>{p.latest_draft_quality_score}/100</strong><div className="muted" style={{fontSize:11}}>{p.latest_draft_quality_passed?"passes quality gate":"blocked from approval"}</div></div>
-          </div>
-          <div style={{marginTop:10,padding:12,border:"1px solid var(--line)",borderRadius:10}}>
-            {p.latest_draft_subject?<strong style={{display:"block",marginBottom:7}}>{p.latest_draft_subject}</strong>:null}
-            <div style={{fontSize:12,whiteSpace:"pre-wrap",lineHeight:1.5}}>{p.latest_draft_body}</div>
-          </div>
-          <div className="muted" style={{fontSize:11,marginTop:8}}>
-            Evidence: {String(p.latest_draft_evidence?.property_name??"no property")} · signal {String(p.latest_draft_evidence?.signal??"none")} · contact {String(p.latest_draft_evidence?.contact_confidence??"unverified")}
-          </div>
-          <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
-            {p.latest_draft_state==="draft"?<form action={approveDraft}><input type="hidden" name="target_id" value={p.primary_target_id}/><input type="hidden" name="draft_id" value={p.latest_draft_id??""}/><button className="primary" disabled={!p.latest_draft_quality_passed}>Approve</button></form>:null}
-            <form action={generateDraft}><input type="hidden" name="target_id" value={p.primary_target_id}/><input type="hidden" name="channel" value={p.latest_draft_channel??"email"}/><input type="hidden" name="objective" value="referral"/><button className="button">Rewrite from evidence</button></form>
-          </div>
-        </article>)}
+        {draftRows.map(p=>{
+          const directEmail=typeof p.latest_draft_evidence?.direct_response_email==="string"
+            ? String(p.latest_draft_evidence.direct_response_email)
+            : null;
+          const destination=p.contact_email||directEmail;
+          const emailLink=mailto(destination,p.latest_draft_subject,p.latest_draft_body);
+          const sourceUrl=typeof p.latest_draft_evidence?.source_url==="string"
+            ? String(p.latest_draft_evidence.source_url)
+            : typeof p.latest_draft_evidence?.contact_source==="string"
+              ? String(p.latest_draft_evidence.contact_source)
+              : null;
+          return <article key={p.pursuit_id} style={{border:"1px solid var(--line)",borderRadius:12,padding:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:16,alignItems:"start",flexWrap:"wrap"}}>
+              <div>
+                <strong>{p.organization_display_name}</strong>
+                <div className="muted" style={{fontSize:11}}>{p.contact_display_name??"Official response contact"} · {human(p.latest_draft_strategy)}</div>
+                <div className="muted" style={{fontSize:11,marginTop:3}}>To: {destination??"No verified destination yet"}</div>
+              </div>
+              <div style={{textAlign:"right"}}><strong>{p.latest_draft_quality_score}/100</strong><div className="muted" style={{fontSize:11}}>{p.latest_draft_quality_passed?"passes quality gate":"blocked from approval"}</div></div>
+            </div>
+            <div style={{marginTop:10,padding:12,border:"1px solid var(--line)",borderRadius:10}}>
+              {p.latest_draft_subject?<strong style={{display:"block",marginBottom:7}}>{p.latest_draft_subject}</strong>:null}
+              <div style={{fontSize:12,whiteSpace:"pre-wrap",lineHeight:1.5}}>{p.latest_draft_body}</div>
+            </div>
+            <div className="muted" style={{fontSize:11,marginTop:8}}>
+              Evidence: signal {String(p.latest_draft_evidence?.signal??"none")} · contact {String(p.latest_draft_evidence?.contact_confidence??"unverified")} · version {String(p.latest_draft_evidence?.message_version??"standard")}
+            </div>
+            <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
+              {p.latest_draft_state==="draft"?<form action={approveDraft}>
+                <input type="hidden" name="target_id" value={p.primary_target_id}/>
+                <input type="hidden" name="draft_id" value={p.latest_draft_id??""}/>
+                <button className="primary" disabled={!p.latest_draft_quality_passed}>Approve</button>
+              </form>:null}
+              {p.latest_draft_state==="approved"&&p.latest_draft_channel==="email"&&emailLink
+                ?<a className="primary" href={emailLink}>Open email</a>:null}
+              {p.latest_draft_state==="approved"&&p.latest_draft_id?<form action={markSent}>
+                <input type="hidden" name="target_id" value={p.primary_target_id}/>
+                <input type="hidden" name="draft_id" value={p.latest_draft_id}/>
+                <input type="hidden" name="provider" value="manual"/>
+                <button className="button">Mark sent</button>
+              </form>:null}
+              {sourceUrl?<a className="button" href={sourceUrl} target="_blank" rel="noreferrer">Open evidence</a>:null}
+              <form action={generateDraft}>
+                <input type="hidden" name="target_id" value={p.primary_target_id}/>
+                <input type="hidden" name="channel" value={p.latest_draft_channel??"email"}/>
+                <input type="hidden" name="objective" value="referral"/>
+                <button className="button">Rewrite from evidence</button>
+              </form>
+              <Link className="button" href={("/targets/"+p.primary_target_id) as Route}>Account</Link>
+            </div>
+          </article>;
+        })}
         {!draftRows.length?<p className="muted">No drafts yet.</p>:null}
       </div>
     </section>:null}
