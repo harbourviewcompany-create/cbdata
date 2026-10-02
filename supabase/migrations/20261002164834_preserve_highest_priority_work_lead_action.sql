@@ -1,4 +1,5 @@
--- Keep the highest-scoring lead as the canonical account's primary next action.\ncreate or replace function private.promote_outreach_work_lead_core(p_lead_id uuid)
+-- Keep the highest-scoring lead as the canonical account's primary next action.
+create or replace function private.promote_outreach_work_lead_core(p_lead_id uuid)
 returns table(outreach_target_id uuid,pursuit_id uuid,organization_id uuid)
 language plpgsql
 security definer
