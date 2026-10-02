@@ -507,6 +507,7 @@ Deno.serve(async(req)=>{
   .in("status",["queued","researching","not_found"])
   .or("next_attempt_at.is.null,next_attempt_at.lte."+new Date().toISOString())
   .order("research_priority_score",{ascending:false})
+  .order("attempt_count",{ascending:true})
   .order("research_urgency_rank",{ascending:false})
   .order("priority_score",{ascending:false})
   .order("next_attempt_at",{ascending:true,nullsFirst:true})
@@ -526,6 +527,7 @@ Deno.serve(async(req)=>{
   requested,
   processed:results.length,
   verified:results.filter(r=>r.status==="verified").length,
+  additional_contacts:results.reduce((sum,r)=>sum+Number(r.additional_contacts||0),0),
   not_found:results.filter(r=>r.status==="not_found").length,
   errors:results.filter(r=>r.status==="error").length,
   results
