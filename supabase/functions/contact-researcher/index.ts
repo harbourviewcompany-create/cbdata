@@ -59,6 +59,17 @@ const VERIFIED_PERSON_SOURCES=[
   label:"CertaPro Ottawa official operations leadership profile",
   name:"Dipkumar Patel",
   title:"Co-Owner & Operations Manager"
+ },
+ {
+  match:/machaalani landscaping/i,
+  roles:["decision_maker","operations"],
+  url:"https://www.machaalani.ca/",
+  label:"Machaalani official company page + Corporations Canada-derived director record",
+  name:"Ali El Machaalani",
+  title:"Director / company contact",
+  verified_email:"ali.machaalani@gmail.com",
+  verified_phone:"613-252-4190",
+  verified_at:"2026-10-02"
  }
 ] as const;
 
