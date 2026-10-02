@@ -175,6 +175,35 @@ export async function handleReply(formData: FormData) {
   refresh(reply.outreach_target_id);
 }
 
+export async function resolveInboundEvent(formData: FormData) {
+  const { s, workspaceId } = await client();
+  const eventId = String(formData.get("event_id") ?? "");
+  const targetId = String(formData.get("target_id") ?? "");
+  if (!eventId || !targetId) throw new Error("Inbound event and target are required");
+
+  await assertTargetInWorkspace(s, targetId, workspaceId);
+
+  const { data: event, error: eventError } = await (s as any)
+    .from("outreach_inbound_events")
+    .select("id,status")
+    .eq("id", eventId)
+    .eq("workspace_id", workspaceId)
+    .maybeSingle();
+  if (eventError) throw new Error(eventError.message);
+  if (!event) throw new Error("Inbound event is not in the active workspace");
+  if (event.status === "matched") {
+    refresh(targetId);
+    return;
+  }
+
+  const { error } = await s.rpc(
+    "resolve_outreach_inbound_event" as never,
+    { p_event_id: eventId, p_target_id: targetId } as never,
+  );
+  if (error) throw new Error(error.message);
+  refresh(targetId);
+}
+
 export async function createOpportunityFromPursuit(formData: FormData) {
   const { s, workspaceId } = await client();
   const pursuitId = String(formData.get("pursuit_id") ?? "");

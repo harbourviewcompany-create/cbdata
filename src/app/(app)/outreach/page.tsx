@@ -16,6 +16,7 @@ import {
   linkEstimateToPursuit,
   markSent,
   queueContactResearch,
+  resolveInboundEvent,
   runDueSequences,
   updatePursuitNextAction,
 } from "./actions";
@@ -52,7 +53,19 @@ type ReplyRow = {
   classification:string; classification_confidence:number|string|null; classification_reason:string|null;
   summary:string|null; body:string|null; needs_response:boolean; sequence_paused:boolean;
   pursuit_stage:string|null; next_action:string|null; next_action_due_at:string|null;
-  opportunity_id:string|null;
+  opportunity_id:string|null; sender_email:string|null; subject:string|null;
+};
+
+type InboundEventRow = {
+  id:string; provider:string; provider_message_id:string|null; provider_thread_id:string|null;
+  sender_email:string|null; subject:string|null; body:string; received_at:string;
+  status:string; matched_target_id:string|null; matched_pursuit_id:string|null;
+  reply_id:string|null; match_reason:string|null; raw_metadata:Record<string,unknown>|null;
+};
+
+type InboundCandidateRow = {
+  id:string; pursuit_id:string|null; organization_name:string|null;
+  contact_name:string|null; email:string|null;
 };
 
 type TimelineRow = {
@@ -110,7 +123,7 @@ function confidence(v:number|string|null|undefined) {
 }
 
 const views=[
-  ["now","Customer Now"],["command","Command Queue"],["replies","Replies"],["drafts","Drafts"],
+  ["command","Command Queue"],["replies","Replies"],["drafts","Drafts"],
   ["research","Research"],["accounts","Accounts"],["analytics","Analytics"],
 ] as const;
 
@@ -121,18 +134,21 @@ export default async function OutreachPage({
   if(!ctx) redirect("/login");
   const s=await createClient();
   const params=await searchParams;
-  const requested=typeof params.view==="string"?params.view:"now";
+  const requested=typeof params.view==="string"?params.view:"command";
   const view=views.some(([key])=>key===requested)?requested:"command";
   const analyticsDimension=typeof params.dimension==="string"?params.dimension:"target";
   const ws=ctx.workspaceId;
 
   const [
-    pursuitResult,replyResult,researchResult,timelineResult,analyticsResult,safetyResult,estimateResult,
+    pursuitResult,replyResult,inboundResult,researchResult,timelineResult,analyticsResult,safetyResult,estimateResult,
   ]=await Promise.all([
     (s as any).from("v_outreach_pursuit_queue").select("*")
       .eq("workspace_id",ws).order("command_score",{ascending:false}).limit(250),
     (s as any).from("v_outreach_reply_inbox").select("*")
       .eq("workspace_id",ws).order("needs_response",{ascending:false}).order("received_at",{ascending:false}).limit(250),
+    (s as any).from("outreach_inbound_events").select("*")
+      .eq("workspace_id",ws).in("status",["unmatched","ambiguous","error"])
+      .order("received_at",{ascending:false}).limit(100),
     (s as any).from("v_contact_enrichment_queue").select("*")
       .eq("workspace_id",ws).order("research_priority_score",{ascending:false}).order("research_urgency_rank",{ascending:false}).limit(150),
     (s as any).from("v_outreach_timeline").select("*")
@@ -147,6 +163,7 @@ export default async function OutreachPage({
 
   const pursuits=(pursuitResult.data??[]) as PursuitRow[];
   const replies=(replyResult.data??[]) as ReplyRow[];
+  const inboundEvents=(inboundResult.data??[]) as InboundEventRow[];
   const research=(researchResult.data??[]) as ResearchRow[];
   const timeline=(timelineResult.data??[]) as TimelineRow[];
   const analytics=(analyticsResult.data??[]) as AnalyticsRow[];
@@ -159,6 +176,19 @@ export default async function OutreachPage({
   }
 
   const unhandledReplies=replies.filter(r=>r.needs_response);
+  const unresolvedInbound=inboundEvents.filter(e=>["unmatched","ambiguous","error"].includes(e.status));
+  const candidateIds=[...new Set(unresolvedInbound.flatMap(e=>{
+    const ids=e.raw_metadata?.candidate_target_ids;
+    return Array.isArray(ids)?ids.filter((id):id is string=>typeof id==="string"):[];
+  }))];
+  let inboundCandidates:InboundCandidateRow[]=[];
+  if(candidateIds.length){
+    const {data}=await (s as any).from("outreach_targets")
+      .select("id,pursuit_id,organization_name,contact_name,email")
+      .eq("workspace_id",ws).in("id",candidateIds);
+    inboundCandidates=(data??[]) as InboundCandidateRow[];
+  }
+  const inboundCandidateMap=new Map(inboundCandidates.map(x=>[x.id,x]));
   const draftRows=pursuits.filter(p=>p.latest_draft_id);
   const activeAccounts=pursuits.filter(p=>!["won","lost","archived"].includes(p.pursuit_status));
   const safeDue=safety.filter(x=>x.safe_to_execute).length;
@@ -172,7 +202,7 @@ export default async function OutreachPage({
   const customerNowEmailReady=customerNow.filter(p=>Boolean(p.contact_email)).length;
   const customerNowReplies=customerNow.filter(p=>(p.needs_response_count??0)>0).length;
   const errors=[
-    pursuitResult.error,replyResult.error,researchResult.error,timelineResult.error,
+    pursuitResult.error,replyResult.error,inboundResult.error,researchResult.error,timelineResult.error,
     analyticsResult.error,safetyResult.error,estimateResult.error,
   ].filter(Boolean);
 
@@ -189,7 +219,7 @@ export default async function OutreachPage({
     <nav className="panel" aria-label="Outreach sections" style={{marginBottom:16,padding:10,display:"flex",gap:8,flexWrap:"wrap"}}>
       {views.map(([key,label])=>
         <Link key={key} className={view===key?"primary":"button"} href={("/outreach?view="+key) as Route}>
-          {label}{key==="replies"&&unhandledReplies.length?" ("+unhandledReplies.length+")":""}
+          {label}{key==="replies"&&(unhandledReplies.length+unresolvedInbound.length)?" ("+(unhandledReplies.length+unresolvedInbound.length)+")":""}
         </Link>
       )}
     </nav>
@@ -201,13 +231,13 @@ export default async function OutreachPage({
 
     <section className="metrics" style={{marginBottom:18}}>
       <div className="metric"><span>Active pursuits</span><strong>{activeAccounts.length}</strong><small>canonical accounts</small></div>
-      <div className="metric"><span>Replies to handle</span><strong>{unhandledReplies.length}</strong><small>sequences paused</small></div>
+      <div className="metric"><span>Replies to handle</span><strong>{unhandledReplies.length+unresolvedInbound.length}</strong><small>{unhandledReplies.length} matched · {unresolvedInbound.length} need matching</small></div>
       <div className="metric"><span>Safe steps due</span><strong>{safeDue}</strong><small>{blockedDue} blocked by guardrails</small></div>
       <div className="metric"><span>Pipeline</span><strong>{money(pipeline)}</strong><small>outreach-linked</small></div>
       <div className="metric"><span>Won</span><strong>{money(won)}</strong><small>attributed revenue</small></div>
     </section>
 
-    {view==="now"?<>
+    {view==="command"?<>
       <section className="panel" style={{marginBottom:18}}>
         <div className="panel-head">
           <div>
@@ -512,14 +542,64 @@ export default async function OutreachPage({
     </>:null}
 
     {view==="replies"?<section className="table-panel">
-      <div className="panel-head"><div><span className="eyebrow">REPLY INBOX</span><h3>Replies requiring decisions</h3></div><span className="muted">{unhandledReplies.length} need response</span></div>
+      <div className="panel-head">
+        <div><span className="eyebrow">REPLY INBOX</span><h3>Replies requiring decisions</h3></div>
+        <span className="muted">{unhandledReplies.length} matched · {unresolvedInbound.length} need matching</span>
+      </div>
+
+      {unresolvedInbound.length?<section style={{marginTop:12,padding:14,border:"1px solid var(--line)",borderRadius:12}}>
+        <div className="panel-head">
+          <div><span className="eyebrow">AUTOMATIC INBOUND</span><h3>Needs matching</h3></div>
+          <span className="muted">{unresolvedInbound.length} unresolved</span>
+        </div>
+        <div style={{display:"grid",gap:10,marginTop:12}}>
+          {unresolvedInbound.map(e=>{
+            const candidateTargetIds=Array.isArray(e.raw_metadata?.candidate_target_ids)
+              ? e.raw_metadata!.candidate_target_ids.filter((id):id is string=>typeof id==="string")
+              : [];
+            const candidates=candidateTargetIds.map(id=>inboundCandidateMap.get(id)).filter((x):x is InboundCandidateRow=>Boolean(x));
+            return <article key={e.id} style={{border:"1px solid var(--line)",borderRadius:10,padding:12}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:14}}>
+                <div>
+                  <span className="pill">{human(e.status)}</span>
+                  <strong style={{display:"block",marginTop:7}}>{e.sender_email??"Unknown sender"}</strong>
+                  <div className="muted" style={{fontSize:11}}>{moment(e.received_at)} · {e.provider}</div>
+                  {e.subject?<div style={{fontSize:12,marginTop:7}}>{e.subject}</div>:null}
+                </div>
+                <div>
+                  <p style={{fontSize:12,lineHeight:1.5,whiteSpace:"pre-wrap",margin:0}}>{e.body.slice(0,1200)}</p>
+                  <div className="muted" style={{fontSize:11,marginTop:7}}>Match: {human(e.match_reason)}</div>
+                </div>
+                <div>
+                  <span className="eyebrow">ATTACH TO PURSUIT</span>
+                  <div style={{display:"flex",gap:7,flexWrap:"wrap",marginTop:8}}>
+                    {candidates.map(candidate=><form key={candidate.id} action={resolveInboundEvent}>
+                      <input type="hidden" name="event_id" value={e.id}/>
+                      <input type="hidden" name="target_id" value={candidate.id}/>
+                      <button className="button">
+                        {candidate.organization_name??candidate.contact_name??candidate.email??"Candidate"}
+                      </button>
+                    </form>)}
+                    {!candidates.length?<>
+                      <span className="muted" style={{fontSize:11}}>No exact CBData target candidate. Verify the sender/contact record before attaching.</span>
+                      <Link className="button" href={"/outreach?view=research" as Route}>Open Research</Link>
+                    </>:null}
+                  </div>
+                </div>
+              </div>
+            </article>;
+          })}
+        </div>
+      </section>:null}
+
       <div style={{display:"grid",gap:10,marginTop:12}}>
         {replies.map(r=><article key={r.reply_id} style={{border:"1px solid var(--line)",borderRadius:12,padding:14}}>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:16}}>
             <div>
               <strong>{r.organization_display_name??"Account"}</strong>
-              <div className="muted" style={{fontSize:12,marginTop:3}}>{r.contact_display_name??r.contact_email??"Unknown contact"}</div>
-              <div className="muted" style={{fontSize:11}}>{moment(r.received_at)} · {human(r.channel)}</div>
+              <div className="muted" style={{fontSize:12,marginTop:3}}>{r.contact_display_name??r.sender_email??r.contact_email??"Unknown contact"}</div>
+              <div className="muted" style={{fontSize:11}}>{r.sender_email??r.contact_email??"No sender email"} · {moment(r.received_at)} · {human(r.channel)}</div>
+              {r.subject?<div style={{fontSize:12,marginTop:7}}><strong>{r.subject}</strong></div>:null}
             </div>
             <div>
               <div style={{display:"flex",gap:7,alignItems:"center",flexWrap:"wrap"}}>
