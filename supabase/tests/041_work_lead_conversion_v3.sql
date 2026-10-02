@@ -4,6 +4,7 @@ do $$
 declare
   v_direct text;
   v_verified text;
+  v_promote text;
 begin
   if to_regprocedure('public.prepare_direct_work_lead_draft(uuid)') is null then
     raise exception 'direct Work Lead draft helper missing';
@@ -14,6 +15,7 @@ begin
 
   v_direct:=pg_get_functiondef('public.prepare_direct_work_lead_draft(uuid)'::regprocedure);
   v_verified:=pg_get_functiondef('public.prepare_work_lead_draft(uuid,uuid)'::regprocedure);
+  v_promote:=pg_get_functiondef('public.promote_verified_contact_candidate(uuid)'::regprocedure);
 
   if position('work_lead_conversion_v3' in v_direct)=0 then
     raise exception 'direct Work Lead copy version missing';
@@ -39,6 +41,15 @@ begin
     'authenticated','public.prepare_work_lead_draft(uuid,uuid)','EXECUTE'
   ) then
     raise exception 'authenticated can execute verified Work Lead helper';
+  end if;
+
+  if position('on conflict (organization_id, contact_id, relationship_type) do nothing' in lower(v_promote))=0 then
+    raise exception 'verified contact promotion does not preserve multiple organization roles';
+  end if;
+  if has_function_privilege(
+    'authenticated','public.promote_verified_contact_candidate(uuid)','EXECUTE'
+  ) then
+    raise exception 'authenticated can execute verified contact promotion helper';
   end if;
 
   if exists (
