@@ -446,3 +446,30 @@ export async function activateCustomerNowSprint(formData: FormData) {
 
   refresh();
 }
+
+
+export async function promoteWorkLead(formData: FormData) {
+  const { s, workspaceId } = await client();
+  const leadId = String(formData.get("lead_id") ?? "");
+  if (!leadId) throw new Error("Work lead is required");
+
+  const { data: lead, error: leadError } = await (s as any)
+    .from("outreach_work_leads")
+    .select("id,workspace_id,status")
+    .eq("id", leadId)
+    .eq("workspace_id", workspaceId)
+    .maybeSingle();
+
+  if (leadError) throw new Error(leadError.message);
+  if (!lead) throw new Error("Work lead is not in the active workspace");
+  if (lead.status === "dismissed" || lead.status === "expired") {
+    throw new Error("Work lead is no longer actionable");
+  }
+
+  const { error } = await s.rpc(
+    "promote_outreach_work_lead" as never,
+    { p_lead_id: leadId } as never,
+  );
+  if (error) throw new Error(error.message);
+  refresh();
+}
