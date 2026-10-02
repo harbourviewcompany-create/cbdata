@@ -251,13 +251,26 @@ async function persistAdditionalCandidates(admin:any,task:any,candidates:Contact
    }).eq("id",contactId);
   }
 
-  const {error:linkError}=await admin.from("organization_contacts").upsert({
-   workspace_id:task.workspace_id,
-   organization_id:task.organization_id,
-   contact_id:contactId,
-   relationship_type:task.missing_role,
-   is_primary:false
-  },{onConflict:"organization_id,contact_id,relationship_type"});
+  const {data:existingLink}=await admin
+   .from("organization_contacts")
+   .select("id")
+   .eq("workspace_id",task.workspace_id)
+   .eq("organization_id",task.organization_id)
+   .eq("contact_id",contactId)
+   .limit(1)
+   .maybeSingle();
+
+  let linkError:any=null;
+  if(!existingLink){
+   const link=await admin.from("organization_contacts").insert({
+    workspace_id:task.workspace_id,
+    organization_id:task.organization_id,
+    contact_id:contactId,
+    relationship_type:task.missing_role,
+    is_primary:false
+   });
+   linkError=link.error;
+  }
   if(!linkError)contactIds.push(contactId);
  }
 
@@ -368,6 +381,7 @@ async function researchTask(admin:any,task:any){
    const fetched=await fetchHtml(source.url,800000);
    if(!fetched)continue;
    pages++;
+   capture(fetched.html,fetched.url);
    found=candidateFromMailtoPage(fetched.html,fetched.url,task.missing_role)
     ||candidateFromPage(fetched.html,fetched.url,task.missing_role);
 
