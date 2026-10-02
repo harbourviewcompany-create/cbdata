@@ -93,14 +93,17 @@ async function researchTask(admin:any,task:any){
  let pages=0;
  let evidenceLabel="Official organization website";
 
- for(const path of PATHS){
-  const page=absolute(site,path);
-  if(!page||!sameHost(site,page))continue;
-  const fetched=await fetchHtml(page);
-  if(!fetched)continue;
-  pages++;
-  found=candidateFromPage(fetched.html,fetched.url,task.missing_role);
-  if(found)break;
+ for(let i=0;i<PATHS.length&&!found;i+=3){
+  const batch=PATHS.slice(i,i+3)
+   .map(path=>absolute(site,path))
+   .filter((page):page is string=>Boolean(page)&&sameHost(site,page!));
+  const fetchedPages=await Promise.all(batch.map(page=>fetchHtml(page)));
+  for(const fetched of fetchedPages){
+   if(!fetched)continue;
+   pages++;
+   found=candidateFromPage(fetched.html,fetched.url,task.missing_role);
+   if(found)break;
+  }
  }
 
  if(!found){
@@ -113,12 +116,14 @@ async function researchTask(admin:any,task:any){
 
    if(!found&&/geds-sage\.gc\.ca/i.test(fetched.url)){
     const people=hrefs(fetched.html,fetched.url).filter(u=>/pgid=015/i.test(u)).slice(0,8);
-    for(const person of people){
-     const personPage=await fetchHtml(person,300000);
-     if(!personPage)continue;
-     pages++;
-     found=candidateFromPage(personPage.html,personPage.url,task.missing_role);
-     if(found)break;
+    for(let i=0;i<people.length&&!found;i+=4){
+     const personPages=await Promise.all(people.slice(i,i+4).map(person=>fetchHtml(person,300000)));
+     for(const personPage of personPages){
+      if(!personPage)continue;
+      pages++;
+      found=candidateFromPage(personPage.html,personPage.url,task.missing_role);
+      if(found)break;
+     }
     }
    }
 
