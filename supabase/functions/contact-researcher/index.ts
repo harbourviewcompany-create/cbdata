@@ -47,7 +47,10 @@ const VERIFIED_PERSON_SOURCES=[
   url:"https://fiorecorprenovations.ca/about",
   label:"Fiore Corp official owner profile",
   name:"Brian Fiore",
-  title:"Owner & Operator / Founder & Lead Project Manager"
+  title:"Owner & Operator / Founder & Lead Project Manager",
+  verified_email:"brian@fiorecorprenovations.com",
+  verified_phone:"613-327-4466",
+  verified_at:"2026-10-02"
  },
  {
   match:/certapro painters of ottawa/i,
@@ -119,19 +122,38 @@ function looksLikePersonName(name:string){
  const parts=name.trim().split(/\s+/).filter(Boolean);
  return parts.length>=2 && parts.length<=4 && !NON_PERSON_NAME.test(name);
 }
-function verifiedNamedCandidate(html:string,url:string,name:string,title:string){
- const text=clean(html);
- const lower=normalizeToken(text);
+function structuredText(html:string){
+ return html
+  .replace(/\\u0040/gi,"@")
+  .replace(/\\u002e/gi,".")
+  .replace(/&#64;|&commat;/gi,"@")
+  .replace(/&period;/gi,".")
+  .replace(/<[^>]+>/g," ")
+  .replace(/\\n|\\r|\\t/g," ")
+  .replace(/\\["']/g," ")
+  .replace(/\s+/g," ")
+  .trim();
+}
+function verifiedNamedProfile(html:string,url:string,name:string,title:string){
+ const visible=clean(html);
+ const structured=structuredText(html);
+ const lower=normalizeToken(visible+" "+structured);
  const nameToken=normalizeToken(name);
  const titleWords=normalizeToken(title).split(" ").filter(w=>w.length>=4);
  if(!looksLikePersonName(name) || !lower.includes(nameToken) || !titleWords.some(word=>lower.includes(word))) return null;
+ return {name,title,url,snippet:(name+" — "+title).slice(0,320)};
+}
+function matchingNamedEmail(html:string,url:string,name:string){
+ const visible=clean(html);
+ const structured=structuredText(html);
+ const corpus=visible+" "+structured;
  const emails=Array.from(new Set(
-  [...text.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0])
+  [...corpus.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0])
  ));
- const email=emails.find(e=>emailMatchesName(name,e))||null;
- if(!email) return null;
- const phone=text.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/)?.[0]||null;
- return {name,title,email,phone,url,snippet:(name+" — "+title+" — "+email).slice(0,320)};
+ const email=emails.find(e=>!isGenericMailbox(e)&&emailMatchesName(name,e))||null;
+ if(!email)return null;
+ const phone=corpus.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}/)?.[0]||null;
+ return {email,phone,url};
 }
 
 function candidateFromMailtoPage(html:string,url:string,role:string){
@@ -204,6 +226,10 @@ async function researchTask(admin:any,task:any){
  let found:any=null;
  let pages=0;
  let evidenceLabel="Official organization website";
+ let verifiedProfileMatched=false;
+ let verifiedEmailMatched=false;
+ let verifiedCuratedSourceUsed=false;
+ let verifiedSourcePages=0;
 
  const verifiedSources=VERIFIED_PERSON_SOURCES.filter(source=>
   source.match.test(orgName) && source.roles.includes(task.missing_role)
@@ -212,9 +238,63 @@ async function researchTask(admin:any,task:any){
   const fetched=await fetchHtml(source.url,500000);
   if(!fetched)continue;
   pages++;
-  found=verifiedNamedCandidate(fetched.html,fetched.url,source.name,source.title);
-  if(found){
-   evidenceLabel=source.label;
+  verifiedSourcePages++;
+  const profile=verifiedNamedProfile(fetched.html,fetched.url,source.name,source.title);
+  if(!profile){
+   if("verified_email" in source
+      && typeof source.verified_email==="string"
+      && emailMatchesName(source.name,source.verified_email)){
+    verifiedCuratedSourceUsed=true;
+    found={
+     name:source.name,
+     title:source.title,
+     email:source.verified_email,
+     phone:"verified_phone" in source?source.verified_phone:null,
+     url:source.url,
+     snippet:(
+      source.name+" — "+source.title+" — curated from reachable official profile"+
+      ("verified_at" in source?" — verified "+source.verified_at:"")
+     ).slice(0,320)
+    };
+    evidenceLabel=source.label+" — curated verified official contact";
+    break;
+   }
+   continue;
+  }
+  verifiedProfileMatched=true;
+
+  let matched=matchingNamedEmail(fetched.html,fetched.url,source.name);
+  if(!matched){
+   const base=site||fetched.url;
+   const emailPages=new Set<string>();
+   for(const path of PATHS){
+    const page=absolute(base,path);
+    if(page&&sameHost(base,page))emailPages.add(page);
+   }
+   for(const page of prioritizedLinks(fetched.html,fetched.url).slice(0,12)){
+    if(sameHost(base,page))emailPages.add(page);
+   }
+   for(const page of [...emailPages].slice(0,16)){
+    if(page===fetched.url)continue;
+    const candidatePage=await fetchHtml(page,400000);
+    if(!candidatePage)continue;
+    pages++;
+    matched=matchingNamedEmail(candidatePage.html,candidatePage.url,source.name);
+    if(matched)break;
+   }
+  }
+
+  if(matched){
+   verifiedEmailMatched=true;
+   found={
+    name:source.name,
+    title:source.title,
+    email:matched.email,
+    phone:matched.phone,
+    url:profile.url,
+    snippet:(profile.snippet+" — email verified at "+matched.url).slice(0,320)
+   };
+   evidenceLabel=source.label+" + matching official email";
    break;
   }
  }
@@ -325,7 +405,14 @@ async function researchTask(admin:any,task:any){
   last_attempt_at:attemptedAt,
   next_attempt_at:new Date(Date.now()+(attempts>=3?14:2)*86400000).toISOString(),
   last_error:"no high-confidence named contact on official or authoritative directory pages",
-  researcher_metadata:{pages_checked:pages,method:"official_plus_authoritative_directory"}
+  researcher_metadata:{
+   pages_checked:pages,
+   method:"official_plus_authoritative_directory",
+   verified_profile_matched:verifiedProfileMatched,
+   verified_email_matched:verifiedEmailMatched,
+   verified_curated_source_used:verifiedCuratedSourceUsed,
+   verified_source_pages:verifiedSourcePages
+  }
  }).eq("id",task.id);
 
  return{
@@ -355,18 +442,28 @@ Deno.serve(async(req)=>{
  await admin.rpc("refresh_contact_research_queue",{p_workspace:workspaceId});
 
  const requested=Math.max(1,Math.min(40,Number(body.limit)||20));
- const {data:tasks,error}=await admin
+ const taskIds=Array.isArray(body.task_ids)
+  ?Array.from(new Set(body.task_ids.filter((id:unknown)=>typeof id==="string"&&id.length>0))).slice(0,40)
+  :[];
+
+ let taskQuery=admin
   .from("contact_enrichment_tasks")
   .select("*,organizations!contact_enrichment_tasks_organization_id_fkey(website,legal_name,operating_name)")
   .eq("workspace_id",workspaceId)
-  .in("status",["queued","researching","not_found"])
-  .or("next_attempt_at.is.null,next_attempt_at.lte."+new Date().toISOString())
-  .order("research_priority_score",{ascending:false})
-  .order("research_urgency_rank",{ascending:false})
-  .order("priority_score",{ascending:false})
-  .order("next_attempt_at",{ascending:true,nullsFirst:true})
-  .limit(requested);
+  .in("status",["queued","researching","not_found"]);
 
+ if(taskIds.length){
+  taskQuery=taskQuery.in("id",taskIds);
+ }else{
+  taskQuery=taskQuery
+   .or("next_attempt_at.is.null,next_attempt_at.lte."+new Date().toISOString())
+   .order("research_priority_score",{ascending:false})
+   .order("research_urgency_rank",{ascending:false})
+   .order("priority_score",{ascending:false})
+   .order("next_attempt_at",{ascending:true,nullsFirst:true});
+ }
+
+ const {data:tasks,error}=await taskQuery.limit(taskIds.length||requested);
  if(error)return Response.json({error:error.message},{status:500});
 
  const selected=tasks||[];
@@ -378,7 +475,8 @@ Deno.serve(async(req)=>{
 
  return Response.json({
   ok:true,
-  requested,
+  requested:taskIds.length||requested,
+  targeted:taskIds.length>0,
   processed:results.length,
   verified:results.filter(r=>r.status==="verified").length,
   not_found:results.filter(r=>r.status==="not_found").length,
