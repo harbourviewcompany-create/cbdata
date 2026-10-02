@@ -92,7 +92,7 @@ function cleanHtml(v:string){
     .replace(/<style[\s\S]*?<\/style>/gi," ")
     .replace(/<[^>]+>/g," ")
     .replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;/gi,'"')
-    .replace(/&#39;/gi,"'").replace(/\s+/g," ").trim();
+    .replace(/&#39;/gi,"'").replace(/&#8211;/gi,"–").replace(/&#8212;/gi,"—").replace(/\s+/g," ").trim();
 }
 function normalize(v:string){return v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();}
 function classify(text:string){
