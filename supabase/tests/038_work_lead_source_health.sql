@@ -47,11 +47,21 @@ begin
     raise exception 'work scout run select RLS missing';
   end if;
 
-  if has_table_privilege('authenticated','public.outreach_work_sources','INSERT') then
-    raise exception 'authenticated can insert Work Lead sources';
+  if exists (
+    select 1 from pg_policies
+    where schemaname='public'
+      and tablename='outreach_work_sources'
+      and cmd in ('INSERT','ALL')
+  ) then
+    raise exception 'Work Lead source insert RLS should fail closed';
   end if;
-  if has_table_privilege('authenticated','public.outreach_work_scout_runs','INSERT') then
-    raise exception 'authenticated can forge Work Lead scout runs';
+  if exists (
+    select 1 from pg_policies
+    where schemaname='public'
+      and tablename='outreach_work_scout_runs'
+      and cmd in ('INSERT','UPDATE','DELETE','ALL')
+  ) then
+    raise exception 'Work Lead scout run mutation RLS should fail closed';
   end if;
   if not has_table_privilege('authenticated','public.outreach_work_sources','SELECT') then
     raise exception 'authenticated cannot read Work Lead source health';
