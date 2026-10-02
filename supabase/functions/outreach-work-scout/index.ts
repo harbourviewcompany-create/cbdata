@@ -78,7 +78,7 @@ const NETWORKS=[
     opportunity_title:"Exterior painting subcontractor / independent contractor work across Ottawa",
     opportunity_type:"subcontractor_network",
     response_mode:"subcontractor_application",
-    source_url:"https://certapro-painters-ottawa-on.careerplug.com/jobs/1951264/apps/new",
+    source_url:"https://app.careerplug.com/jobs/1951264/apps/new",
     region:"Ottawa, Ontario",
     contact_email:null,
     contact_phone:"613-255-8068",
