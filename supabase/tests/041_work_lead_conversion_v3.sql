@@ -43,7 +43,12 @@ begin
     raise exception 'authenticated can execute verified Work Lead helper';
   end if;
 
-  if position('on conflict (organization_id, contact_id, relationship_type) do nothing' in lower(v_promote))=0 then
+  if position(
+    'endif;insertintopublic.organization_contacts'
+    in regexp_replace(lower(v_promote),'[[:space:]]+','','g')
+  )=0
+     or position('onconflict(organization_id,contact_id,relationship_type)donothing'
+       in regexp_replace(lower(v_promote),'[[:space:]]+','','g'))=0 then
     raise exception 'verified contact promotion does not preserve multiple organization roles';
   end if;
   if has_function_privilege(
