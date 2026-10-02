@@ -3,10 +3,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.1";
 const ROLE_TERMS:Record<string,string[]>={
  decision_maker:["president","owner","principal","chief","vice president","vp","executive director","director"],
  operations:["operations","facilities","facility","property manager","building manager","maintenance"],
- procurement:["procurement","purchasing","buyer","sourcing","contracts","supply chain"]
+ procurement:["procurement","purchasing","buyer","sourcing","contracts","supply chain","estimating","estimator"]
 };
 
-const PATHS=["","/team","/our-team","/about","/about-us","/leadership","/staff","/contact","/contact-us","/directory"];
+const PATHS=["","/team","/our-team","/our-people","/about","/about-us","/leadership","/staff","/contact","/contact-us","/directory"];
 const DIRECTORY_SOURCES=[
  {match:/city of ottawa/i,url:"https://ottawa.ca/en/business/procurement/contact-supply-services",label:"City of Ottawa Supply Services directory"},
  {match:/public services and procurement canada|pspc|spac/i,url:"https://geds-sage.gc.ca/en/GEDS/?dn=T1U9TkNSTy1PUkNOLE9VPVJQU0ItREdTSSxPVT1QU1BDLVNQQUMsTz1HQyxDPUNB&pgid=014",label:"Government Electronic Directory Services (GEDS)"},
@@ -16,7 +16,8 @@ const DIRECTORY_SOURCES=[
  {match:/ottawa catholic school board|ocsb/i,url:"https://www.ocsb.ca/our-board/departments/supply-chain-risk-management/",label:"OCSB Supply Chain and Risk Management"},
  {match:/ottawa catholic school board|ocsb/i,url:"https://www.ocsb.ca/our-board/executive-council/",label:"OCSB executive council"},
  {match:/ottawa catholic school board|ocsb/i,url:"https://www.ocsb.ca/our-board/departments/planning-and-facilities/",label:"OCSB Planning and Facilities"},
- {match:/national capital commission|\bncc\b|commission de la capitale nationale/i,url:"https://ncc-ccn.gc.ca/business/contracting-with-the-ncc",label:"NCC contracting and supplier information"}
+ {match:/national capital commission|\bncc\b|commission de la capitale nationale/i,url:"https://ncc-ccn.gc.ca/business/contracting-with-the-ncc",label:"NCC contracting and supplier information"},
+ {match:/certapro painters of ottawa/i,url:"https://certapro.com/ottawa/our-team/dipkumar-patel/",label:"CertaPro Ottawa operations leadership profile"}
 ];
 
 const USER_AGENT="CBDataContactResearch/1.2 (+business-contact-enrichment)";
