@@ -24,8 +24,8 @@ begin
      or position('contact_confidence' in v_direct)=0 then
     raise exception 'direct Work Lead canonical evidence missing';
   end if;
-  if position('work_lead_conversion_v3' in v_verified)=0 then
-    raise exception 'verified Work Lead copy version missing';
+  if position('work_lead_conversion_v4' in v_verified)=0 then
+    raise exception 'verified Work Lead v4 copy/call-opener version missing';
   end if;
   if position('signal_confidence' in v_verified)=0
      or position('contact_confidence' in v_verified)=0 then
