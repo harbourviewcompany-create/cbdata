@@ -204,6 +204,40 @@ export async function resolveInboundEvent(formData: FormData) {
   refresh(targetId);
 }
 
+export async function promoteReferralCandidate(formData: FormData) {
+  const { s, workspaceId } = await client();
+  const candidateId = String(formData.get("candidate_id") ?? "");
+  const firstName = String(formData.get("first_name") ?? "").trim();
+  const lastName = String(formData.get("last_name") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim() || null;
+  if (!candidateId || !firstName || !lastName) throw new Error("Referral, first name, and last name are required");
+
+  const { data: candidate, error: candidateError } = await (s as any)
+    .from("outreach_referral_candidates")
+    .select("id,pursuit_id,status")
+    .eq("id", candidateId)
+    .eq("workspace_id", workspaceId)
+    .maybeSingle();
+  if (candidateError) throw new Error(candidateError.message);
+  if (!candidate) throw new Error("Referral candidate is not in the active workspace");
+  if (candidate.status === "linked") {
+    refresh();
+    return;
+  }
+
+  const { error } = await s.rpc(
+    "promote_outreach_referral_candidate" as never,
+    {
+      p_candidate_id: candidateId,
+      p_first_name: firstName,
+      p_last_name: lastName,
+      p_title: title,
+    } as never,
+  );
+  if (error) throw new Error(error.message);
+  refresh();
+}
+
 export async function createOpportunityFromPursuit(formData: FormData) {
   const { s, workspaceId } = await client();
   const pursuitId = String(formData.get("pursuit_id") ?? "");
