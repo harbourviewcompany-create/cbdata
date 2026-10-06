@@ -85,11 +85,11 @@ async function verifyResendSignature(req: Request, rawBody: string, secret: stri
     await verifier.webhooks.verify({
       payload: rawBody,
       headers: {
-        "svix-id": id,
-        "svix-timestamp": timestamp,
-        "svix-signature": signature,
+        id,
+        timestamp,
+        signature,
       },
-      secret,
+      webhookSecret: secret,
     });
     return true;
   } catch {
