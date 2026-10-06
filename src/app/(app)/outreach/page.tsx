@@ -101,6 +101,15 @@ type ResearchRow = {
   evidence_label:string|null; attempt_count:number; next_attempt_at:string|null;
 };
 
+type AccountCoverageRow = {
+  outreach_target_id:string; pursuit_id:string|null; organization_id:string|null;
+  organization_name:string; organization_type:string; target_score:number|string;
+  required_contact_slots:number; satisfied_contact_slots:number; missing_roles:string[];
+  contact_count:number; email_contact_count:number; phone_contact_count:number;
+  live_signal_count:number; open_work_lead_count:number; open_procurement_count:number;
+  contact_coverage_score:number; coverage_status:string; research_priority_score:number;
+};
+
 type AnalyticsRow = {
   dimension:string; dimension_key:string; pursuits:number; sent:number; replies:number;
   positive_replies:number; opportunities:number; estimates:number;
@@ -180,7 +189,7 @@ export default async function OutreachPage({
   const ws=ctx.workspaceId;
 
   const [
-    pursuitResult,replyResult,inboundResult,healthResult,referralResult,researchResult,timelineResult,analyticsResult,safetyResult,estimateResult,workLeadResult,workSourceResult,workRunResult,
+    pursuitResult,replyResult,inboundResult,healthResult,referralResult,researchResult,coverageResult,timelineResult,analyticsResult,safetyResult,estimateResult,workLeadResult,workSourceResult,workRunResult,
   ]=await Promise.all([
     (s as any).from("v_outreach_pursuit_queue").select("*")
       .eq("workspace_id",ws).order("command_score",{ascending:false}).limit(250),
@@ -195,6 +204,8 @@ export default async function OutreachPage({
       .eq("workspace_id",ws).eq("status","pending").order("created_at",{ascending:false}).limit(100),
     (s as any).from("v_contact_enrichment_queue").select("*")
       .eq("workspace_id",ws).order("research_priority_score",{ascending:false}).order("research_urgency_rank",{ascending:false}).limit(150),
+    (s as any).from("v_outreach_account_contact_coverage").select("*")
+      .eq("workspace_id",ws).order("research_priority_score",{ascending:false}).limit(250),
     (s as any).from("v_outreach_timeline").select("*")
       .eq("workspace_id",ws).order("occurred_at",{ascending:false}).limit(800),
     (s as any).from("v_outreach_conversion_analytics").select("*")
@@ -217,6 +228,7 @@ export default async function OutreachPage({
   const inboundHealth=(healthResult.data??[]) as InboundHealthRow[];
   const referralCandidates=(referralResult.data??[]) as ReferralCandidateRow[];
   const research=(researchResult.data??[]) as ResearchRow[];
+  const coverage=(coverageResult.data??[]) as AccountCoverageRow[];
   const timeline=(timelineResult.data??[]) as TimelineRow[];
   const analytics=(analyticsResult.data??[]) as AnalyticsRow[];
   const safety=(safetyResult.data??[]) as any[];
@@ -268,8 +280,15 @@ export default async function OutreachPage({
   }).length;
   const workHealthySources=workSources.filter(source=>source.health_state==="healthy").length;
   const workProblemSources=workSources.filter(source=>["degraded","failing","stale","untested"].includes(source.health_state)).length;
+  const coverageAvg=coverage.length?Math.round(coverage.reduce((sum,row)=>sum+Number(row.contact_coverage_score??0),0)/coverage.length):0;
+  const coverageCritical=coverage.filter(row=>row.coverage_status==="critical").length;
+  const coverageComplete=coverage.filter(row=>row.coverage_status==="complete").length;
+  const coverageMissingSlots=coverage.reduce((sum,row)=>sum+(row.missing_roles?.length??0),0);
+  const coverageWithOpportunity=coverage.filter(row=>Number(row.live_signal_count||0)+Number(row.open_work_lead_count||0)+Number(row.open_procurement_count||0)>0);
+  const topCoverageGaps=coverage.filter(row=>(row.missing_roles?.length??0)>0).slice(0,12);
+
   const errors=[
-    pursuitResult.error,replyResult.error,inboundResult.error,researchResult.error,timelineResult.error,
+    pursuitResult.error,replyResult.error,inboundResult.error,researchResult.error,coverageResult.error,timelineResult.error,
     analyticsResult.error,safetyResult.error,estimateResult.error,workLeadResult.error,workSourceResult.error,workRunResult.error,
   ].filter(Boolean);
 
@@ -645,6 +664,31 @@ export default async function OutreachPage({
 
     {view==="research"?<section className="table-panel">
       <div className="panel-head"><div><span className="eyebrow">BUYING COMMITTEE</span><h3>Executable contact research</h3></div><span className="muted">{research.length} prioritized tasks</span></div>
+      <section className="metrics" style={{marginTop:14,marginBottom:16}}>
+        <div className="metric"><span>Coverage</span><strong>{coverageAvg}%</strong><small>average across active accounts</small></div>
+        <div className="metric"><span>Critical</span><strong>{coverageCritical}</strong><small>accounts below 40%</small></div>
+        <div className="metric"><span>Complete</span><strong>{coverageComplete}</strong><small>3+ contacts + required roles</small></div>
+        <div className="metric"><span>Role gaps</span><strong>{coverageMissingSlots}</strong><small>missing buying-committee roles</small></div>
+        <div className="metric"><span>Opportunity-linked</span><strong>{coverageWithOpportunity.length}</strong><small>gaps with live work or procurement</small></div>
+      </section>
+      {topCoverageGaps.length?<details open style={{marginBottom:16}}>
+        <summary className="button" style={{cursor:"pointer",display:"inline-flex"}}>Highest-value coverage gaps</summary>
+        <div style={{display:"grid",gap:8,marginTop:10}}>
+          {topCoverageGaps.map(row=><div key={row.outreach_target_id} style={{display:"grid",gridTemplateColumns:"minmax(220px,1.4fr) 90px minmax(260px,2fr) auto",gap:12,alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--line)"}}>
+            <div>
+              <strong>{row.organization_name}</strong>
+              <div className="muted" style={{fontSize:10}}>{human(row.organization_type)} · {row.contact_count} known contact{row.contact_count===1?"":"s"}</div>
+            </div>
+            <strong>{row.contact_coverage_score}%</strong>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {(row.missing_roles??[]).map(role=><span className="pill" key={role}>{human(role)}</span>)}
+            </div>
+            <div className="muted" style={{fontSize:10,textAlign:"right"}}>
+              {row.live_signal_count} signal · {row.open_work_lead_count} work · {row.open_procurement_count} procurement
+            </div>
+          </div>)}
+        </div>
+      </details>:null}
       <div style={{display:"grid",gap:8,marginTop:12}}>
         {research.map(g=><div key={g.id} style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:12,alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--line)"}}>
           <div><strong>{g.organization_name}</strong><div className="muted" style={{fontSize:10}}>{g.research_priority_reason??"Buying-committee gap"}</div></div>
