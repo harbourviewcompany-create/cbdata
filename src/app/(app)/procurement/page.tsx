@@ -43,6 +43,10 @@ export default async function ProcurementPage(){
   const {data:regionalRuns}=await (s as any).from("tender_scout_runs").select("id,source_key,source_name,started_at,finished_at,status,fetched_count,qualifying_count,inserted_count,updated_count,lead_created_count,error_count,error_message").eq("workspace_id",ctx.workspaceId).order("started_at",{ascending:false}).limit(20);
   const {data:sources}=await (s as any).from("tender_sources").select("source_key,display_name,source_url,ingestion_mode,coverage_tier,adapter_status,buyer_scope,last_run_at,last_success_at,last_error,last_verified_at,source_category,discovery_priority,registration_url,contact_strategy,supports_awards,supports_small_jobs,geographic_scope").eq("workspace_id",ctx.workspaceId).eq("enabled",true).order("discovery_priority",{ascending:false}).order("display_name");
   const {data:sourceHealth}=await (s as any).from("v_procurement_source_health").select("*").eq("workspace_id",ctx.workspaceId).order("display_name");
+  const {data:radarRows}=await (s as any).from("v_growth_opportunity_radar_deduped")
+    .select("opportunity_key,origin,source_label,buyer_name,title,opportunity_type,region,published_at,deadline_at,source_url,service_fit,score,status,matched_organization_id,outreach_target_id,pursuit_id,contact_name,contact_email,next_action,priority_bucket,is_actionable,duplicate_count")
+    .eq("workspace_id",ctx.workspaceId).eq("is_actionable",true)
+    .order("score",{ascending:false}).order("deadline_at",{ascending:true,nullsFirst:false}).limit(120);
   const {data:inboxRows}=await (s as any).from("v_procurement_inbox").select("id,title,buyer_name,source_key,closing_at,bid_score,bid_recommendation,bid_score_breakdown,inbox_bucket,promoted_tender_record_id,source_url,qualification_gap_count,submission_gap_count,hard_blocker_count,auto_next_action,auto_next_action_due_at,duplicate_count").eq("workspace_id",ctx.workspaceId).in("inbox_bucket",["deadline","qualification_gap","best_new","needs_review","watching"]).order("bid_score",{ascending:false}).limit(60);
   const {data:registrations}=await (s as any).from("supplier_registrations").select("id,source_key,registration_name,status,account_reference,expires_on,evidence_url,notes,updated_at").eq("workspace_id",ctx.workspaceId).order("registration_name");
   const [{data:intelligenceRows},{data:subtradeRows},{data:futureRows},{data:cycleRows}]=await Promise.all([
@@ -66,6 +70,12 @@ export default async function ProcurementPage(){
   const sourceCounts=new Map<string,number>(); for(const t of openRaw) sourceCounts.set(t.source||"Other",(sourceCounts.get(t.source||"Other")||0)+1);
 
   const inbox=inboxRows??[];
+  const radar=radarRows??[];
+  const radarProcurement=radar.filter((x:any)=>x.origin==="procurement").length;
+  const radarWorkLeads=radar.filter((x:any)=>x.origin==="work_lead").length;
+  const radarSignals=radar.filter((x:any)=>x.origin==="signal").length;
+  const radarHighPriority=radar.filter((x:any)=>Number(x.score||0)>=85).length;
+  const radarContactNow=radar.filter((x:any)=>["contact_now","best_new","needs_review"].includes(x.priority_bucket)).length;
   const health=sourceHealth??[];
   const sourceIssues=health.filter((x:any)=>["failing","stale","never_scanned"].includes(x.health_status));
   const manualSources=health.filter((x:any)=>x.health_status==="manual_only");
@@ -80,6 +90,41 @@ export default async function ProcurementPage(){
       <p className="muted tender-intro">One operating queue for public and institutional opportunities: discovery, fit, buyer/property intelligence, bid/no-bid, compliance, pricing, submission and award follow-up.</p>
       <div style={{marginTop:12}}><Link className="button" href={"/procurement/coverage" as Route}>Regional Coverage Engine</Link></div>
     </header>
+
+    <section className="panel" style={{marginBottom:18}}>
+      <div className="panel-head">
+        <div><span className="eyebrow">ALL OPPORTUNITIES</span><h3>Opportunity Radar</h3></div>
+        <span className="muted">{radar.length} deduplicated actionable opportunities</span>
+      </div>
+      <p className="muted" style={{marginTop:8,maxWidth:980}}>
+        One ranked feed combining formal procurement, private tenders/subcontractor networks, and property/account opportunity signals. Duplicate sightings collapse to the richest record.
+      </p>
+      <div className="metrics" style={{marginTop:14,marginBottom:14}}>
+        <div className="metric"><span>All actionable</span><strong>{radar.length}</strong></div>
+        <div className="metric"><span>Procurement</span><strong>{radarProcurement}</strong></div>
+        <div className="metric"><span>Private work</span><strong>{radarWorkLeads}</strong></div>
+        <div className="metric"><span>Signals</span><strong>{radarSignals}</strong></div>
+        <div className="metric"><span>Score ≥85</span><strong>{radarHighPriority}</strong></div>
+        <div className="metric"><span>Act now</span><strong>{radarContactNow}</strong></div>
+      </div>
+      <div className="tender-list">
+        {radar.slice(0,15).map((o:any)=><div className="tender-list-row" key={o.opportunity_key}>
+          <div>
+            <strong>{o.title}</strong>
+            <span className="status-meta">{o.buyer_name||"Unknown buyer"} · {o.origin.replaceAll("_"," ")} · {o.source_label}</span>
+            <span className="status-meta">{o.priority_bucket.replaceAll("_"," ")}{o.deadline_at?" · deadline "+fmtDate(o.deadline_at):""}{Number(o.duplicate_count||0)>1?" · "+o.duplicate_count+" sightings merged":""}</span>
+            {o.next_action?<span className="status-meta wrap"><strong>Next:</strong> {o.next_action}</span>:null}
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
+            <span className="score-chip score-high">{Math.round(Number(o.score||0))}</span>
+            <span className="pill">{o.opportunity_type.replaceAll("_"," ")}</span>
+            {o.outreach_target_id?<Link className="button" href={("/targets/"+o.outreach_target_id) as Route}>Account</Link>:null}
+            {o.source_url?<a className="button" href={o.source_url} target="_blank" rel="noreferrer">Source</a>:null}
+          </div>
+        </div>)}
+        {!radar.length?<div className="muted">No actionable opportunities are currently in the radar.</div>:null}
+      </div>
+    </section>
 
     <section className="panel" style={{marginBottom:18}}>
       <div className="panel-head"><div><span className="eyebrow">PROCUREMENT INBOX</span><h3>What needs attention now</h3></div><span className="muted">{sourceIssues.length} source issues · {manualSources.length} manual · {secondaryCoverage.length} secondary · {inbox.length} prioritized opportunities</span></div>
