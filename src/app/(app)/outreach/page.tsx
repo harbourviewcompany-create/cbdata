@@ -55,6 +55,8 @@ type ReplyRow = {
   summary:string|null; body:string|null; needs_response:boolean; sequence_paused:boolean;
   pursuit_stage:string|null; next_action:string|null; next_action_due_at:string|null;
   opportunity_id:string|null; sender_email:string|null; subject:string|null;
+  action_kind:string|null; action_payload:Record<string,unknown>|null;
+  intelligence:Record<string,unknown>|null; intent_label:string|null;
 };
 
 type InboundEventRow = {
@@ -62,6 +64,14 @@ type InboundEventRow = {
   sender_email:string|null; subject:string|null; body:string; received_at:string;
   status:string; matched_target_id:string|null; matched_pursuit_id:string|null;
   reply_id:string|null; match_reason:string|null; raw_metadata:Record<string,unknown>|null;
+  processing_stage:string; failure_count:number; last_error:string|null; dead_letter_at:string|null; is_test:boolean;
+};
+
+type InboundHealthRow = {
+  provider:string; sync_status:string; cursor:string|null; last_attempt_at:string|null;
+  last_successful_sync_at:string|null; last_error:string|null; last_inbound_at:string|null;
+  pending_content_count:number; needs_review_count:number; error_count:number; dead_letter_count:number;
+  oldest_pending_at:string|null; health:string;
 };
 
 type InboundCandidateRow = {
@@ -163,15 +173,17 @@ export default async function OutreachPage({
   const ws=ctx.workspaceId;
 
   const [
-    pursuitResult,replyResult,inboundResult,researchResult,timelineResult,analyticsResult,safetyResult,estimateResult,workLeadResult,workSourceResult,workRunResult,
+    pursuitResult,replyResult,inboundResult,healthResult,researchResult,timelineResult,analyticsResult,safetyResult,estimateResult,workLeadResult,workSourceResult,workRunResult,
   ]=await Promise.all([
     (s as any).from("v_outreach_pursuit_queue").select("*")
       .eq("workspace_id",ws).order("command_score",{ascending:false}).limit(250),
-    (s as any).from("v_outreach_reply_inbox").select("*")
+    (s as any).from("v_outreach_reply_command_center").select("*")
       .eq("workspace_id",ws).order("needs_response",{ascending:false}).order("received_at",{ascending:false}).limit(250),
     (s as any).from("outreach_inbound_events").select("*")
-      .eq("workspace_id",ws).in("status",["unmatched","ambiguous","pending_content","error"])
+      .eq("workspace_id",ws).eq("is_test",false).in("status",["unmatched","ambiguous","pending_content","error","dead_letter"])
       .order("received_at",{ascending:false}).limit(100),
+    (s as any).from("v_outreach_inbound_health").select("*")
+      .eq("workspace_id",ws).order("provider",{ascending:true}),
     (s as any).from("v_contact_enrichment_queue").select("*")
       .eq("workspace_id",ws).order("research_priority_score",{ascending:false}).order("research_urgency_rank",{ascending:false}).limit(150),
     (s as any).from("v_outreach_timeline").select("*")
@@ -193,6 +205,7 @@ export default async function OutreachPage({
   const pursuits=(pursuitResult.data??[]) as PursuitRow[];
   const replies=(replyResult.data??[]) as ReplyRow[];
   const inboundEvents=(inboundResult.data??[]) as InboundEventRow[];
+  const inboundHealth=(healthResult.data??[]) as InboundHealthRow[];
   const research=(researchResult.data??[]) as ResearchRow[];
   const timeline=(timelineResult.data??[]) as TimelineRow[];
   const analytics=(analyticsResult.data??[]) as AnalyticsRow[];
@@ -209,7 +222,7 @@ export default async function OutreachPage({
 
   const unhandledReplies=replies.filter(r=>r.needs_response);
   const handledReplies=replies.filter(r=>!r.needs_response);
-  const unresolvedInbound=inboundEvents.filter(e=>["unmatched","ambiguous","pending_content","error"].includes(e.status));
+  const unresolvedInbound=inboundEvents.filter(e=>["unmatched","ambiguous","pending_content","error","dead_letter"].includes(e.status));
   const candidateIds=[...new Set(unresolvedInbound.flatMap(e=>{
     const ids=e.raw_metadata?.candidate_target_ids;
     return Array.isArray(ids)?ids.filter((id):id is string=>typeof id==="string"):[];
@@ -422,8 +435,14 @@ export default async function OutreachPage({
     {view==="replies"?<section className="table-panel">
       <div className="panel-head">
         <div><span className="eyebrow">REPLY INBOX</span><h3>Replies to handle</h3></div>
-        <span className="muted">{unhandledReplies.length} classified · {unresolvedInbound.length} inbound pending</span>
+        <span className="muted">{unhandledReplies.length} classified · {unresolvedInbound.length} needs review</span>
       </div>
+
+      {inboundHealth.length?<div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+        {inboundHealth.map(h=><span key={h.provider} className="pill">
+          {h.provider}: {h.health} · {h.pending_content_count} pending · {h.needs_review_count} review{h.dead_letter_count?" · "+h.dead_letter_count+" dead-letter":""}
+        </span>)}
+      </div>:null}
 
       {unresolvedInbound.length?<section style={{marginTop:12,padding:14,border:"1px solid var(--line)",borderRadius:12}}>
         <div className="panel-head">
@@ -440,6 +459,7 @@ export default async function OutreachPage({
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:14}}>
                 <div>
                   <span className="pill">{human(e.status)}</span>
+                  {e.processing_stage&&e.processing_stage!==e.status?<span className="pill" style={{marginLeft:6}}>{human(e.processing_stage)}</span>:null}
                   <strong style={{display:"block",marginTop:7}}>{e.sender_email??"Unknown sender"}</strong>
                   <div className="muted" style={{fontSize:11}}>{moment(e.received_at)} · {e.provider}</div>
                   {e.subject?<div style={{fontSize:12,marginTop:7}}>{e.subject}</div>:null}
@@ -447,6 +467,7 @@ export default async function OutreachPage({
                 <div>
                   <p style={{fontSize:12,lineHeight:1.5,whiteSpace:"pre-wrap",margin:0}}>{e.body.slice(0,1200)}</p>
                   <div className="muted" style={{fontSize:11,marginTop:7}}>Match: {human(e.match_reason)}</div>
+                  {e.last_error?<div className="muted" style={{fontSize:11,marginTop:4}}>Error: {e.last_error}</div>:null}
                 </div>
                 <div>
                   <span className="eyebrow">{e.status==="pending_content"?"AUTOMATION STATUS":"ATTACH TO PURSUIT"}</span>
@@ -490,7 +511,7 @@ export default async function OutreachPage({
             </div>
             <div>
               <div style={{display:"flex",gap:7,alignItems:"center",flexWrap:"wrap"}}>
-                <span className="pill">{human(r.classification)}</span>
+                <span className="pill">{r.intent_label??human(r.classification)}</span>
                 <span className="muted" style={{fontSize:11}}>confidence {confidence(r.classification_confidence)}</span>
                 {r.sequence_paused?<span className="pill">sequence paused</span>:null}
               </div>
@@ -500,6 +521,7 @@ export default async function OutreachPage({
             <div>
               <span className="eyebrow">NEXT</span>
               <div style={{fontSize:12,marginTop:4}}>{r.next_action??"Review reply"}</div>
+              {r.action_kind?<div className="muted" style={{fontSize:11,marginTop:3}}>Action: {human(r.action_kind)}</div>:null}
               <div className="muted" style={{fontSize:11,marginTop:3}}>Due {due(r.next_action_due_at)}</div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
                 {replyEmail?<a className="primary" href={replyEmail} target="_blank" rel="noopener noreferrer">Reply by email ↗</a>:null}
