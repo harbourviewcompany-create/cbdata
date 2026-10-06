@@ -173,7 +173,9 @@ Deno.serve(async(req:Request)=>{
   let references=arrayOfStrings(valueAt(nested,["reference_message_ids","references"])??valueAt(payload,["reference_message_ids","references"]));
   let verifiedSentTargetEmail=normalizeEmail(valueAt(nested,["verified_sent_target_email"])??valueAt(payload,["verified_sent_target_email"]));
   const sentThreadVerified=valueAt(nested,["sent_thread_verified"])===true||valueAt(payload,["sent_thread_verified"])===true;
-  const isTest=valueAt(nested,["is_test"])===true||valueAt(payload,["is_test"])===true;
+  const isTest=valueAt(nested,["is_test"])===true
+    ||valueAt(payload,["is_test"])===true
+    ||arrayOfStrings(valueAt(nested,["received_for","to"])).some(value=>normalizeEmail(value)==="smoke@outreach.cbcontracting.ca");
   const cursor=clean(valueAt(nested,["history_id","historyId","cursor"])??valueAt(payload,["history_id","historyId","cursor"]),1000);
 
   if(provider==="gmail"&&!sentThreadVerified){
