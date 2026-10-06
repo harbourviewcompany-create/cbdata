@@ -41,7 +41,7 @@ export default async function ProcurementPage(){
 
   const {data:runs}=await (s as any).from("canadabuys_runs").select("id,started_at,finished_at,status,fetched_count,qualifying_count,inserted_count,updated_count,lead_created_count,error_count,error_message").eq("workspace_id",ctx.workspaceId).order("started_at",{ascending:false}).limit(8);
   const {data:regionalRuns}=await (s as any).from("tender_scout_runs").select("id,source_key,source_name,started_at,finished_at,status,fetched_count,qualifying_count,inserted_count,updated_count,lead_created_count,error_count,error_message").eq("workspace_id",ctx.workspaceId).order("started_at",{ascending:false}).limit(20);
-  const {data:sources}=await (s as any).from("tender_sources").select("source_key,display_name,source_url,ingestion_mode,coverage_tier,adapter_status,buyer_scope,last_run_at,last_success_at,last_error,last_verified_at").eq("workspace_id",ctx.workspaceId).eq("enabled",true).order("display_name");
+  const {data:sources}=await (s as any).from("tender_sources").select("source_key,display_name,source_url,ingestion_mode,coverage_tier,adapter_status,buyer_scope,last_run_at,last_success_at,last_error,last_verified_at,source_category,discovery_priority,registration_url,contact_strategy,supports_awards,supports_small_jobs,geographic_scope").eq("workspace_id",ctx.workspaceId).eq("enabled",true).order("discovery_priority",{ascending:false}).order("display_name");
   const {data:sourceHealth}=await (s as any).from("v_procurement_source_health").select("*").eq("workspace_id",ctx.workspaceId).order("display_name");
   const {data:inboxRows}=await (s as any).from("v_procurement_inbox").select("id,title,buyer_name,source_key,closing_at,bid_score,bid_recommendation,bid_score_breakdown,inbox_bucket,promoted_tender_record_id,source_url,qualification_gap_count,submission_gap_count,hard_blocker_count,auto_next_action,auto_next_action_due_at,duplicate_count").eq("workspace_id",ctx.workspaceId).in("inbox_bucket",["deadline","qualification_gap","best_new","needs_review","watching"]).order("bid_score",{ascending:false}).limit(60);
   const {data:registrations}=await (s as any).from("supplier_registrations").select("id,source_key,registration_name,status,account_reference,expires_on,evidence_url,notes,updated_at").eq("workspace_id",ctx.workspaceId).order("registration_name");
@@ -140,8 +140,10 @@ export default async function ProcurementPage(){
     <section className="source-strip">
       {(sources??[]).map((source:any)=><div key={source.source_key}>
         <strong>{source.display_name}</strong>
-        <span>{source.coverage_tier||source.ingestion_mode.replace("_"," ")} · {source.adapter_status||"unverified"}{source.source_key==="canadabuys" ? ` · ${sourceCounts.get("CanadaBuys")||0} open` : ""}</span>
+        <span>{(source.source_category||"public_tender").replaceAll("_"," ")} · priority {source.discovery_priority??50} · {source.coverage_tier||source.ingestion_mode.replace("_"," ")} · {source.adapter_status||"unverified"}{source.supports_small_jobs?" · small jobs":""}{source.source_key==="canadabuys" ? ` · ${sourceCounts.get("CanadaBuys")||0} open` : ""}</span>
         {source.buyer_scope?<span>{source.buyer_scope}</span>:null}
+        {source.contact_strategy?<span><strong>Strategy:</strong> {source.contact_strategy}</span>:null}
+        {source.registration_url?<a href={source.registration_url} target="_blank" rel="noreferrer">Registration / portal ↗</a>:null}
         {source.last_success_at?<span>last success {fmtDate(source.last_success_at)}</span>:null}
         {source.last_error?<span>{source.last_error}</span>:null}
       </div>)}
