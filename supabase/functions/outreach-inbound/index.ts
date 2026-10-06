@@ -74,27 +74,27 @@ function constantTimeEqual(a:string,b:string):boolean {
   for(let i=0;i<a.length;i++) diff|=a.charCodeAt(i)^b.charCodeAt(i);
   return diff===0;
 }
-async function verifyResendSignature(req:Request,rawBody:string,secret:string):Promise<boolean> {
-  const id=req.headers.get("svix-id");
-  const timestamp=req.headers.get("svix-timestamp");
-  const signature=req.headers.get("svix-signature");
-  if(!id||!timestamp||!signature||!secret) return false;
-  const ts=Number(timestamp);
-  if(!Number.isFinite(ts)||Math.abs(Math.floor(Date.now()/1000)-ts)>300) return false;
-  let keyBytes:Uint8Array;
-  try { keyBytes=base64ToBytes(secret.startsWith("whsec_")?secret.slice(6):secret); }
-  catch { return false; }
-  const key=await crypto.subtle.importKey("raw",keyBytes,{name:"HMAC",hash:"SHA-256"},false,["sign"]);
-  const mac=new Uint8Array(await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(`${id}.${timestamp}.${rawBody}`)));
-  const expected=bytesToBase64(mac);
-  return signature.split(" ").map(p=>p.split(",",2)).some(([v,x])=>v==="v1"&&Boolean(x)&&constantTimeEqual(x,expected));
-}
-async function rpc(url:string,headers:Record<string,string>,name:string,args:Record<string,unknown>) {
-  const response=await fetch(`${url}/rest/v1/rpc/${name}`,{method:"POST",headers,body:JSON.stringify(args)});
-  const text=await response.text();
-  let data:unknown=text;
-  try { data=text?JSON.parse(text):null; } catch {}
-  return {ok:response.ok,status:response.status,data};
+async function verifyResendSignature(req: Request, rawBody: string, secret: string): Promise<boolean> {
+  const id = req.headers.get("svix-id");
+  const timestamp = req.headers.get("svix-timestamp");
+  const signature = req.headers.get("svix-signature");
+  if (!id || !timestamp || !signature || !secret) return false;
+
+  try {
+    const verifier = new Resend(Deno.env.get("RESEND_API_KEY") ?? "re_webhook_verify_only");
+    verifier.webhooks.verify({
+      payload: rawBody,
+      headers: {
+        "svix-id": id,
+        "svix-timestamp": timestamp,
+        "svix-signature": signature,
+      },
+      secret,
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 Deno.serve(async(req:Request)=>{
