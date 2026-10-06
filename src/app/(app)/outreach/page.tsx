@@ -20,6 +20,7 @@ import {
   toggleWorkLeadSource,
   queueContactResearch,
   resolveInboundEvent,
+  promoteReferralCandidate,
 } from "./actions";
 
 type PursuitRow = {
@@ -72,6 +73,12 @@ type InboundHealthRow = {
   last_successful_sync_at:string|null; last_error:string|null; last_inbound_at:string|null;
   pending_content_count:number; needs_review_count:number; error_count:number; dead_letter_count:number;
   oldest_pending_at:string|null; health:string;
+};
+
+type ReferralCandidateRow = {
+  id:string; pursuit_id:string|null; source_reply_id:string; referred_email:string;
+  referred_name:string|null; referred_phone:string|null; referred_title:string|null;
+  status:string; created_at:string;
 };
 
 type InboundCandidateRow = {
@@ -173,7 +180,7 @@ export default async function OutreachPage({
   const ws=ctx.workspaceId;
 
   const [
-    pursuitResult,replyResult,inboundResult,healthResult,researchResult,timelineResult,analyticsResult,safetyResult,estimateResult,workLeadResult,workSourceResult,workRunResult,
+    pursuitResult,replyResult,inboundResult,healthResult,referralResult,researchResult,timelineResult,analyticsResult,safetyResult,estimateResult,workLeadResult,workSourceResult,workRunResult,
   ]=await Promise.all([
     (s as any).from("v_outreach_pursuit_queue").select("*")
       .eq("workspace_id",ws).order("command_score",{ascending:false}).limit(250),
@@ -184,6 +191,8 @@ export default async function OutreachPage({
       .order("received_at",{ascending:false}).limit(100),
     (s as any).from("v_outreach_inbound_health").select("*")
       .eq("workspace_id",ws).order("provider",{ascending:true}),
+    (s as any).from("outreach_referral_candidates").select("*")
+      .eq("workspace_id",ws).eq("status","pending").order("created_at",{ascending:false}).limit(100),
     (s as any).from("v_contact_enrichment_queue").select("*")
       .eq("workspace_id",ws).order("research_priority_score",{ascending:false}).order("research_urgency_rank",{ascending:false}).limit(150),
     (s as any).from("v_outreach_timeline").select("*")
@@ -206,6 +215,7 @@ export default async function OutreachPage({
   const replies=(replyResult.data??[]) as ReplyRow[];
   const inboundEvents=(inboundResult.data??[]) as InboundEventRow[];
   const inboundHealth=(healthResult.data??[]) as InboundHealthRow[];
+  const referralCandidates=(referralResult.data??[]) as ReferralCandidateRow[];
   const research=(researchResult.data??[]) as ResearchRow[];
   const timeline=(timelineResult.data??[]) as TimelineRow[];
   const analytics=(analyticsResult.data??[]) as AnalyticsRow[];
@@ -443,6 +453,32 @@ export default async function OutreachPage({
           {h.provider}: {h.health} · {h.pending_content_count} pending · {h.needs_review_count} review{h.dead_letter_count?" · "+h.dead_letter_count+" dead-letter":""}
         </span>)}
       </div>:null}
+
+      {referralCandidates.length?<section style={{marginTop:12,padding:14,border:"1px solid var(--line)",borderRadius:12}}>
+        <div className="panel-head">
+          <div><span className="eyebrow">REFERRED CONTACTS</span><h3>New buying-committee contacts</h3></div>
+          <span className="muted">{referralCandidates.length} ready to link</span>
+        </div>
+        <div style={{display:"grid",gap:10,marginTop:12}}>
+          {referralCandidates.map(candidate=><article key={candidate.id} style={{border:"1px solid var(--line)",borderRadius:10,padding:12}}>
+            <div style={{display:"grid",gridTemplateColumns:"minmax(220px,1fr) minmax(320px,2fr)",gap:14,alignItems:"end"}}>
+              <div>
+                <strong>{candidate.referred_email}</strong>
+                {candidate.referred_phone?<div className="muted" style={{fontSize:11,marginTop:3}}>{candidate.referred_phone}</div>:null}
+                <div className="muted" style={{fontSize:11,marginTop:3}}>Extracted from inbound reply · {moment(candidate.created_at)}</div>
+              </div>
+              <form action={promoteReferralCandidate} style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(120px,1fr)) auto",gap:8}}>
+                <input type="hidden" name="candidate_id" value={candidate.id}/>
+                <input className="input" name="first_name" placeholder="First name" required/>
+                <input className="input" name="last_name" placeholder="Last name" required/>
+                <input className="input" name="title" placeholder="Role / title"/>
+                <span className="muted" style={{fontSize:11,alignSelf:"center"}}>{candidate.referred_title??"Referred contact"}</span>
+                <button className="primary" type="submit">Add to pursuit</button>
+              </form>
+            </div>
+          </article>)}
+        </div>
+      </section>:null}
 
       {unresolvedInbound.length?<section style={{marginTop:12,padding:14,border:"1px solid var(--line)",borderRadius:12}}>
         <div className="panel-head">
