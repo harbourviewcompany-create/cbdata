@@ -97,6 +97,18 @@ async function verifyResendSignature(req: Request, rawBody: string, secret: stri
   }
 }
 
+async function rpc(url:string,headers:Record<string,string>,name:string,args:Record<string,unknown>) {
+  const response=await fetch(`${url}/rest/v1/rpc/${name}`,{
+    method:"POST",
+    headers,
+    body:JSON.stringify(args),
+  });
+  const raw=await response.text();
+  let data:unknown=raw;
+  try { data=raw?JSON.parse(raw):null; } catch {}
+  return {ok:response.ok,status:response.status,data};
+}
+
 Deno.serve(async(req:Request)=>{
   if(req.method==="OPTIONS") return new Response("ok",{headers:corsHeaders});
   if(req.method!=="POST") return json(405,{error:"method_not_allowed"});
