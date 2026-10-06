@@ -82,7 +82,7 @@ async function verifyResendSignature(req: Request, rawBody: string, secret: stri
 
   try {
     const verifier = new Resend(Deno.env.get("RESEND_API_KEY") ?? "re_webhook_verify_only");
-    verifier.webhooks.verify({
+    await verifier.webhooks.verify({
       payload: rawBody,
       headers: {
         "svix-id": id,
