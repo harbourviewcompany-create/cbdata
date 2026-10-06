@@ -51,6 +51,17 @@ begin
     select 1 from information_schema.columns
     where table_schema='public' and table_name='outreach_inbound_events' and column_name='failure_count'
   ) then raise exception 'dead-letter retry state missing'; end if;
+
+  if not exists(
+    select 1 from pg_trigger
+    where tgname='trg_sync_outreach_inbound_processing_stage' and not tgisinternal
+  ) then raise exception 'canonical inbound processing-stage trigger missing'; end if;
+
+  if not exists(
+    select 1 from pg_indexes
+    where schemaname='public' and tablename='outreach_referral_candidates'
+      and indexname='outreach_referral_candidates_pursuit_idx'
+  ) then raise exception 'referral pursuit index missing'; end if;
 end $$;
 
 rollback;
