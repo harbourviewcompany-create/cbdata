@@ -2,7 +2,7 @@
 
 GitHub Action: `.github/workflows/db-push.yml`  
 Project ref: `nzjwhmqrsxztnpdppbub`  
-Runs on: push to `main` that touches `supabase/migrations/**`, or **Actions → Supabase db push → Run workflow**
+Runs on: **manual only** — Actions → Supabase db push → Run workflow. It does not run on push or pull request, so merging a migration to `main` does **not** apply it to production.
 
 Until the two secrets below exist, every run fails at "Require secrets" and **production Postgres stays behind git**.
 
@@ -35,7 +35,7 @@ Do not put these in the repo, Vercel env, or chat.
 1. **Actions → Supabase db push → Run workflow**
 2. Set **dry_run** = true
 3. Confirm the pending files look right (`supabase migration list` + dry-run output)
-4. Run again with **dry_run** = false (or push any file under `supabase/migrations/`)
+4. Run again from `main` with **dry_run** = false (applying from any other ref is refused by the workflow)
 
 The job will:
 
@@ -73,7 +73,9 @@ Anything in `supabase/migrations/` with a timestamp after the last version shown
 
 ## Guardrails
 
-- Workflow is **main only**. Preview branches cannot mutate production.
-- `cancel-in-progress: false` so two pushes do not abort an apply mid-migration.
+- Applying is **main only**: a non-dry-run from any other ref fails before linking the project. A dry run may be run from any branch.
+- Manual trigger only: merges, pushes and pull requests never apply migrations.
+- Supabase CLI is pinned (same version as `verify.yml`); bump both together.
+- One apply at a time (`concurrency` group is not per-ref) and `cancel-in-progress: false`, so a second run queues instead of aborting an apply mid-migration.
 - Never `--include-all` against prod.
 - Never commit `.env` or the database password.

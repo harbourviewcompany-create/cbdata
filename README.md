@@ -31,7 +31,10 @@ Database security:
 
 ## Apply migrations to production
 
-GitHub Action `Supabase db push` applies `supabase/migrations/` to project `nzjwhmqrsxztnpdppbub` on push to `main`.
+Migrations are applied **manually**. The GitHub Action `Supabase db push` (`workflow_dispatch` only) applies
+`supabase/migrations/` to project `nzjwhmqrsxztnpdppbub`. It never runs on push or pull request, so merging to
+`main` does **not** change the production database. Run it with `dry_run` first; applying is refused unless it
+is run from `main`.
 
 Required Actions secrets:
 

@@ -1,7 +1,9 @@
 name: Supabase db push
 
 # Applies pending files in supabase/migrations to the linked project.
-# Does not run on pull requests or preview branches.
+# MANUAL ONLY (workflow_dispatch): it never runs on push or pull_request.
+# Applying (dry_run = false) is refused unless the workflow is run from main;
+# a dry run may be run from any branch.
 #
 # Setup steps: docs/db-push.md
 # Required repo secrets:
@@ -22,8 +24,12 @@ on:
         type: string
         required: false
 
+permissions:
+  contents: read
+
+# One production apply at a time, regardless of which ref started it.
 concurrency:
-  group: supabase-db-push-${{ github.ref }}
+  group: supabase-db-push
   cancel-in-progress: false
 
 jobs:
@@ -34,11 +40,17 @@ jobs:
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       PROJECT_ID: ${{ inputs.project_id || secrets.SUPABASE_PROJECT_ID || 'nzjwhmqrsxztnpdppbub' }}
     steps:
+      - name: Refuse to apply from a non-main ref
+        if: ${{ !inputs.dry_run && github.ref != 'refs/heads/main' }}
+        run: |
+          echo "::error::Applying migrations to production is only allowed from main (ref: $GITHUB_REF). Re-run from main, or set dry_run = true."
+          exit 1
+
       - uses: actions/checkout@v4
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.118.0
 
       - name: Require secrets
         run: |
