@@ -1,11 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkBearerSecret, cronAuthResponse } from "../_shared/cron_auth.ts";
 
 Deno.serve(async (req) => {
-  const secret = Deno.env.get("NIGHTLY_OPS_SECRET");
-  const hdr = req.headers.get("authorization") ?? "";
-  if (secret && hdr !== `Bearer ${secret}`) {
-    return new Response("unauthorized", { status: 401 });
-  }
+  const denied = cronAuthResponse(
+    await checkBearerSecret(req.headers.get("authorization"), Deno.env.get("NIGHTLY_OPS_SECRET")),
+  );
+  if (denied) return denied;
 
   const url = Deno.env.get("SUPABASE_URL")!;
   const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

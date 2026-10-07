@@ -1,11 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkBearerSecret, cronAuthResponse } from "../_shared/cron_auth.ts";
 
 Deno.serve(async (req) => {
-  const secret = Deno.env.get("NOTIFY_SECRET");
-  const hdr = req.headers.get("authorization") ?? "";
-  if (secret && hdr !== `Bearer ${secret}`) {
-    return new Response("unauthorized", { status: 401 });
-  }
+  const denied = cronAuthResponse(
+    await checkBearerSecret(req.headers.get("authorization"), Deno.env.get("NOTIFY_SECRET")),
+  );
+  if (denied) return denied;
 
   const hook = Deno.env.get("NOTIFY_WEBHOOK_URL");
   const url = Deno.env.get("SUPABASE_URL")!;

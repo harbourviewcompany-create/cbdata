@@ -1,5 +1,6 @@
 {
   "imports": {
-    "https://esm.sh/@supabase/supabase-js@2.117.1": "./fake_supabase.ts"
+    "https://esm.sh/@supabase/supabase-js@2.117.1": "./fake_supabase.ts",
+    "https://esm.sh/@supabase/supabase-js@2": "./fake_supabase.ts"
   }
 }
