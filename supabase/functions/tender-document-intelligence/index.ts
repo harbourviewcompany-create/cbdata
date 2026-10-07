@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.1";
+import { authorizeMembership, PROCUREMENT_LEAD_ROLES } from "../_shared/authz.ts";
 
 const cleanHtml=(v:string)=>v.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;/gi,'"').replace(/&#39;/gi,"'").replace(/\s+/g," ").trim();
 const norm=(v:string)=>(v||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
@@ -87,10 +88,10 @@ Deno.serve(async(req)=>{
   const requestedWorkspace=typeof body.workspace_id==="string"?body.workspace_id:null;
   const tenderId=typeof body.tender_id==="string"?body.tender_id:null;
   if(!tenderId)return Response.json({error:"tender_id_required"},{status:400});
-  const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id").eq("user_id",userData.user.id).eq("status","active");
-  const membership=(memberships||[]).find((m:any)=>!requestedWorkspace||m.workspace_id===requestedWorkspace);
-  if(!membership)return Response.json({error:"workspace_access_denied"},{status:403});
-  const workspaceId=membership.workspace_id;
+  const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id,role").eq("user_id",userData.user.id).eq("status","active");
+  const authz=authorizeMembership(memberships,requestedWorkspace,PROCUREMENT_LEAD_ROLES);
+  if(!authz.ok)return Response.json({error:authz.error},{status:authz.status});
+  const workspaceId=authz.workspaceId;
 
   const {data:docs,error}=await admin.from("tender_documents").select("id,title,document_type,source_url,extracted_text").eq("workspace_id",workspaceId).eq("tender_record_id",tenderId).eq("is_current",true);
   if(error)return Response.json({error:error.message},{status:500});

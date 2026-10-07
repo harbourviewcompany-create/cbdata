@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.1";
+import { authorizeMembership, PROCUREMENT_LEAD_ROLES } from "../_shared/authz.ts";
 
 const BASE="https://canadabuys.canada.ca";
 const SEARCH_TERMS=[
@@ -79,10 +80,10 @@ Deno.serve(async(req)=>{
  const {data:userData,error:userError}=await admin.auth.getUser(token);
  if(userError||!userData.user)return Response.json({error:"unauthorized"},{status:401});
  const body=await req.json().catch(()=>({})),requested=typeof body.workspace_id==="string"?body.workspace_id:null;
- const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id").eq("user_id",userData.user.id).eq("status","active");
- const membership=(memberships||[]).find((m:any)=>!requested||m.workspace_id===requested);
- if(!membership)return Response.json({error:"workspace_access_denied"},{status:403});
- const workspaceId=membership.workspace_id;
+ const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id,role").eq("user_id",userData.user.id).eq("status","active");
+ const authz=authorizeMembership(memberships,requested,PROCUREMENT_LEAD_ROLES);
+ if(!authz.ok)return Response.json({error:authz.error},{status:authz.status});
+ const workspaceId=authz.workspaceId;
  const [{data:buyers},{data:orgs}]=await Promise.all([
   admin.from("procurement_buyers").select("buyer_key,display_name,organization_id,watch_priority").eq("workspace_id",workspaceId),
   admin.from("organizations").select("id,legal_name,operating_name").eq("workspace_id",workspaceId)

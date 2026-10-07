@@ -1,3 +1,4 @@
+import { authorizeMembership, PROCUREMENT_LEAD_ROLES } from "../_shared/authz.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.1";
 import { detectMandatoryRequirements, syncDetectedRequirements } from "../_shared/procurement-requirements.ts";
 
@@ -228,8 +229,8 @@ Deno.serve(async(req)=>{
  }else{
    const {data:authUser,error:authError}=await admin.auth.getUser(token); if(authError||!authUser.user)return Response.json({error:"unauthorized"},{status:401});
    const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id,role").eq("user_id",authUser.user.id).eq("status","active");
-   const workspace=(memberships||[]).find((m:any)=>!requestedWorkspace||m.workspace_id===requestedWorkspace); if(!workspace)return Response.json({error:"workspace_access_denied"},{status:403});
-   workspaceId=workspace.workspace_id;
+   const authz=authorizeMembership(memberships,requestedWorkspace,PROCUREMENT_LEAD_ROLES); if(!authz.ok)return Response.json({error:authz.error},{status:authz.status});
+   workspaceId=authz.workspaceId;
  }
  if(!workspaceId)return Response.json({error:"workspace_unresolved"},{status:400});
  await admin.from("canadabuys_runs").update({
