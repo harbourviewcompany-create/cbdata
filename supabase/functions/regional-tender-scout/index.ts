@@ -1,4 +1,5 @@
 
+import { authorizeMembership, PROCUREMENT_LEAD_ROLES } from "../_shared/authz.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.1";
 import { syncDetectedRequirements } from "../_shared/procurement-requirements.ts";
 
@@ -166,7 +167,7 @@ Deno.serve(async(req)=>{
   const {data:workspace}=await admin.from("workspaces").select("id").eq("id",requestedWorkspace).eq("status","active").maybeSingle();if(!workspace)return Response.json({error:"workspace_not_active"},{status:404});workspaceId=workspace.id;
  }else{
   const {data:userData,error:userError}=await admin.auth.getUser(token);if(userError||!userData.user)return Response.json({error:"unauthorized"},{status:401});
-  const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id").eq("user_id",userData.user.id).eq("status","active");const membership=(memberships||[]).find((m:any)=>!requestedWorkspace||m.workspace_id===requestedWorkspace);if(!membership)return Response.json({error:"workspace_access_denied"},{status:403});workspaceId=membership.workspace_id;
+  const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id,role").eq("user_id",userData.user.id).eq("status","active");const authz=authorizeMembership(memberships,requestedWorkspace,PROCUREMENT_LEAD_ROLES);if(!authz.ok)return Response.json({error:authz.error},{status:authz.status});workspaceId=authz.workspaceId;
  }
  if(!workspaceId)return Response.json({error:"workspace_unresolved"},{status:400});
  await admin.from("tender_sources").upsert(

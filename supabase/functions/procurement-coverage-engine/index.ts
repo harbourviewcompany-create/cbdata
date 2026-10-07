@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.1";
+import { authorizeMembership, PROCUREMENT_LEAD_ROLES } from "../_shared/authz.ts";
 
 const SERVICE_TERMS:Array<[string,string]>=[
   ["snow","snow"],["ice control","snow"],["salt","snow"],["sanding","snow"],["déneig","snow"],
@@ -54,10 +55,10 @@ Deno.serve(async(req)=>{
   const body=await req.json().catch(()=>({}));
   const requestedWorkspace=typeof body.workspace_id==="string"?body.workspace_id:null;
   const skipScouts=body.skip_scouts===true;
-  const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id").eq("user_id",userData.user.id).eq("status","active");
-  const membership=(memberships||[]).find((m:any)=>!requestedWorkspace||m.workspace_id===requestedWorkspace);
-  if(!membership) return Response.json({error:"workspace_access_denied"},{status:403});
-  const workspaceId=membership.workspace_id;
+  const {data:memberships}=await admin.from("workspace_memberships").select("workspace_id,role").eq("user_id",userData.user.id).eq("status","active");
+  const authz=authorizeMembership(memberships,requestedWorkspace,PROCUREMENT_LEAD_ROLES);
+  if(!authz.ok)return Response.json({error:authz.error},{status:authz.status});
+  const workspaceId=authz.workspaceId;
 
   const {data:run,error:runError}=await admin.from("procurement_coverage_runs").insert({workspace_id:workspaceId}).select("id,started_at").single();
   if(runError||!run) return Response.json({error:runError?.message||"run_create_failed"},{status:500});

@@ -46,3 +46,16 @@ jobs:
           done
 
           echo "Database migration verification passed."
+
+  edge-functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Edge function role-gate tests
+        run: >
+          npx --yes deno@2.9.6 test --allow-env --allow-read --no-check
+          --config supabase/functions/_shared/test/deno.test.json
+          supabase/functions/_shared/
