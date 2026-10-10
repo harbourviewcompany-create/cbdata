@@ -1,3 +1,10 @@
 .next/
 node_modules/
 *.tsbuildinfo
+
+# Private CB Contracting prospect/Gmail staging: never commit customer records.
+.outreach-private/
+cbdata_pm_import_package/
+PRIVATE_OUT/
+private-input*.json
+private-property-manager*.json
