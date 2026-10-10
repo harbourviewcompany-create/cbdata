@@ -19,6 +19,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run test:authz
       - run: npm run test:customer-now
+      - run: node --test tests/property-manager-reconcile.test.mjs
       - run: npm run build
 
   db:
